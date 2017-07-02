@@ -71,7 +71,7 @@ function isCleaningDaySoon(feature, time) {
     const nd = joda.Period.between(time.toLocalDate(), joda.ZonedDateTime.of8(d[2],d[1],d[0],0,0,0,0,TZ).toLocalDate()).days();
     return nd > 0 && nd < CLEANING_DAYS;
   });
-  return (typeof upcoming === "undefined") ? false : upcoming;
+  return (typeof upcoming === "undefined") ? false : joda.Period.between(time.toLocalDate(), joda.ZonedDateTime.of8(upcoming[2], upcoming[1], upcoming[0],0,0,0,0,TZ).toLocalDate()).days();
 }
 
 function isRegionSupported(region) {
