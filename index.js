@@ -38,6 +38,10 @@ function getCurrentRegion(pnt) {
   return findFeatures(pnt, cityRegions.features);
 }
 
+function getCurrentRegionName(feature) {
+  return feature.properties.NAZEV_MC;
+}
+
 function getCleaningZone(pnt) {
   return findFeatures(pnt, cleaningSummer.features);
 }
@@ -52,21 +56,19 @@ function parseCleaningDays(feature) {
   return feature.properties.DAY.split(",").map((e) => e.trim().split(".").map((x) => Number(x)));
 }
 
-function isCleaningDay(feature) {
+function isCleaningDay(feature, time) {
   const days = parseCleaningDays(feature);
-  const now = joda.ZonedDateTime.now(TZ);
   return days.map((d) =>
-    now.dayOfMonth() === d[0] && 
-    now.monthValue() === d[1] && 
-    now.year() === d[2]
+    time.dayOfMonth() === d[0] && 
+    time.monthValue() === d[1] && 
+    time.year() === d[2]
   ).reduce((a,v) => a || v, false);
 }
 
-function isCleaningDaySoon(feature) {
+function isCleaningDaySoon(feature, time) {
   const days = parseCleaningDays(feature);
-  const now = joda.ZonedDateTime.now(TZ);
   const upcoming = days.find((d)=> {
-    const nd = joda.Period.between(now.toLocalDate(), joda.ZonedDateTime.of8(d[2],d[1],d[0],0,0,0,0,TZ).toLocalDate()).days();
+    const nd = joda.Period.between(time.toLocalDate(), joda.ZonedDateTime.of8(d[2],d[1],d[0],0,0,0,0,TZ).toLocalDate()).days();
     return nd > 0 && nd < CLEANING_DAYS;
   });
   return (typeof upcoming === "undefined") ? false : upcoming;
@@ -123,12 +125,11 @@ function parseTariffText(feature) {
   }, []);
 }
 
-function getPrice(feature) {
+function getPrice(feature,time) {
   const tariff = parseTariffText(feature);
-  const now = joda.ZonedDateTime.now(TZ);
-  const d = now.dayOfWeek().ordinal();
-  const h = now.hour();
-  const m = now.minute();
+  const d = time.dayOfWeek().ordinal();
+  const h = time.hour();
+  const m = time.minute();
   const policy = tariff.find((e)=>
     d >= e.days[0] && d <= e.days[1] &&
     h >= e.from[0] && h <= e.to[0] &&
@@ -169,16 +170,17 @@ function triAnd(a, b) {
   return YES;
 }
 
+function isDefined(a) {
+  return typeof a !== 'undefined';
+}
+
 // RULES
 
 function supportedRegionsRule(ctx) {
-  if(!isRegionSupported(ctx.currentRegion)) {
+  if(!isDefined(ctx.currentRegion) || !isRegionSupported(ctx.currentRegion)) {
     return {
       can: MAYBE,
-      because: {
-        reason: "unsupportedRegion",
-        currentRegion: ctx.currentRegion.properties.NAZEV_MC
-      }
+      because: "unsupportedRegion"
     };
   }
   return {can: YES};
@@ -186,62 +188,88 @@ function supportedRegionsRule(ctx) {
 
 function accuracyRule(ctx) {
   if(ctx.acc > ACC_THRESH) {
-    return {can: MAYBE, because: {reason: "lowAccuracy"}};
+    return {
+      can: MAYBE, 
+      because: "lowAccuracy"
+    };
   } 
   return {can: YES};
 }
 
+function noParkingDataRule(ctx) {
+  if(!isDefined(ctx.currentParkingZone)) {
+    return {
+      can: MAYBE,
+      because: "noParkingData"
+    };
+  }
+  return {can: YES};
+}
+
+function noCleaningDataRule(ctx) {
+  if(!isDefined(ctx.currentCleaningZone)) {
+    return {
+      can: MAYBE,
+      because: "noCleaningData"
+    };
+  }
+  return {can: YES};
+}
+
 function cleaningTodayRule(ctx) {
-  if(isCleaningDay(ctx.currentCleaningZone)) {
+  if(isDefined(ctx.currentCleaningZone) && isCleaningDay(ctx.currentCleaningZone, ctx.dt)) {
     return {
       can: NO,
-      because: {
-        reason: "cleaningToday"
-      }
+      because: "cleaningToday"
     };
   }
   return {can: YES};
 }
 
 function cleaningSoonRule(ctx) {
-  const cleaningSoon = isCleaningDaySoon(ctx.currentCleaningZone);
-  if(cleaningSoon) {
-    return {
-      can: YES,
-      but: {
-        "cleaningSoon": cleaningSoon
-      }
-    };
+  if(isDefined(ctx.currentCleaningZone)) {
+    const cleaningSoon = isCleaningDaySoon(ctx.currentCleaningZone, ctx.dt);
+    if(cleaningSoon) {
+      return {
+        can: YES,
+        but: {
+          cleaningSoon: cleaningSoon
+        }
+      };
+    }
   }
   return {can: YES};
 }
 
 function limitedParkingRule(ctx) {
-  const price = getPrice(ctx.currentParkingZone);
-  if (ctx.currentZoneCategory == "VIS" ||
-    (["RES", "MIX"].includes(ctx.currentZoneCategory) &&
-      !hasPermitForRegion(ctx.pop,ctx.currentRegion) &&
-      price > 0)) {
-    return {
-      can: YES,
-      but: {
-        timeLimit: getTimeLimit(ctx.currentParkingZone),
-        price: price
-      }
-    };
+  if(isDefined(ctx.currentParkingZone) && isDefined(ctx.currentRegion)) {
+    const price = getPrice(ctx.currentParkingZone, ctx.dt);
+    if (ctx.currentZoneCategory == "VIS" ||
+      (["RES", "MIX"].includes(ctx.currentZoneCategory) &&
+        !hasPermitForRegion(ctx.pop,ctx.currentRegion) &&
+        price > 0)) {
+      return {
+        can: YES,
+        but: {
+          timeLimit: getTimeLimit(ctx.currentParkingZone),
+          price: price
+        }
+      };
+    }
   }
   return {can: YES};
 }
 
-function canPark(lat, lon, acc, pop) {
+function canPark(lat, lon, acc, pop, dt) {
   // init
   const pnt = turf.point([lon, lat]);
   const currentRegion = getCurrentRegion(pnt);
   const currentCleaningZone = getCleaningZone(pnt);
   const currentParkingZone = getParkingZone(pnt);
-  const currentZoneCategory = getZoneCategory(currentParkingZone);
+  const currentZoneCategory = typeof currentParkingZone !== 'undefined'? getZoneCategory(currentParkingZone) : "";
   
   const context = {
+    dt: dt,
     pnt: pnt,
     acc: acc,
     pop: pop,
@@ -251,11 +279,11 @@ function canPark(lat, lon, acc, pop) {
     currentZoneCategory: currentZoneCategory
   };
   
-  console.log(context);
-  
   const rules = [
     supportedRegionsRule,
     accuracyRule,
+    noCleaningDataRule,
+    noParkingDataRule,
     cleaningTodayRule,
     cleaningSoonRule,
     limitedParkingRule
@@ -264,10 +292,10 @@ function canPark(lat, lon, acc, pop) {
   const result = rules.reduce(function(a,v) {
     const vc = v(context);
     a.can = triAnd(a.can, vc.can);
-    Object.assign(a.because, vc.because);
+    if(isDefined(vc.because)) a.because.push(vc.because);
     Object.assign(a.but, vc.but);
     return a;
-  }, {can: YES, because: {}, but: {}});
+  }, {can: YES, because: [], but: {}});
   
   return result;
 }
@@ -278,7 +306,7 @@ const app = express();
 app.use(bodyParser.json());
 
 app.post('/canpark', function (req, res) {
-  result = canPark(req.body.lat, req.body.lon, req.body.acc);
+  result = canPark(req.body.lat, req.body.lon, req.body.acc, req.body.pop, joda.ZonedDateTime.now(TZ));
   res.send(result);
 });
 
@@ -286,5 +314,9 @@ app.listen(port, function () {
   console.log('Listening');
 });
 
-console.log(canPark(50.099293, 14.397815, 20, []));
+// console.log(canPark(50.104014, 14.384026, 20, [], joda.ZonedDateTime.now(TZ)));
+// console.log(canPark(50.099293, 14.397815, 20, [], joda.ZonedDateTime.now(TZ).plusDays(3)));
+// console.log(canPark(50.099293, 14.397815, 20, [], joda.ZonedDateTime.of8(2017,10,21,0,0,0,0,TZ)));
+// pokuta: 
+console.log(canPark(50.075990, 14.440620, 20, [], joda.ZonedDateTime.of8(2017,04,24,0,0,0,0,TZ)));
 // tst = turf.point([14.397815, 50.099293]);
