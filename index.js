@@ -305,6 +305,8 @@ const port = process.env.PORT || 8080;
 const app = express();
 app.use(bodyParser.json());
 
+app.use('/', express.static('public'));
+
 app.post('/canpark', function (req, res) {
   result = canPark(req.body.lat, req.body.lon, req.body.acc, req.body.pop, joda.ZonedDateTime.now(TZ));
   res.send(result);
@@ -313,10 +315,3 @@ app.post('/canpark', function (req, res) {
 app.listen(port, function () {
   console.log('Listening');
 });
-
-// console.log(canPark(50.104014, 14.384026, 20, [], joda.ZonedDateTime.now(TZ)));
-// console.log(canPark(50.099293, 14.397815, 20, [], joda.ZonedDateTime.now(TZ).plusDays(3)));
-// console.log(canPark(50.099293, 14.397815, 20, [], joda.ZonedDateTime.of8(2017,10,21,0,0,0,0,TZ)));
-// pokuta: 
-console.log(canPark(50.075990, 14.440620, 20, [], joda.ZonedDateTime.of8(2017,04,24,0,0,0,0,TZ)));
-// tst = turf.point([14.397815, 50.099293]);
