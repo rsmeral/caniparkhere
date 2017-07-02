@@ -1,0 +1,35 @@
+@import url('https://fonts.googleapis.com/css?family=Roboto');
+
+.no {
+  background-color: #8b2800;
+}
+
+.yes {
+  background-color: #006705;
+}
+
+.maybe {
+  background-color: #8b8800;
+}
+
+.working {
+  background-color: #555;
+}
+
+.container {
+  text-align: center;
+  margin: auto;
+  width: 80%;
+  padding: 20px;
+}
+
+#emoji {
+  width: 180px;
+}
+
+#text {
+   padding-top: 20px;
+   font-family: 'Roboto', sans-serif;
+   font-size: 1.7em;
+   color: white;
+}
