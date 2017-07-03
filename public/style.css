@@ -24,12 +24,13 @@
 }
 
 #emoji {
-  width: 180px;
+  padding-top: 50px;
+  width: 50%;
 }
 
 #text {
    padding-top: 20px;
    font-family: 'Roboto', sans-serif;
-   font-size: 1.7em;
+   font-size: 6vw;
    color: white;
 }
