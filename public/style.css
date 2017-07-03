@@ -16,20 +16,26 @@
   background-color: #555;
 }
 
+body {
+  margin: auto;
+}
+
 .container {
   text-align: center;
-  margin: auto;
+  margin: 0;
   width: 80%;
-  padding: 20px;
+  padding: 5vh;
 }
 
 #emoji {
-  padding-top: 50px;
-  width: 50%;
+  width: auto;
+  height: auto;
+  max-height: 50%;
+  max-width: 50%;
 }
 
 #text {
-   padding-top: 20px;
+   padding-top: 1vh;
    font-family: 'Roboto', sans-serif;
    font-size: 6vw;
    color: white;
