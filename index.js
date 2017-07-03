@@ -32,10 +32,9 @@ const TIME_LIMITS = {
 };
 
 // load data
-const cleaningSummer = JSON.parse(fs.readFileSync("data/DOP_TSK_LU_terminy_p.json", {encoding: "utf-8"}));
-const zones = JSON.parse(fs.readFileSync("data/DOP_ZPS_ZonyStani_p.json", {encoding: "utf-8"}));
+// const cleaningSummer = JSON.parse(fs.readFileSync("data/DOP_TSK_LU_terminy_p.json", {encoding: "utf-8"}));
+// const zones = JSON.parse(fs.readFileSync("data/DOP_ZPS_ZonyStani_p.json", {encoding: "utf-8"}));
 const cityRegions = JSON.parse(fs.readFileSync("data/TMMESTSKECASTI_P.json", {encoding: "utf-8"}));
-
 
 /*
 THIS IS A HORRIBLE HACK UNTIL I USE AN ACTUAL SPATIAL DB
@@ -50,31 +49,34 @@ const gridW = regions_bbox[2]-regions_bbox[0];
 const gridH = regions_bbox[3]-regions_bbox[1];
 const gridStepX = gridW / GRID;
 const gridStepY = gridH / GRID;
-// 2d array, each leaf holds features it overlaps
-var cleaning_index = Array(GRID);
-var zones_index = Array(GRID);
 
-function makeIndex(idx, polygons) {
-  for(x=0; x<GRID; x++) {
-    idx[x] = Array(GRID);
-    for(y=0; y<GRID; y++) {
-      let sq = th.polygon([[
-        [gridX + x * gridStepX, gridY + y * gridStepY],
-        [gridX + x * gridStepX + gridStepX, gridY + y * gridStepY],
-        [gridX + x * gridStepX + gridStepX, gridY + y * gridStepY + gridStepY],
-        [gridX + x * gridStepX, gridY + y * gridStepY + gridStepY],
-        [gridX + x * gridStepX, gridY + y * gridStepY]
-      ]]);
-      let matching = polygons.filter((p) => isDefined(intersect(p, sq)));
-      idx[x][y] = matching;
-    }
-  }
-}
-a = Date.now();
-makeIndex(cleaning_index, cleaningSummer.features);
-makeIndex(zones_index, zones.features);
-console.log("Made indices");
-console.log("Took "+Date.now()-a);
+var cleaning_index = JSON.parse(fs.readFileSync("data/cleaning_index", {encoding: "utf-8"}));
+var zones_index = JSON.parse(fs.readFileSync("data/zones_index", {encoding: "utf-8"}));
+// 2d array, each leaf holds features it overlaps
+// var cleaning_index = Array(GRID);
+// var zones_index = Array(GRID);
+
+// function makeIndex(idx, polygons) {
+//   for(x=0; x<GRID; x++) {
+//     idx[x] = Array(GRID);
+//     for(y=0; y<GRID; y++) {
+//       let sq = th.polygon([[
+//         [gridX + x * gridStepX, gridY + y * gridStepY],
+//         [gridX + x * gridStepX + gridStepX, gridY + y * gridStepY],
+//         [gridX + x * gridStepX + gridStepX, gridY + y * gridStepY + gridStepY],
+//         [gridX + x * gridStepX, gridY + y * gridStepY + gridStepY],
+//         [gridX + x * gridStepX, gridY + y * gridStepY]
+//       ]]);
+//       let matching = polygons.filter((p) => isDefined(intersect(p, sq)));
+//       idx[x][y] = matching;
+//     }
+//   }
+// }
+// a = Date.now();
+// makeIndex(cleaning_index, cleaningSummer.features);
+// makeIndex(zones_index, zones.features);
+// console.log("Made indices");
+// console.log(Date.now()-a);
 
 function findFeatureIndexed(point, idx) {
   const x = Math.floor((point.geometry.coordinates[0] - gridX) / gridStepX);
@@ -384,7 +386,9 @@ if(process.env.NODE_ENV !== "dev") {
 app.use('/', express.static('public'));
 
 app.post('/canpark', function (req, res) {
+  a = Date.now();
   result = canPark(req.body.lat, req.body.lon, req.body.acc, req.body.pop, joda.ZonedDateTime.now(TZ));
+  console.log(Date.now()-a);
   res.send(result);
 });
 
