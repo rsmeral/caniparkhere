@@ -351,8 +351,8 @@ function canPark(lat, lon, acc, pop, dt) {
   };
   
   const rules = [
-    supportedRegionsRule,
     accuracyRule,
+    supportedRegionsRule,
     noCleaningDataRule,
     noParkingDataRule,
     cleaningTodayRule,

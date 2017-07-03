@@ -42,7 +42,9 @@ function switchState(data) {
       switchEmoji(data.can.toLowerCase());
       break;
     case "YES":
-      if(isDefined(data.but.price)) {
+      if(isDefined(data.but.cleaningSoon)) {
+        switchEmoji("yesbut");
+      } else if(isDefined(data.but.price)) {
         switchEmoji("yesbutprice");
       } else if(Object.keys(data.but).length > 0) {
         switchEmoji("yesbut");
@@ -56,15 +58,15 @@ const texts_cz = {
   YES: "Jo, klidně parkuj",
   YESBUT: "Jo, zaparkuj",
   NO: "Ne, tady neparkuj",
-  MAYBE: "Možná, ale neručím",
+  MAYBE: "Nejsem si jistej",
   
   BUT: "ale",
-  BUT_WARN: "ale bacha",
   BECAUSE: "protože",
+  PROBABLY: "asi",
   
   // DONTKNOW because
   unsupportedRegion: "to tu neznám",
-  lowAccuracy: "není tě moc vidět mezi těma barákama",
+  lowAccuracy: "tě není moc vidět mezi těma barákama",
   noParkingData: "nevím jak se tu parkuje",
   noCleaningData: "nevím kdy to tu čistěj",
   
@@ -86,7 +88,7 @@ const texts_cz = {
       default: 
         daysPhrase = "o " + String(data.but.cleaningSoon) + " " + texts_cz.DEN_5_PLUS; 
     }
-    return "{daysPhrase} se tu bude čistit".replace("{daysPhrase}", daysPhrase);
+    return "bacha, {daysPhrase} se tu bude čistit".replace("{daysPhrase}", daysPhrase);
   },
   
   // but
@@ -104,7 +106,7 @@ const texts_cz = {
       default: 
         timeLimitPhrase = String(data.but.timeLimit) + " " + texts_cz.HOD_5_PLUS; 
     }
-    return "jen {timeLimitPhrase}".replace("{timeLimitPhrase}", timeLimitPhrase);
+    return "max. {timeLimitPhrase}".replace("{timeLimitPhrase}", timeLimitPhrase);
   },
   
   price: function(data) {
@@ -123,6 +125,7 @@ const texts_cz = {
 } 
 
 function clauseConjunction(clauses) {
+  if(clauses.length == 0) return "";
   if(clauses.length == 1) return clauses[0];
   const last = clauses.pop();
   return clauses.join(", ") + ", a " + last;
@@ -134,50 +137,57 @@ function interpolateClause(clauseId, data) {
 }
 
 function setText(data) {
-  var result = "";
-  result += texts_cz[data.can];
-  switch(data.can) {
-    case "NO":
-    case "MAYBE":
-      if(data.because.length > 0) {
-        result += ", ";
-        result += texts_cz.BECAUSE;
-        result += " ";
-        const becauseClause = clauseConjunction(
-          ["unsupportedRegion", 
-          "lowAccuracy", 
-          "noParkingData", 
-          "noCleaningData", 
-          "cleaningToday"].filter((e) => 
-            data.because.includes(e)
-          ).map((e) =>
-            interpolateClause(e, data)
-          )
-        );
-        result += becauseClause;
-      }
-      break;
-    case "YES":
-      if(Object.keys(data.but).length > 0) {
-        result += ", ";
-        if(isDefined(data.but.cleaningSoon)) {
-          result += texts_cz.BUT_WARN + ", ";
-        } else {
-          result += texts_cz.BUT;
-        }
-        result += " ";
-        const butClause = clauseConjunction(
-          ["cleaningSoon", 
-          "timeLimit", 
-          "price"].filter((e) => 
-            Object.keys(data.but).includes(e)
-          ).map((e) =>
-            interpolateClause(e, data)
-          )
-        );
-        result += butClause;
-      }
+  var result = texts_cz[data.can];
+  var becauseClause = "";
+  var butClause = "";
+
+  if(data.because.length > 0) {
+    becauseClause += texts_cz.BECAUSE;
+    becauseClause += " ";
+    const becauseBody = clauseConjunction(
+      ["unsupportedRegion", 
+      "lowAccuracy", 
+      "noParkingData", 
+      "noCleaningData", 
+      "cleaningToday"].filter((e) => 
+        data.because.includes(e)
+      ).map((e) =>
+        interpolateClause(e, data)
+      )
+    );
+    becauseClause += becauseBody;
   }
+
+  if(Object.keys(data.but).length > 0) {
+    butClause += texts_cz.BUT;
+    butClause += " ";
+    if(data.can === "MAYBE" && (Object.keys(data.but).includes("timeLimit") || Object.keys(data.but).includes("price"))) {
+      butClause += texts_cz.PROBABLY;
+      butClause += " ";
+    }
+    const butBody = clauseConjunction(
+      ["timeLimit", 
+      "price",
+      "cleaningSoon"].filter((e) => 
+        Object.keys(data.but).includes(e)
+      ).map((e) =>
+        interpolateClause(e, data)
+      )
+    );
+    butClause += butBody;
+  }
+  
+  if(becauseClause.length > 0) {
+    result += ", ";
+    result += becauseClause;
+  }
+  if(data.can !== "NO") {
+    if(butClause.length > 0) {
+      result += ", ";
+      result += butClause;
+    }
+  }
+  
   result += ".";
   
   document.getElementById("text").textContent = result;
