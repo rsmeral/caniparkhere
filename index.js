@@ -16,7 +16,7 @@ const FREE_CZ = 'zdarma';
 // configuration
 const ACC_THRESH = 40;// meters
 const CLEANING_DAYS = 7;// days
-const SUPPORTED_REGIONS = ["Praha 3", "Praha 5", "Praha 6", "Praha 8"];
+// const SUPPORTED_REGIONS = ["Praha 3", "Praha 5", "Praha 6", "Praha 8"];
 const TZ = joda.ZoneId.of('Europe/Prague');
 const TIME_LIMITS = {
   "RES": 3,
@@ -74,9 +74,9 @@ function isCleaningDaySoon(feature, time) {
   return (typeof upcoming === "undefined") ? false : joda.Period.between(time.toLocalDate(), joda.ZonedDateTime.of8(upcoming[2], upcoming[1], upcoming[0],0,0,0,0,TZ).toLocalDate()).days();
 }
 
-function isRegionSupported(region) {
-  return SUPPORTED_REGIONS.includes(region.properties.NAZEV_1);
-}
+// function isRegionSupported(region) {
+//   return SUPPORTED_REGIONS.includes(region.properties.NAZEV_1);
+// }
 
 // takes TARIFTEXT, e.g. "TARIFTEXT": "Po-Pá: 08:00-19:59 20 Kč/hod, 20:00-05:59 20 Kč/hod; So-Ne: zdarma",
 /* returns
@@ -177,7 +177,7 @@ function isDefined(a) {
 // RULES
 
 function supportedRegionsRule(ctx) {
-  if(!isDefined(ctx.currentRegion) || !isRegionSupported(ctx.currentRegion)) {
+  if(!isDefined(ctx.currentRegion)) { // || !isRegionSupported(ctx.currentRegion)
     return {
       can: MAYBE,
       because: "unsupportedRegion"
