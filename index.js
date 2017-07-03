@@ -1,8 +1,14 @@
-const turf = require("turf");
+const th = require("@turf/helpers");
+const inside = require("@turf/inside");
+const circle = require("@turf/circle");
+const bbox = require("@turf/bbox");
+const intersect = require("@turf/intersect");
+const area = require("@turf/area");
 const fs = require("fs");
 const express = require("express");
 const bodyParser = require("body-parser");
 const joda = require('js-joda').use(require('js-joda-timezone'));
+const overlap = require('turf-overlaps');
 
 // trilean logic
 const MAYBE = "MAYBE";
@@ -14,6 +20,7 @@ const DOW_CZ = ['Po', 'Út', 'St', 'Čt', 'Pá', 'So', 'Ne'];
 const FREE_CZ = 'zdarma';
 
 // configuration
+const LOCATION_RADIUS = 20 / 1000;// kilometers
 const ACC_THRESH = 40;// meters
 const CLEANING_DAYS = 7;// days
 // const SUPPORTED_REGIONS = ["Praha 3", "Praha 5", "Praha 6", "Praha 8"];
@@ -29,13 +36,75 @@ const cleaningSummer = JSON.parse(fs.readFileSync("data/DOP_TSK_LU_terminy_p.jso
 const zones = JSON.parse(fs.readFileSync("data/DOP_ZPS_ZonyStani_p.json", {encoding: "utf-8"}));
 const cityRegions = JSON.parse(fs.readFileSync("data/TMMESTSKECASTI_P.json", {encoding: "utf-8"}));
 
+
+/*
+THIS IS A HORRIBLE HACK UNTIL I USE AN ACTUAL SPATIAL DB
+
+2D grid index of the city bbox
+*/
+const GRID = 10;
+const regions_bbox = bbox(cityRegions);
+const gridX = regions_bbox[0];
+const gridY = regions_bbox[1];
+const gridW = regions_bbox[2]-regions_bbox[0];
+const gridH = regions_bbox[3]-regions_bbox[1];
+const gridStepX = gridW / GRID;
+const gridStepY = gridH / GRID;
+// 2d array, each leaf holds features it overlaps
+var cleaning_index = Array(GRID);
+var zones_index = Array(GRID);
+
+function makeIndex(idx, polygons) {
+  for(x=0; x<GRID; x++) {
+    idx[x] = Array(GRID);
+    for(y=0; y<GRID; y++) {
+      let sq = th.polygon([[
+        [gridX + x * gridStepX, gridY + y * gridStepY],
+        [gridX + x * gridStepX + gridStepX, gridY + y * gridStepY],
+        [gridX + x * gridStepX + gridStepX, gridY + y * gridStepY + gridStepY],
+        [gridX + x * gridStepX, gridY + y * gridStepY + gridStepY],
+        [gridX + x * gridStepX, gridY + y * gridStepY]
+      ]]);
+      let matching = polygons.filter((p) => isDefined(intersect(p, sq)));
+      idx[x][y] = matching;
+    }
+  }
+}
+a = Date.now();
+makeIndex(cleaning_index, cleaningSummer.features);
+makeIndex(zones_index, zones.features);
+console.log("Made indices");
+console.log("Took "+Date.now()-a);
+
+function findFeatureIndexed(point, idx) {
+  const x = Math.floor((point.geometry.coordinates[0] - gridX) / gridStepX);
+  const y = Math.floor((point.geometry.coordinates[1] - gridY) / gridStepY);
+  if(x < 0 || x >= GRID || y < 0 || y >= GRID) return undefined;
+  return findFeatureCircleIntersect(point, idx[x][y]);
+}
+/*
+END OF HORRIBLE HACK
+*/
+
 // find polygons in an array that overlap the current point
-function findFeatures(point, polygons) {
-  return polygons.find((e) => turf.inside(point, e));
+function findFeaturePoint(point, polygons) {
+  return polygons.find((e) => inside(point, e));
+}
+
+function findFeatureCircleIntersect(point, polygons) {
+  const c = circle(point, LOCATION_RADIUS);
+  const overlapping = polygons.filter((p)=> overlap(c,p));
+  if(overlapping.length > 0) {
+    return overlapping.reduce((acc, val) => {
+      const a = area(intersect(val,c));
+      return a > acc.area ? {poly: val, area: a} : acc;
+    }, {poly: {}, area: Number.NEGATIVE_INFINITY}).poly;
+    
+  } else return undefined;
 }
 
 function getCurrentRegion(pnt) {
-  return findFeatures(pnt, cityRegions.features);
+  return findFeaturePoint(pnt, cityRegions.features);
 }
 
 function getCurrentRegionName(feature) {
@@ -43,11 +112,11 @@ function getCurrentRegionName(feature) {
 }
 
 function getCleaningZone(pnt) {
-  return findFeatures(pnt, cleaningSummer.features);
+  return findFeatureIndexed(pnt, cleaning_index);
 }
 
 function getParkingZone(pnt) {
-  return findFeatures(pnt, zones.features);
+  return findFeatureIndexed(pnt, zones_index);
 }
 
 // "DAY": "10.04.2017, 15.09.2017",
@@ -262,7 +331,7 @@ function limitedParkingRule(ctx) {
 
 function canPark(lat, lon, acc, pop, dt) {
   // init
-  const pnt = turf.point([lon, lat]);
+  const pnt = th.point([lon, lat]);
   const currentRegion = getCurrentRegion(pnt);
   const currentCleaningZone = getCleaningZone(pnt);
   const currentParkingZone = getParkingZone(pnt);
