@@ -65,8 +65,14 @@ const texts_cz = {
   PROBABLY: "asi",
   
   // DONTKNOW because
-  unsupportedRegion: "to tu neznám",
-  lowAccuracy: "tě není moc vidět mezi těma barákama",
+  unsupportedRegion: function(data, i) {
+    const a = ["to tu", "neznám"];
+    return (i==0 ? a : a.reverse()).join(" ");
+  },
+  lowAccuracy: function(data, i) {
+    const a = ["tě", "není"];
+    return (i==0 ? a : a.reverse()).join(" ") + " moc vidět mezi těma barákama";
+  },
   noParkingData: "nevím jak se tu parkuje",
   noCleaningData: "nevím kdy to tu čistěj",
   
@@ -131,9 +137,9 @@ function clauseConjunction(clauses) {
   return clauses.join(", ") + ", a " + last;
 }
 
-function interpolateClause(clauseId, data) {
+function interpolateClause(clauseId, data, i) {
   const clauseRef = texts_cz[clauseId];
-  return (typeof clauseRef === "function") ? clauseRef(data) : clauseRef;
+  return (typeof clauseRef === "function") ? clauseRef(data, i) : clauseRef;
 }
 
 function setText(data) {
@@ -141,18 +147,16 @@ function setText(data) {
   var becauseClause = "";
   var butClause = "";
 
+  const becauseRefs = data.can === "NO"? ["cleaningToday"] : ["lowAccuracy", "unsupportedRegion", "noParkingData", "noCleaningData"];
+
   if(data.because.length > 0) {
     becauseClause += texts_cz.BECAUSE;
     becauseClause += " ";
     const becauseBody = clauseConjunction(
-      ["unsupportedRegion", 
-      "lowAccuracy", 
-      "noParkingData", 
-      "noCleaningData", 
-      "cleaningToday"].filter((e) => 
+      becauseRefs.filter((e) => 
         data.because.includes(e)
-      ).map((e) =>
-        interpolateClause(e, data)
+      ).map((e, i) =>
+        interpolateClause(e, data, i)
       )
     );
     becauseClause += becauseBody;
@@ -170,8 +174,8 @@ function setText(data) {
       "price",
       "cleaningSoon"].filter((e) => 
         Object.keys(data.but).includes(e)
-      ).map((e) =>
-        interpolateClause(e, data)
+      ).map((e, i) =>
+        interpolateClause(e, data, i)
       )
     );
     butClause += butBody;
