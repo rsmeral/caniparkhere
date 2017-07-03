@@ -305,6 +305,13 @@ const port = process.env.PORT || 8080;
 const app = express();
 app.use(bodyParser.json());
 
+if(process.env.NODE_ENV !== "dev") {
+  app.use(function(req, res, next) {
+      var reqType = req.headers["x-forwarded-proto"];
+      reqType == 'https' ? next() : res.redirect("https://" + req.headers.host + req.url);
+  });
+}
+
 app.use('/', express.static('public'));
 
 app.post('/canpark', function (req, res) {
