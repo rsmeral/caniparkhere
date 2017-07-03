@@ -22,7 +22,7 @@ const FREE_CZ = 'zdarma';
 // configuration
 const LOCATION_RADIUS = 20 / 1000;// kilometers
 const ACC_THRESH = 40;// meters
-const CLEANING_DAYS = 7;// days
+const CLEANING_DAYS = 20;// days
 // const SUPPORTED_REGIONS = ["Praha 3", "Praha 5", "Praha 6", "Praha 8"];
 const TZ = joda.ZoneId.of('Europe/Prague');
 const TIME_LIMITS = {
