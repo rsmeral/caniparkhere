@@ -1,3 +1,9 @@
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
 .app {
   display: flex;
   flex-direction: column;
@@ -33,7 +39,9 @@
 }
 
 .app__emoji {
-  font-size: min(40vw, 12rem);
+  /* Capped well under most color-emoji fonts' largest bitmap strike (commonly ~160px) -
+     going bigger forces the browser to upscale a raster glyph, which reads as blurry. */
+  font-size: min(30vw, 7rem);
   line-height: 1;
 }
 
