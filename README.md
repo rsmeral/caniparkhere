@@ -1,5 +1,7 @@
 # caniparkhere
 
+<img src="web/public/icons/icon.png" alt="caniparkhere logo" width="96">
+
 Local-only PWA that tells you whether you can park at your current location in Prague —
 no server, no backend. All zone data ships as static JSON baked from Prague's open data
 and queried entirely in the browser.
@@ -81,7 +83,9 @@ will commit a `CNAME` for you), or add `web/public/CNAME` yourself containing th
 ## Known gaps / next steps
 
 - Winter maintenance (`zimni`) data is cleaned but not queried yet.
-- App icons are a placeholder SVG (`web/public/icons/icon.svg`) — fine for Android/modern
-  Safari, worth adding real PNG sizes for broader iOS home-screen support later.
+- The app icon (`web/public/icons/icon.png`) is the original 2017 project's logo, recovered
+  from the `old` branch. It's a single 400×400 PNG used for the favicon, apple-touch-icon,
+  and PWA manifest icon — fine for now, but only one size, so a maskable/multi-size set is
+  worth revisiting if home-screen icons look off on some devices.
 - The data pipeline runs manually; the plan is to schedule it on external infra and have
   it push refreshed `web/public/data/*.json` on a recurring basis.

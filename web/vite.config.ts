@@ -7,11 +7,11 @@ export default defineConfig({
     preact(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["icons/*.svg"],
+      includeAssets: ["icons/*.png"],
       workbox: {
         // Data files are versioned via manifest.json + IndexedDB ourselves,
         // so let the service worker just cache the app shell.
-        globPatterns: ["**/*.{js,css,html,svg}"],
+        globPatterns: ["**/*.{js,css,html,png}"],
       },
       manifest: {
         name: "Can I Park Here",
@@ -21,9 +21,7 @@ export default defineConfig({
         background_color: "#22c55e",
         display: "standalone",
         start_url: "/",
-        icons: [
-          { src: "/icons/icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any maskable" },
-        ],
+        icons: [{ src: "/icons/icon.png", sizes: "400x400", type: "image/png", purpose: "any" }],
       },
     }),
   ],
