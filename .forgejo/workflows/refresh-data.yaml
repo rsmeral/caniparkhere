@@ -18,6 +18,10 @@ jobs:
         with:
           node-version: 24
 
+      - name: Capture current data version
+        id: before
+        run: echo "version=$(jq -r .version web/public/data/manifest.json)" >> "$GITHUB_OUTPUT"
+
       - name: Run pipeline
         working-directory: pipeline
         run: |
@@ -27,7 +31,10 @@ jobs:
       - name: Check for changes
         id: diff
         run: |
-          if git status --porcelain web/public/data | grep -q .; then
+          # manifest.json's version hash is derived only from dataset bytes, not
+          # generatedAt, so this only trips on an actual data change, not a rebuild.
+          NEW=$(jq -r .version web/public/data/manifest.json)
+          if [ "$NEW" != "${{ steps.before.outputs.version }}" ]; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           else
             echo "changed=false" >> "$GITHUB_OUTPUT"
