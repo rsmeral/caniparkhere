@@ -1,13 +1,25 @@
 import type { LoadedData } from "./dataStore";
 import { PolygonIndex } from "./spatialIndex";
 import { activeRuleNow } from "./tariffLogic";
+import type { Bounds } from "./types";
 
 export type Status =
+  | { kind: "outOfArea" }
   | { kind: "closure"; streetName: string | null }
   | { kind: "paidZone"; pricePerHour: number; dailyCapCzk: number | null; until: string }
   | { kind: "residentZone" }
   | { kind: "freeZoneRightNow" }
   | { kind: "clear" };
+
+/**
+ * Checks a point against the data's coverage envelope (see the pipeline's padBbox) - a
+ * coarse "are you anywhere near Prague" sanity check, not a precise city-boundary test.
+ */
+export function isWithinBounds(bounds: Bounds, lon: number, lat: number): boolean {
+  return (
+    lon >= bounds.minLon && lon <= bounds.maxLon && lat >= bounds.minLat && lat <= bounds.maxLat
+  );
+}
 
 export interface UpcomingClosure {
   date: string; // ISO date

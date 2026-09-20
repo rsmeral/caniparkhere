@@ -28,6 +28,9 @@
 .app--danger {
   background: #ef4444;
 }
+.app--outside {
+  background: #3b82f6;
+}
 
 .app__emoji {
   font-size: min(40vw, 12rem);

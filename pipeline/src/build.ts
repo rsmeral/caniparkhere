@@ -4,7 +4,14 @@ import path from "node:path";
 import type { Feature, FeatureCollection, Geometry, MultiLineString, MultiPolygon } from "geojson";
 
 import { buildDictionary } from "./lib/dictionary.js";
-import { roundGeometry, simplifyGeometry } from "./lib/geo.js";
+import {
+  bboxOfGeometry,
+  mergeBbox,
+  padBbox,
+  roundGeometry,
+  simplifyGeometry,
+  type Bbox,
+} from "./lib/geo.js";
 import { parseLetniDates } from "./lib/letniDates.js";
 import { SOURCES } from "./sources.js";
 import { parseTariffText, type TariffRule } from "./lib/tariff.js";
@@ -95,6 +102,10 @@ function buildZimni(fc: FeatureCollection) {
   return { features };
 }
 
+function bboxOfFeatures(features: Feature<Geometry, unknown>[]): Bbox {
+  return features.map((f) => bboxOfGeometry(f.geometry)).reduce(mergeBbox);
+}
+
 async function writeJSON(name: string, data: unknown): Promise<{ name: string; bytes: number }> {
   const json = JSON.stringify(data);
   await writeFile(path.join(OUT_DIR, `${name}.json`), json);
@@ -136,6 +147,10 @@ async function main() {
     writeJSON("zimni", zimni),
   ]);
 
+  const bounds = padBbox(
+    [zps, letni, zimni].map((d) => bboxOfFeatures(d.features)).reduce(mergeBbox),
+  );
+
   const manifest = {
     generatedAt: new Date().toISOString(),
     version: createHash("sha256")
@@ -143,6 +158,7 @@ async function main() {
       .digest("hex")
       .slice(0, 16),
     datasets: Object.fromEntries(written.map((w) => [w.name, { bytes: w.bytes }])),
+    bounds,
   };
   await writeJSON("manifest", manifest);
 

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { roundGeometry, simplifyGeometry } from "./geo.js";
+import { bboxOfGeometry, mergeBbox, padBbox, roundGeometry, simplifyGeometry } from "./geo.js";
 
 describe("roundGeometry", () => {
   it("rounds coordinates to ~1m precision (5 decimals)", () => {
@@ -70,5 +70,85 @@ describe("simplifyGeometry", () => {
     const simplified = simplifyGeometry(square, 0.01);
     expect(simplified.type).toBe("Polygon");
     expect(simplified.coordinates[0].length).toBeLessThan(square.coordinates[0].length);
+  });
+});
+
+describe("bboxOfGeometry", () => {
+  it("computes the envelope of a Point", () => {
+    expect(bboxOfGeometry({ type: "Point", coordinates: [14.5, 50.1] } as any)).toEqual({
+      minLon: 14.5,
+      minLat: 50.1,
+      maxLon: 14.5,
+      maxLat: 50.1,
+    });
+  });
+
+  it("computes the envelope of a MultiPolygon across multiple rings", () => {
+    const geom = {
+      type: "MultiPolygon",
+      coordinates: [
+        [
+          [
+            [14, 50],
+            [14.1, 50],
+            [14.1, 50.1],
+          ],
+        ],
+        [
+          [
+            [13.9, 49.9],
+            [14, 49.9],
+          ],
+        ],
+      ],
+    } as any;
+    expect(bboxOfGeometry(geom)).toEqual({
+      minLon: 13.9,
+      minLat: 49.9,
+      maxLon: 14.1,
+      maxLat: 50.1,
+    });
+  });
+
+  it("computes the envelope of a MultiLineString", () => {
+    const geom = {
+      type: "MultiLineString",
+      coordinates: [
+        [
+          [14.5, 50.1],
+          [14.52, 50.12],
+        ],
+      ],
+    } as any;
+    expect(bboxOfGeometry(geom)).toEqual({
+      minLon: 14.5,
+      minLat: 50.1,
+      maxLon: 14.52,
+      maxLat: 50.12,
+    });
+  });
+});
+
+describe("mergeBbox", () => {
+  it("returns the smallest bbox containing both inputs", () => {
+    const a = { minLon: 0, minLat: 0, maxLon: 1, maxLat: 1 };
+    const b = { minLon: -1, minLat: 0.5, maxLon: 0.5, maxLat: 2 };
+    expect(mergeBbox(a, b)).toEqual({ minLon: -1, minLat: 0, maxLon: 1, maxLat: 2 });
+  });
+});
+
+describe("padBbox", () => {
+  it("expands every side by the given margin", () => {
+    const bbox = { minLon: 14, minLat: 50, maxLon: 14.5, maxLat: 50.2 };
+    const padded = padBbox(bbox, 0.1);
+    expect(padded.minLon).toBeCloseTo(13.9);
+    expect(padded.minLat).toBeCloseTo(49.9);
+    expect(padded.maxLon).toBeCloseTo(14.6);
+    expect(padded.maxLat).toBeCloseTo(50.3);
+  });
+
+  it("defaults to a 0.1 degree margin", () => {
+    const bbox = { minLon: 14, minLat: 50, maxLon: 14.5, maxLat: 50.2 };
+    expect(padBbox(bbox)).toEqual(padBbox(bbox, 0.1));
   });
 });

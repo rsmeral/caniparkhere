@@ -3,6 +3,12 @@ import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
+  // Lets `vite dev` be reached through an ad-hoc `cloudflared tunnel --url` quick tunnel
+  // for phone testing (real HTTPS, needed for the Geolocation API) - dev-server only,
+  // has no effect on the production build or how it's served.
+  server: {
+    allowedHosts: [".trycloudflare.com"],
+  },
   plugins: [
     preact(),
     VitePWA({

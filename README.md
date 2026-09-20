@@ -24,9 +24,17 @@ npm run build   # fetches sources, cleans/simplifies, writes web/public/data/*.j
 ```
 
 Output is committed to the repo (`web/public/data/*.json`) — GitHub Pages serves it as
-static files, there's no build-time fetch in CI. Re-run this manually whenever the source
-data should be refreshed; eventually this should run on a schedule against Prague's open
-data and push the updated files.
+static files, there's no build-time fetch in CI. `.forgejo/workflows/refresh-data.yaml`
+runs this daily on the self-hosted Forgejo runner, and only commits + pushes (to both
+Forgejo and GitHub) when `manifest.json`'s `version` actually changes — a rebuild against
+unchanged source data is a no-op, not a spurious commit.
+
+`manifest.json` also carries `bounds`: a padded bounding box (envelope) over every feature
+in all three datasets, computed in the pipeline (`bboxOfGeometry`/`mergeBbox`/`padBbox` in
+`lib/geo.ts`). The app uses it as a coarse "are you anywhere near Prague" check before
+querying zones — deliberately a loose rectangle, not a precise administrative boundary,
+since our zone data doesn't cover Prague's outer districts and a tighter check would
+incorrectly flag real Prague locations that just have no nearby zones.
 
 Current datasets and what's actually usable in them:
 
@@ -87,5 +95,5 @@ will commit a `CNAME` for you), or add `web/public/CNAME` yourself containing th
   from the `old` branch. It's a single 400×400 PNG used for the favicon, apple-touch-icon,
   and PWA manifest icon — fine for now, but only one size, so a maskable/multi-size set is
   worth revisiting if home-screen icons look off on some devices.
-- The data pipeline runs manually; the plan is to schedule it on external infra and have
-  it push refreshed `web/public/data/*.json` on a recurring basis.
+- GitHub Pages itself isn't published yet (repo is private, `Settings → Pages` not
+  enabled) — the deploy workflow builds successfully but has nothing to deploy to.

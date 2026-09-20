@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "preact/hooks";
 import "./app.css";
 import { loadData, type LoadedData } from "./dataStore";
 import { describe, type Display } from "./describe";
-import { buildIndexes, queryStatus } from "./query";
+import { buildIndexes, isWithinBounds, queryStatus } from "./query";
 import { useGeolocation } from "./useGeolocation";
 
 const neutral = (emoji: string, sentence: string): Display => ({
@@ -30,6 +30,9 @@ export function App() {
     if (geo.status === "error") return neutral("🤷", geo.message);
     if (!data || !indexes || geo.status === "loading") {
       return neutral("⏳", "Figuring out where you are...");
+    }
+    if (!isWithinBounds(data.bounds, geo.lon, geo.lat)) {
+      return describe({ kind: "outOfArea" });
     }
     const result = queryStatus(data, indexes, geo.lon, geo.lat);
     return describe(result.status, result.upcomingClosure);

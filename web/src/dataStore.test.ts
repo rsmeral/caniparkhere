@@ -8,7 +8,13 @@ vi.mock("idb-keyval", () => ({
 import { get, set } from "idb-keyval";
 import { loadData } from "./dataStore";
 
-const manifest = { generatedAt: "2026-01-01T00:00:00.000Z", version: "abc123", datasets: {} };
+const bounds = { minLon: 14.16, minLat: 49.84, maxLon: 14.8, maxLat: 50.27 };
+const manifest = {
+  generatedAt: "2026-01-01T00:00:00.000Z",
+  version: "abc123",
+  datasets: {},
+  bounds,
+};
 const zps = { tariffs: [], features: [] };
 const letni = { dates: [], features: [] };
 
@@ -46,7 +52,7 @@ describe("loadData", () => {
 
     const result = await loadData();
 
-    expect(result).toEqual({ zps, letni });
+    expect(result).toEqual({ zps, letni, bounds });
     // Only the manifest should have been fetched over the network - not zps/letni.
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(set).not.toHaveBeenCalled();
@@ -60,7 +66,7 @@ describe("loadData", () => {
 
     const result = await loadData();
 
-    expect(result).toEqual({ zps, letni });
+    expect(result).toEqual({ zps, letni, bounds });
     expect(fetch).toHaveBeenCalledTimes(3); // manifest + zps + letni
     expect(set).toHaveBeenCalledWith("caniparkhere:zps", zps);
     expect(set).toHaveBeenCalledWith("caniparkhere:letni", letni);
@@ -72,7 +78,7 @@ describe("loadData", () => {
 
     const result = await loadData();
 
-    expect(result).toEqual({ zps, letni });
+    expect(result).toEqual({ zps, letni, bounds });
     expect(fetch).toHaveBeenCalledTimes(3);
   });
 });

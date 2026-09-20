@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Feature, MultiPolygon } from "geojson";
 import type { LoadedData } from "./dataStore";
-import { buildIndexes, queryStatus } from "./query";
+import { buildIndexes, isWithinBounds, queryStatus } from "./query";
 import type { LetniProps, ZpsProps } from "./types";
 
 function square(x0: number, y0: number, x1: number, y1: number) {
@@ -72,6 +72,7 @@ function buildFixture(now: Date): LoadedData {
         letniFeature(square(60, 60, 70, 70), { name: "Bar St", datesId: 1 }),
       ],
     },
+    bounds: { minLon: -100, minLat: -100, maxLon: 100, maxLat: 100 },
   };
 }
 
@@ -162,5 +163,22 @@ describe("queryStatus", () => {
     const indexes = buildIndexes(data);
     const result = queryStatus(data, indexes, 65, 65, now);
     expect(result.upcomingClosure).toBeNull();
+  });
+});
+
+describe("isWithinBounds", () => {
+  const bounds = { minLon: 14.16, minLat: 49.84, maxLon: 14.8, maxLat: 50.27 };
+
+  it("returns true for a point inside the envelope", () => {
+    expect(isWithinBounds(bounds, 14.42, 50.08)).toBe(true);
+  });
+
+  it("returns true for a point exactly on the boundary", () => {
+    expect(isWithinBounds(bounds, bounds.minLon, bounds.minLat)).toBe(true);
+    expect(isWithinBounds(bounds, bounds.maxLon, bounds.maxLat)).toBe(true);
+  });
+
+  it("returns false for a point outside the envelope (e.g. a different city)", () => {
+    expect(isWithinBounds(bounds, 16.6068, 49.1951)).toBe(false); // Brno
   });
 });

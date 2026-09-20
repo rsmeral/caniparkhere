@@ -1,6 +1,6 @@
 import type { Status, UpcomingClosure } from "./query";
 
-export type Tone = "neutral" | "good" | "warn" | "caution" | "danger";
+export type Tone = "neutral" | "good" | "warn" | "caution" | "danger" | "outside";
 
 export interface Display {
   tone: Tone;
@@ -17,11 +17,22 @@ function upcomingWarning(upcoming: UpcomingClosure | null): string | null {
   return `Heads up: street cleaning${where} ${when}.`;
 }
 
-/** Maps a query result to what the UI shows. A closure today suppresses the upcoming-closure warning (redundant). */
+/**
+ * Maps a query result to what the UI shows. A closure today, or being out of the app's
+ * coverage area entirely, both suppress the upcoming-closure warning (redundant either way).
+ */
 export function describe(status: Status, upcoming: UpcomingClosure | null = null): Display {
-  const warning = status.kind === "closure" ? null : upcomingWarning(upcoming);
+  const warning =
+    status.kind === "closure" || status.kind === "outOfArea" ? null : upcomingWarning(upcoming);
 
   switch (status.kind) {
+    case "outOfArea":
+      return {
+        tone: "outside",
+        emoji: "🧭",
+        sentence: "This app only covers Prague — looks like you're somewhere else.",
+        warning: null,
+      };
     case "closure":
       return {
         tone: "danger",

@@ -5,6 +5,12 @@ import type { Status, UpcomingClosure } from "./query";
 const upcoming: UpcomingClosure = { date: "2026-04-10", daysUntil: 3, streetName: "Bar St" };
 
 suite("describe", () => {
+  it("describes outOfArea without a warning, even when one was passed in", () => {
+    const display = describe({ kind: "outOfArea" }, upcoming);
+    expect(display.tone).toBe("outside");
+    expect(display.warning).toBeNull();
+  });
+
   it("describes a closure without a warning, even when one was passed in", () => {
     const status: Status = { kind: "closure", streetName: "Foo St" };
     const display = describe(status, upcoming);

@@ -35,8 +35,16 @@ export interface LetniData {
   features: Feature<MultiPolygon, LetniProps>[];
 }
 
+export interface Bounds {
+  minLon: number;
+  minLat: number;
+  maxLon: number;
+  maxLat: number;
+}
+
 export interface Manifest {
   generatedAt: string;
   version: string;
   datasets: Record<string, { bytes: number }>;
+  bounds: Bounds;
 }
