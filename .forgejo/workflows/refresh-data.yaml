@@ -1,0 +1,53 @@
+name: Refresh data
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: docker
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Run pipeline
+        working-directory: pipeline
+        run: |
+          npm ci
+          npm run build
+
+      - name: Check for changes
+        id: diff
+        run: |
+          if git status --porcelain web/public/data | grep -q .; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          git config user.name "caniparkhere-bot"
+          git config user.email "bot@smeral.net"
+          git add web/public/data
+          git commit -m "Refresh zone data from Prague open data"
+
+      - name: Push to Forgejo
+        if: steps.diff.outputs.changed == 'true'
+        run: git push origin HEAD:main
+
+      - name: Push to GitHub
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          git push "https://x-access-token:${GH_PUSH_TOKEN}@github.com/rsmeral/caniparkhere.git" HEAD:main
+        env:
+          GH_PUSH_TOKEN: ${{ secrets.GH_PUSH_TOKEN }}
