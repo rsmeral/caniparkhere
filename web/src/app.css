@@ -17,6 +17,8 @@ body {
   font-family: system-ui, sans-serif;
   text-align: center;
   transition: background 0.3s ease;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .app--neutral {
@@ -39,10 +41,10 @@ body {
 }
 
 .app__emoji {
-  /* Capped well under most color-emoji fonts' largest bitmap strike (commonly ~160px) -
-     going bigger forces the browser to upscale a raster glyph, which reads as blurry. */
-  font-size: min(30vw, 7rem);
-  line-height: 1;
+  /* SVG (Twemoji), not a native emoji font glyph - crisp at any size, unlike the bitmap
+     strikes most platforms render color emoji from. */
+  width: min(30vw, 7rem);
+  height: min(30vw, 7rem);
 }
 
 .app__sentence {

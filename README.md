@@ -81,19 +81,23 @@ npm run format:check # CI-style check
 ## Hosting
 
 `.github/workflows/deploy.yml` builds `web/` and deploys `web/dist` to GitHub Pages on
-every push to `main`. One-time setup in the repo settings: **Settings → Pages → Source →
-GitHub Actions**.
+every push to `main`. Live at [canipark.smeral.net](https://canipark.smeral.net) — set via
+`web/public/CNAME` (copied into `web/dist` on build) plus a `canipark.smeral.net` → CNAME →
+`rsmeral.github.io` DNS record.
 
-For a custom domain, either set it under **Settings → Pages → Custom domain** (GitHub
-will commit a `CNAME` for you), or add `web/public/CNAME` yourself containing the domain
-— it gets copied into `web/dist` on build.
+## Icons
+
+The app icon (`web/public/icons/icon.png`) is the original 2017 project's logo, recovered
+from the `old` branch — a single 400×400 PNG used for the favicon, apple-touch-icon, and
+PWA manifest icon.
+
+The status emoji (`web/public/emoji/*.svg`) are [Twemoji](https://github.com/jdecked/twemoji)
+graphics (CC-BY 4.0), rendered as `<img>` rather than the literal Unicode character — native
+emoji fonts render blurry at the size this app displays them, since most only ship bitmap
+strikes up to ~160px.
 
 ## Known gaps / next steps
 
 - Winter maintenance (`zimni`) data is cleaned but not queried yet.
-- The app icon (`web/public/icons/icon.png`) is the original 2017 project's logo, recovered
-  from the `old` branch. It's a single 400×400 PNG used for the favicon, apple-touch-icon,
-  and PWA manifest icon — fine for now, but only one size, so a maskable/multi-size set is
-  worth revisiting if home-screen icons look off on some devices.
-- GitHub Pages itself isn't published yet (repo is private, `Settings → Pages` not
-  enabled) — the deploy workflow builds successfully but has nothing to deploy to.
+- The app icon is only one size — a maskable/multi-size set is worth revisiting if
+  home-screen icons look off on some devices.

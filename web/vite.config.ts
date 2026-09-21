@@ -13,11 +13,11 @@ export default defineConfig({
     preact(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["icons/*.png"],
+      includeAssets: ["icons/*.png", "emoji/*.svg"],
       workbox: {
         // Data files are versioned via manifest.json + IndexedDB ourselves,
         // so let the service worker just cache the app shell.
-        globPatterns: ["**/*.{js,css,html,png}"],
+        globPatterns: ["**/*.{js,css,html,png,svg}"],
       },
       manifest: {
         name: "Can I Park Here",

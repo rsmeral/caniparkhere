@@ -4,7 +4,9 @@ export type Tone = "neutral" | "good" | "warn" | "caution" | "danger" | "outside
 
 export interface Display {
   tone: Tone;
-  emoji: string;
+  /** Twemoji codepoint (see web/public/emoji/), e.g. "1f60a" for 😊. Rendered as an <img>,
+   * not the literal character - native emoji fonts render blurry at this size on most platforms. */
+  icon: string;
   sentence: string;
   warning: string | null;
 }
@@ -29,14 +31,14 @@ export function describe(status: Status, upcoming: UpcomingClosure | null = null
     case "outOfArea":
       return {
         tone: "outside",
-        emoji: "🧭",
+        icon: "1f9ed", // 🧭
         sentence: "This app only covers Prague — looks like you're somewhere else.",
         warning: null,
       };
     case "closure":
       return {
         tone: "danger",
-        emoji: "😟",
+        icon: "1f61f", // 😟
         sentence: `Street cleaning today${status.streetName ? ` on ${status.streetName}` : ""} — don't park here.`,
         warning: null,
       };
@@ -44,7 +46,7 @@ export function describe(status: Status, upcoming: UpcomingClosure | null = null
       const cap = status.dailyCapCzk ? ` (max ${status.dailyCapCzk} Kč)` : "";
       return {
         tone: "warn",
-        emoji: "🙂",
+        icon: "1f642", // 🙂
         sentence: `Paid zone: ${status.pricePerHour} Kč/hod${cap} until ${status.until}.`,
         warning,
       };
@@ -52,21 +54,21 @@ export function describe(status: Status, upcoming: UpcomingClosure | null = null
     case "residentZone":
       return {
         tone: "caution",
-        emoji: "🤔",
+        icon: "1f914", // 🤔
         sentence: "Resident-only zone — you may need a permit.",
         warning,
       };
     case "freeZoneRightNow":
       return {
         tone: "good",
-        emoji: "😊",
+        icon: "1f60a", // 😊
         sentence: "You're in a paid zone, but it's free right now.",
         warning,
       };
     case "clear":
       return {
         tone: "good",
-        emoji: "😊",
+        icon: "1f60a", // 😊
         sentence: "Looks clear — no restrictions found here.",
         warning,
       };
