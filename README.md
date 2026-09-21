@@ -1,10 +1,13 @@
-# caniparkhere
+# Can I park here?
+
+https://canipark.smeral.net
 
 <img src="web/public/icons/icon.png" alt="caniparkhere logo" width="96">
 
-Local-only PWA that tells you whether you can park at your current location in Prague —
-no server, no backend. All zone data ships as static JSON baked from Prague's open data
-and queried entirely in the browser.
+Tells you whether you can park at your current location in Prague —
+no server, no backend, your location data stays in your browser. 
+
+All zone data ships as static JSON baked from Prague's open data and queried entirely in the browser.
 
 ## Layout
 
