@@ -5,7 +5,18 @@ import type { Status, UpcomingClosure } from "./query";
 
 // Codepoints referenced anywhere in the app - describe()'s statuses plus app.tsx's
 // hardcoded neutral (loading/error) states, which don't go through describe() at all.
-const ALL_ICON_CODEPOINTS = ["23f3", "1f635", "1f937", "1f9ed", "1f61f", "1f642", "1f914", "1f60a"];
+const ALL_ICON_CODEPOINTS = [
+  "23f3",
+  "1f635",
+  "1f937",
+  "1f512",
+  "1f6f0",
+  "1f9ed",
+  "1f61f",
+  "1f642",
+  "1f914",
+  "1f60a",
+];
 
 const upcoming: UpcomingClosure = { date: "2026-04-10", daysUntil: 3, streetName: "Bar St" };
 

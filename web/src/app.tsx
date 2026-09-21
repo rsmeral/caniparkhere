@@ -27,8 +27,22 @@ export function App() {
 
   const display: Display = useMemo(() => {
     if (dataError) return neutral("1f635", `Couldn't load zone data: ${dataError}`); // 😵
-    if (geo.status === "error") return neutral("1f937", geo.message); // 🤷
-    if (!data || !indexes || geo.status === "loading") {
+    if (geo.status === "unsupported") {
+      return neutral("1f937", "This device can't share its location."); // 🤷
+    }
+    if (geo.status === "denied") {
+      return neutral(
+        "1f512",
+        "Location is turned off. Allow it for this site to see what applies here.",
+      ); // 🔒
+    }
+    if (geo.status === "unavailable") {
+      return neutral(
+        "1f6f0",
+        "Still can't get a location fix. Try moving somewhere with a clearer view of the sky.",
+      ); // 🛰
+    }
+    if (!data || !indexes || geo.status === "searching") {
       return neutral("23f3", "Figuring out where you are..."); // ⏳
     }
     if (!isWithinBounds(data.bounds, geo.lon, geo.lat)) {
