@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { Feature, FeatureCollection, Geometry, MultiLineString, MultiPolygon } from "geojson";
+import type { Feature, FeatureCollection, Geometry, MultiPolygon } from "geojson";
 
 import { buildDictionary } from "./lib/dictionary.js";
 import {
@@ -86,22 +86,6 @@ function buildLetni(fc: FeatureCollection) {
   return { dates, features };
 }
 
-interface ZimniFeatureProps {
-  level: number;
-}
-
-function buildZimni(fc: FeatureCollection) {
-  const features: Feature<MultiLineString, ZimniFeatureProps>[] = fc.features.map((f) => ({
-    type: "Feature",
-    geometry: cleanGeometry(f.geometry, 0.00002) as MultiLineString,
-    properties: {
-      level: (f.properties as any).idt_level,
-    },
-  }));
-
-  return { features };
-}
-
 function bboxOfFeatures(features: Feature<Geometry, unknown>[]): Bbox {
   return features.map((f) => bboxOfGeometry(f.geometry)).reduce(mergeBbox);
 }
@@ -134,22 +118,15 @@ async function main() {
   await mkdir(OUT_DIR, { recursive: true });
 
   console.log("Fetching + cleaning source datasets...");
-  const [zps, letni, zimni] = await Promise.all([
+  const [zps, letni] = await Promise.all([
     fetchAndBuild(SOURCES.zps, buildZps),
     fetchAndBuild(SOURCES.letni, buildLetni),
-    fetchAndBuild(SOURCES.zimni, buildZimni),
   ]);
 
   console.log("Writing output...");
-  const written = await Promise.all([
-    writeJSON("zps", zps),
-    writeJSON("letni", letni),
-    writeJSON("zimni", zimni),
-  ]);
+  const written = await Promise.all([writeJSON("zps", zps), writeJSON("letni", letni)]);
 
-  const bounds = padBbox(
-    [zps, letni, zimni].map((d) => bboxOfFeatures(d.features)).reduce(mergeBbox),
-  );
+  const bounds = padBbox([zps, letni].map((d) => bboxOfFeatures(d.features)).reduce(mergeBbox));
 
   const manifest = {
     generatedAt: new Date().toISOString(),

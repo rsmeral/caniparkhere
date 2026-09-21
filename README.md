@@ -9,8 +9,8 @@ and queried entirely in the browser.
 ## Layout
 
 - `pipeline/` — Node/TS scripts that fetch the source datasets from Prague's open data
-  (TSK winter/summer road maintenance, paid parking zones), clean and shrink them, and
-  write the result to `web/public/data/`.
+  (TSK summer block cleaning, paid parking zones), clean and shrink them, and write the
+  result to `web/public/data/`.
 - `web/` — Preact + TypeScript + Vite PWA. Loads the data bundle once, caches it in
   IndexedDB, builds an in-memory R-tree spatial index, and answers "can I park here" from
   geolocation with zero network calls after first load.
@@ -30,7 +30,7 @@ Forgejo and GitHub) when `manifest.json`'s `version` actually changes — a rebu
 unchanged source data is a no-op, not a spurious commit.
 
 `manifest.json` also carries `bounds`: a padded bounding box (envelope) over every feature
-in all three datasets, computed in the pipeline (`bboxOfGeometry`/`mergeBbox`/`padBbox` in
+in both datasets, computed in the pipeline (`bboxOfGeometry`/`mergeBbox`/`padBbox` in
 `lib/geo.ts`). The app uses it as a coarse "are you anywhere near Prague" check before
 querying zones — deliberately a loose rectangle, not a precise administrative boundary,
 since our zone data doesn't cover Prague's outer districts and a tighter check would
@@ -48,11 +48,37 @@ Kč)` cap. The parser recovers price/hours and just drops the cap in that case (
 - **`letni`** (summer block-cleaning zones) — polygon per street segment with a `datesId`
   into a shared `dates` table of specific closure days (not ranges) for the year. This
   dataset is inherently annual — it needs refreshing at least once a year to stay correct.
-- **`zimni`** (winter maintenance) — `MultiLineString` road centerlines (not polygons)
-  with a numeric `idt_level` priority class. **Not wired into the app's query logic yet**:
-  the 16 distinct level values (0-11, 40, 41, 52-54) don't map to a documented scale, and
-  matching a point against lines needs point-to-line distance instead of point-in-polygon.
-  Left out of v1 rather than guessing at the semantics.
+
+### Why there's no winter-maintenance dataset
+
+TSK also publishes [Zimní údržba komunikací](https://lkod.cz/catalog/praha/datasets/https%3A%2F%2Fapi.lkod.cz%2Flod%2F03bdf7d6-a255-4e22-83f9-4b17b6822602%2Fcatalog%2F336cda94-b4d1-47a4-abbf-50d9e1d956a4),
+and an earlier revision of this pipeline ingested it. It was dropped deliberately:
+**winter maintenance is not a parking restriction.** Unlike blokové čištění (the `letni`
+dataset), which posts portable no-stopping signs ≥7 days ahead and tows offenders, snow
+clearing just plows around parked cars — no sign, no ban, no tow. So the dataset can't
+answer this app's question; at best it answers "how fast does this street get plowed",
+which doesn't change any parking decision.
+
+Recording what was worked out, in case it's ever wanted: the data is `MultiLineString`
+road centerlines with an `idt_level` field (alias "Pořadí údržby"). No coded-value domain
+is published anywhere — not in the ArcGIS Hub metadata, not on the
+[FeatureServer](https://mp.iprpraha.cz/arcgis/rest/services/Hosted/DOP_CUR_DOP_TSK_ZIMNIUDRZBA_L/FeatureServer/0)
+— but the levels can be matched empirically against the km-per-priority figures TSK
+publishes in its annual winter maintenance plan:
+
+| `idt_level`               | Measured | TSK published                    | Meaning                                                                                          |
+| ------------------------- | -------- | -------------------------------- | ------------------------------------------------------------------------------------------------ |
+| 1 + 2                     | 1400 km  | I. pořadí — 1378 km              | Roads, cleared within 2 resp. 4 h (the two sub-tiers are likely why it splits across two levels) |
+| 3                         | 530 km   | II. pořadí — 500 km              | Roads, within 12 h                                                                               |
+| 4                         | 314 km   | III. pořadí — 313 km             | Roads, within 48 h                                                                               |
+| 1–4 total                 | 2245 km  | motorized total — 2192 km        | —                                                                                                |
+| 0, 5, 7–11, 40, 41, 52–54 | 1448 km  | chodníky/non-motorized — 1753 km | Pavements and other non-motorized, looser match                                                  |
+
+That mapping is inference from correlation, not documentation — confirm with TSK
+(`tsk@tsk-praha.cz`) before relying on it. Wiring it up would also need point-to-line
+distance rather than point-in-polygon, which is meaningfully error-prone at street scale:
+GPS is ±5–20 m in a city, centerlines sit ~5–10 m off the curb, and parallel streets can
+be ~15 m apart.
 
 ## Web app
 
@@ -98,6 +124,5 @@ strikes up to ~160px.
 
 ## Known gaps / next steps
 
-- Winter maintenance (`zimni`) data is cleaned but not queried yet.
 - The app icon is only one size — a maskable/multi-size set is worth revisiting if
   home-screen icons look off on some devices.
