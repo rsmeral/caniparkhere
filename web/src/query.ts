@@ -1,14 +1,26 @@
 import type { LoadedData } from "./dataStore";
 import { PolygonIndex } from "./spatialIndex";
 import { activeRuleNow } from "./tariffLogic";
-import type { Bounds } from "./types";
+import type { Bounds, ZpsProps } from "./types";
+
+/** The matched parking zone's own identity - shown as a lower-priority "here's what we
+ * detected" line so the recommendation is checkable against what's painted on the curb. */
+export interface ZoneInfo {
+  code: string;
+  category: ZpsProps["category"];
+}
 
 export type Status =
   | { kind: "outOfArea" }
   | { kind: "closure"; streetName: string | null }
-  | { kind: "paidZone"; pricePerHour: number; dailyCapCzk: number | null; until: string }
-  | { kind: "residentZone" }
-  | { kind: "freeZoneRightNow" }
+  | ({
+      kind: "paidZone";
+      pricePerHour: number;
+      dailyCapCzk: number | null;
+      until: string;
+    } & ZoneInfo)
+  | ({ kind: "residentZone" } & ZoneInfo)
+  | ({ kind: "freeZoneRightNow" } & ZoneInfo)
   | { kind: "clear" };
 
 /**
@@ -120,8 +132,9 @@ export function queryStatus(
 
   const zpsMatches = indexes.zps.findContaining(lon, lat);
   for (const feature of zpsMatches) {
+    const zone: ZoneInfo = { code: feature.properties.code, category: feature.properties.category };
     if (feature.properties.category === "RES") {
-      return { status: { kind: "residentZone" }, upcomingClosure };
+      return { status: { kind: "residentZone", ...zone }, upcomingClosure };
     }
     if (feature.properties.tariffId !== null) {
       const tariff = data.zps.tariffs[feature.properties.tariffId];
@@ -133,6 +146,7 @@ export function queryStatus(
             pricePerHour: rule.pricePerHour,
             dailyCapCzk: rule.dailyCapCzk,
             until: rule.end,
+            ...zone,
           },
           upcomingClosure,
         };
@@ -140,7 +154,9 @@ export function queryStatus(
     }
   }
   if (zpsMatches.length > 0) {
-    return { status: { kind: "freeZoneRightNow" }, upcomingClosure };
+    const feature = zpsMatches[0];
+    const zone: ZoneInfo = { code: feature.properties.code, category: feature.properties.category };
+    return { status: { kind: "freeZoneRightNow", ...zone }, upcomingClosure };
   }
 
   return { status: { kind: "clear" }, upcomingClosure };

@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { describe as suite, expect, it } from "vitest";
 import { describe } from "./describe";
-import type { Status, UpcomingClosure } from "./query";
+import type { Status, UpcomingClosure, ZoneInfo } from "./query";
 
 // Codepoints referenced anywhere in the app - describe()'s statuses plus app.tsx's
 // hardcoded neutral (loading/error) states, which don't go through describe() at all.
@@ -19,6 +19,9 @@ const ALL_ICON_CODEPOINTS = [
 ];
 
 const upcoming: UpcomingClosure = { date: "2026-04-10", daysUntil: 3, streetName: "Bar St" };
+const mixZone: ZoneInfo = { code: "P2-0237", category: "MIX" };
+const resZone: ZoneInfo = { code: "P8-0012", category: "RES" };
+const visZone: ZoneInfo = { code: "BUS-0001", category: "VIS" };
 
 suite("describe", () => {
   it("describes outOfArea without a warning, even when one was passed in", () => {
@@ -26,15 +29,16 @@ suite("describe", () => {
     expect(display.tone).toBe("outside");
     expect(display.icon).toBe("1f9ed");
     expect(display.warning).toBeNull();
+    expect(display.detail).toBeNull();
   });
 
   it("returns a lowercase-hex icon codepoint for every status kind", () => {
     const statuses: Status[] = [
       { kind: "outOfArea" },
       { kind: "closure", streetName: null },
-      { kind: "paidZone", pricePerHour: 1, dailyCapCzk: null, until: "00:00" },
-      { kind: "residentZone" },
-      { kind: "freeZoneRightNow" },
+      { kind: "paidZone", pricePerHour: 1, dailyCapCzk: null, until: "00:00", ...visZone },
+      { kind: "residentZone", ...resZone },
+      { kind: "freeZoneRightNow", ...mixZone },
       { kind: "clear" },
     ];
     for (const status of statuses) {
@@ -42,12 +46,13 @@ suite("describe", () => {
     }
   });
 
-  it("describes a closure without a warning, even when one was passed in", () => {
+  it("describes a closure without a warning or detail, even when one was passed in", () => {
     const status: Status = { kind: "closure", streetName: "Foo St" };
     const display = describe(status, upcoming);
     expect(display.tone).toBe("danger");
     expect(display.sentence).toContain("Foo St");
     expect(display.warning).toBeNull();
+    expect(display.detail).toBeNull();
   });
 
   it("describes a closure with no street name", () => {
@@ -55,11 +60,21 @@ suite("describe", () => {
     expect(display.sentence).toBe("Street cleaning today — don't park here.");
   });
 
-  it("describes a paid zone with a cap", () => {
-    const status: Status = { kind: "paidZone", pricePerHour: 40, dailyCapCzk: 90, until: "17:59" };
+  it("describes a paid zone with a cap and the zone's code/color", () => {
+    const status: Status = {
+      kind: "paidZone",
+      pricePerHour: 40,
+      dailyCapCzk: 90,
+      until: "17:59",
+      ...visZone,
+    };
     const display = describe(status);
     expect(display.tone).toBe("warn");
     expect(display.sentence).toBe("Paid zone: 40 Kč/hod (max 90 Kč) until 17:59.");
+    expect(display.detail).toEqual({
+      text: "Zone BUS-0001 — visitor zone (oranžová)",
+      colorHex: "#f97316",
+    });
   });
 
   it("describes a paid zone without a cap", () => {
@@ -68,26 +83,36 @@ suite("describe", () => {
       pricePerHour: 20,
       dailyCapCzk: null,
       until: "23:59",
+      ...mixZone,
     };
     const display = describe(status);
     expect(display.sentence).toBe("Paid zone: 20 Kč/hod until 23:59.");
   });
 
-  it("describes a resident zone and includes an upcoming-closure warning when present", () => {
-    const display = describe({ kind: "residentZone" }, upcoming);
+  it("describes a resident zone, its detail, and an upcoming-closure warning when present", () => {
+    const display = describe({ kind: "residentZone", ...resZone }, upcoming);
     expect(display.tone).toBe("caution");
     expect(display.warning).toBe("Heads up: street cleaning on Bar St in 3 days.");
+    expect(display.detail).toEqual({
+      text: "Zone P8-0012 — resident zone (modrá)",
+      colorHex: "#2563eb",
+    });
   });
 
-  it("describes freeZoneRightNow", () => {
-    const display = describe({ kind: "freeZoneRightNow" });
+  it("describes freeZoneRightNow with the zone's detail", () => {
+    const display = describe({ kind: "freeZoneRightNow", ...mixZone });
     expect(display.tone).toBe("good");
+    expect(display.detail).toEqual({
+      text: "Zone P2-0237 — mixed zone (fialová)",
+      colorHex: "#8b5cf6",
+    });
   });
 
-  it("describes clear", () => {
+  it("describes clear with no detail (nothing was matched)", () => {
     const display = describe({ kind: "clear" });
     expect(display.tone).toBe("good");
     expect(display.warning).toBeNull();
+    expect(display.detail).toBeNull();
   });
 
   it("uses 'tomorrow' phrasing for a 1-day-out warning", () => {

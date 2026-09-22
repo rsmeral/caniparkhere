@@ -10,6 +10,7 @@ const neutral = (icon: string, sentence: string): Display => ({
   icon,
   sentence,
   warning: null,
+  detail: null,
 });
 
 export function App() {
@@ -57,6 +58,12 @@ export function App() {
       <img className="app__emoji" src={`/emoji/${display.icon}.svg`} alt="" />
       <p className="app__sentence">{display.sentence}</p>
       {display.warning && <p className="app__warning">{display.warning}</p>}
+      {display.detail && (
+        <p className="app__detail">
+          <span className="app__swatch" style={{ background: display.detail.colorHex }} />
+          {display.detail.text}
+        </p>
+      )}
     </div>
   );
 }

@@ -96,6 +96,8 @@ describe("queryStatus", () => {
       pricePerHour: 20,
       dailyCapCzk: null,
       until: "23:59",
+      code: "A",
+      category: "MIX",
     });
   });
 
@@ -109,23 +111,25 @@ describe("queryStatus", () => {
       pricePerHour: 40,
       dailyCapCzk: 90,
       until: "17:59",
+      code: "B",
+      category: "MIX",
     });
   });
 
-  it("reports freeZoneRightNow when inside a zone but outside its tariff window", () => {
+  it("reports freeZoneRightNow (with the zone's code/category) when outside its tariff window", () => {
     const now = new Date(2026, 3, 6, 20, 0); // past the bounded window's 17:59 end
     const data = buildFixture(now);
     const indexes = buildIndexes(data);
     const result = queryStatus(data, indexes, 25, 25, now);
-    expect(result.status).toEqual({ kind: "freeZoneRightNow" });
+    expect(result.status).toEqual({ kind: "freeZoneRightNow", code: "B", category: "MIX" });
   });
 
-  it("reports residentZone regardless of time", () => {
+  it("reports residentZone (with the zone's code/category) regardless of time", () => {
     const now = new Date(2026, 3, 6, 3, 0);
     const data = buildFixture(now);
     const indexes = buildIndexes(data);
     const result = queryStatus(data, indexes, 45, 45, now);
-    expect(result.status).toEqual({ kind: "residentZone" });
+    expect(result.status).toEqual({ kind: "residentZone", code: "C", category: "RES" });
   });
 
   it("reports clear when no zone matches", () => {

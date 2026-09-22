@@ -59,3 +59,22 @@ body {
   max-width: 28rem;
   margin: 0;
 }
+
+.app__detail {
+  /* Pulls closer than the flex gap gives it, and reads smaller/dimmer than everything
+     above - a "here's what we detected" aside, not part of the recommendation itself. */
+  margin-top: -0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  opacity: 0.7;
+  max-width: 28rem;
+}
+
+.app__swatch {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
