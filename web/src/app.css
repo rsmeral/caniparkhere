@@ -91,9 +91,8 @@ body {
 }
 
 .app__detail-info {
-  /* Centered like every other line in the app (and like this card was before it grew a
-     second row) - only the expanded price/cap/hours list below breaks from that, since
-     it reads as a small data table rather than prose. */
+  /* Centered like every other line in the app - only the expanded price/cap/hours list
+     below breaks from that, since it reads as a small data table rather than prose. */
   flex: 1;
   min-width: 0;
   display: flex;
@@ -144,13 +143,10 @@ body {
 }
 
 .app__detail-expand-wrap {
-  /* max-height:0 + overflow:hidden, not the fancier grid-template-rows:0fr->1fr trick -
-     that left a hairline of the child's own border visible even while collapsed (a
-     child's border/margin paint outside what ITS OWN overflow clips, and apparently
-     outside a 0fr row too, in practice). max-height truncates unconditionally: nothing
-     paints past it, full stop. The ceiling (6rem) just needs to comfortably clear the
-     tallest real content (3 rows) - the transition still eases the shift, it just isn't
-     tracking the exact content height like the grid trick would have. */
+  /* Animates the expand/collapse height without JS measuring the content. overflow:hidden
+     here (not just on .app__detail-expanded below) is what fully hides the child at 0
+     height - a child's own border/margin paint outside what its own overflow clips. The
+     ceiling (6rem) just needs to comfortably clear the tallest real content (3 rows). */
   max-height: 0;
   overflow: hidden;
   transition: max-height 0.25s ease;

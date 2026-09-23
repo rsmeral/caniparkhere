@@ -106,9 +106,9 @@ export function App() {
               </p>
             )}
             {zone?.expanded && (
-              // Always mounted (not conditional on `expanded`) - the CSS transition on
-              // .app__detail-expand-wrap animates between its collapsed and open grid-row
-              // sizes, which only works on an element that's actually present to animate.
+              // Stays mounted regardless of `expanded` - the CSS max-height transition on
+              // .app__detail-expand-wrap needs the element present to animate between its
+              // collapsed and open states.
               <div
                 className={`app__detail-expand-wrap${expanded ? " app__detail-expand-wrap--open" : ""}`}
               >
