@@ -29,6 +29,8 @@ body {
 }
 .app--warn {
   background: #eab308;
+  /* White text on this yellow fails WCAG contrast (~1.9:1) - dark text clears it (~7.7:1). */
+  color: #1f2937;
 }
 .app--caution {
   background: #f97316;
@@ -40,11 +42,30 @@ body {
   background: #3b82f6;
 }
 
+.app__emoji-halo {
+  /* A soft, highly feathered dark shadow behind the emoji - separates it from the page
+     background regardless of hue, which matters most on light backgrounds like the warn
+     yellow where the emoji's own light/white details would otherwise blend in. */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(38vw, 9rem);
+  height: min(38vw, 9rem);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(0, 0, 0, 0.22) 0%,
+    rgba(0, 0, 0, 0.11) 55%,
+    rgba(0, 0, 0, 0) 75%
+  );
+}
+
 .app__emoji {
   /* SVG (Twemoji), not a native emoji font glyph - crisp at any size, unlike the bitmap
      strikes most platforms render color emoji from. */
   width: min(30vw, 7rem);
   height: min(30vw, 7rem);
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.35));
 }
 
 .app__sentence {
@@ -53,28 +74,140 @@ body {
   margin: 0;
 }
 
-.app__warning {
-  font-size: 0.95rem;
-  opacity: 0.85;
+.app__detail {
+  /* A "here's what we detected" card - street/zone specifics that back up the sentence
+     above, always on its own dark chip so it reads the same regardless of the page's tone
+     color (including the light warn yellow). Pay is a full-height slice on the right, as
+     if the rounded rect were cut with a knife - overflow:hidden lets it share the card's
+     own corner radius on its outer edge without needing radius rules of its own. */
+  margin-top: 0.4rem;
+  display: flex;
+  align-items: stretch;
   max-width: 28rem;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 0.65rem;
+  overflow: hidden;
+  color: #fff;
+}
+
+.app__detail-info {
+  /* Centered like every other line in the app - only the expanded price/cap/hours list
+     below breaks from that, since it reads as a small data table rather than prose. */
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.55rem 0.85rem;
+  text-align: center;
+}
+
+.app__detail-info[role="button"] {
+  cursor: pointer;
+}
+
+.app__detail-row {
   margin: 0;
 }
 
-.app__detail {
-  /* Pulls closer than the flex gap gives it, and reads smaller/dimmer than everything
-     above - a "here's what we detected" aside, not part of the recommendation itself. */
-  margin-top: -0.75rem;
+.app__detail-street {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.app__detail-zone {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.45rem;
   font-size: 0.8rem;
-  opacity: 0.7;
-  max-width: 28rem;
+  opacity: 0.9;
 }
 
 .app__swatch {
-  width: 0.6rem;
-  height: 0.6rem;
+  width: 0.65rem;
+  height: 0.65rem;
   border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.4);
   flex-shrink: 0;
+}
+
+.app__detail-text {
+  white-space: nowrap;
+}
+
+.app__detail-chevron {
+  flex-shrink: 0;
+  font-size: 0.6rem;
+  opacity: 0.7;
+}
+
+.app__detail-expand-wrap {
+  /* Animates the expand/collapse height without JS measuring the content. A child's own
+     border/margin paint outside what that child's own overflow clips, so overflow:hidden
+     belongs on this wrapper to fully hide it at 0 height. The ceiling (6rem) just needs to
+     comfortably clear the tallest real content (3 rows). */
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.25s ease;
+  width: 100%;
+}
+
+.app__detail-expand-wrap--open {
+  max-height: 6rem;
+}
+
+.app__detail-expanded {
+  min-height: 0;
+  overflow: hidden;
+  margin: 0.15rem 0 0;
+  padding-top: 0.4rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.app__detail-expanded-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.75rem;
+}
+
+.app__detail-expanded-row dt {
+  opacity: 0.7;
+}
+
+.app__detail-expanded-row dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.app__pay {
+  flex-shrink: 0;
+  width: 4.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+  padding: 0.4rem 0.4rem;
+  background: #15803d;
+  border-left: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+  text-decoration: none;
+  text-align: center;
+}
+
+.app__pay-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.app__pay-price {
+  font-size: 0.6rem;
+  font-weight: 600;
+  opacity: 0.92;
+  white-space: nowrap;
 }

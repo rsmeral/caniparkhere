@@ -17,11 +17,13 @@ export type Status =
       kind: "paidZone";
       pricePerHour: number;
       dailyCapCzk: number | null;
+      from: string;
       until: string;
+      streetName: string | null;
     } & ZoneInfo)
-  | ({ kind: "residentZone" } & ZoneInfo)
-  | ({ kind: "freeZoneRightNow" } & ZoneInfo)
-  | { kind: "clear" };
+  | ({ kind: "residentZone"; streetName: string | null } & ZoneInfo)
+  | ({ kind: "freeZoneRightNow"; streetName: string | null } & ZoneInfo)
+  | { kind: "clear"; streetName: string | null };
 
 /**
  * Checks a point against the data's coverage envelope (see the pipeline's padBbox) - a
@@ -50,7 +52,7 @@ export interface Indexes {
 }
 
 // How far ahead to warn about an upcoming street-cleaning closure.
-const WARNING_WINDOW_DAYS = 7;
+const WARNING_WINDOW_DAYS = 5;
 
 /** Builds the R-tree indexes for a loaded dataset; do this once per data load, not per query. */
 export function buildIndexes(data: LoadedData): Indexes {
@@ -77,6 +79,18 @@ function daysBetween(fromISO: string, toISO: string): number {
   const a = Date.parse(`${fromISO}T00:00:00Z`);
   const b = Date.parse(`${toISO}T00:00:00Z`);
   return Math.round((b - a) / 86_400_000);
+}
+
+/**
+ * Picks a street name to display alongside the result, if the point falls within a named
+ * letni (street-cleaning) segment - the only dataset that carries street names. Zone (zps)
+ * polygons don't carry names of their own, so this is best-effort, not guaranteed.
+ */
+function findStreetName(letniMatches: LoadedData["letni"]["features"]): string | null {
+  for (const feature of letniMatches) {
+    if (feature.properties.name) return feature.properties.name;
+  }
+  return null;
 }
 
 /** Finds the soonest closure date within the warning window across a set of matched letni features. */
@@ -129,12 +143,13 @@ export function queryStatus(
   }
 
   const upcomingClosure = findUpcomingClosure(data, letniMatches, today);
+  const streetName = findStreetName(letniMatches);
 
   const zpsMatches = indexes.zps.findContaining(lon, lat);
   for (const feature of zpsMatches) {
     const zone: ZoneInfo = { code: feature.properties.code, category: feature.properties.category };
     if (feature.properties.category === "RES") {
-      return { status: { kind: "residentZone", ...zone }, upcomingClosure };
+      return { status: { kind: "residentZone", streetName, ...zone }, upcomingClosure };
     }
     if (feature.properties.tariffId !== null) {
       const tariff = data.zps.tariffs[feature.properties.tariffId];
@@ -145,7 +160,9 @@ export function queryStatus(
             kind: "paidZone",
             pricePerHour: rule.pricePerHour,
             dailyCapCzk: rule.dailyCapCzk,
+            from: rule.start,
             until: rule.end,
+            streetName,
             ...zone,
           },
           upcomingClosure,
@@ -156,8 +173,8 @@ export function queryStatus(
   if (zpsMatches.length > 0) {
     const feature = zpsMatches[0];
     const zone: ZoneInfo = { code: feature.properties.code, category: feature.properties.category };
-    return { status: { kind: "freeZoneRightNow", ...zone }, upcomingClosure };
+    return { status: { kind: "freeZoneRightNow", streetName, ...zone }, upcomingClosure };
   }
 
-  return { status: { kind: "clear" }, upcomingClosure };
+  return { status: { kind: "clear", streetName }, upcomingClosure };
 }
