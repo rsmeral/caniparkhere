@@ -70,6 +70,17 @@ function buildFixture(now: Date): LoadedData {
         zpsFeature(square(0, 0, 10, 10), { code: "A", category: "MIX", tariffId: 0 }),
         zpsFeature(square(20, 20, 30, 30), { code: "B", category: "MIX", tariffId: 1 }),
         zpsFeature(square(40, 40, 50, 50), { code: "C", category: "RES", tariffId: null }),
+        // Real-world-scale coordinates (unlike the abstract-unit squares above), so
+        // findNearby's meters-based distance math gives realistic separations: P1 and P2
+        // sit ~14m apart, P3 sits far enough away that even a generous accuracy radius
+        // (capped at MAX_AMBIGUITY_RADIUS_METERS) shouldn't reach it.
+        zpsFeature(square(14.4, 50, 14.401, 50.001), { code: "P1", category: "MIX", tariffId: 0 }),
+        zpsFeature(square(14.4012, 50, 14.4022, 50.001), {
+          code: "P2",
+          category: "RES",
+          tariffId: null,
+        }),
+        zpsFeature(square(14.6, 50, 14.601, 50.001), { code: "P3", category: "RES", tariffId: null }),
       ],
     },
     letni: {
@@ -192,6 +203,47 @@ describe("queryStatus", () => {
     const indexes = buildIndexes(data);
     const result = queryStatus(data, indexes, 65, 65, now);
     expect(result.upcomingClosure).toBeNull();
+  });
+
+  it("reports the single deterministic status when no accuracy is given, even right at a zone boundary", () => {
+    const now = new Date(2026, 0, 1, 10, 0);
+    const data = buildFixture(now);
+    const indexes = buildIndexes(data);
+    const result = queryStatus(data, indexes, 14.4005, 50.0005, now);
+    expect(result.status).toMatchObject({ kind: "paidZone", code: "P1" });
+  });
+
+  it("stays with the single deterministic status when the accuracy radius doesn't reach another zone", () => {
+    const now = new Date(2026, 0, 1, 10, 0);
+    const data = buildFixture(now);
+    const indexes = buildIndexes(data);
+    const result = queryStatus(data, indexes, 14.4005, 50.0005, now, 5);
+    expect(result.status).toMatchObject({ kind: "paidZone", code: "P1" });
+  });
+
+  it("reports ambiguous candidates, nearest first, when the accuracy radius reaches more than one zone", () => {
+    const now = new Date(2026, 0, 1, 10, 0);
+    const data = buildFixture(now);
+    const indexes = buildIndexes(data);
+    // P1 contains the point (distance 0); P2 sits ~14m away - within a 60m fix.
+    const result = queryStatus(data, indexes, 14.4005, 50.0005, now, 60);
+    expect(result.status.kind).toBe("ambiguous");
+    if (result.status.kind !== "ambiguous") throw new Error("unreachable");
+    expect(result.status.candidates.map((c) => c.code)).toEqual(["P1", "P2"]);
+    expect(result.status.candidates[0]).toMatchObject({ kind: "paidZone", code: "P1" });
+    expect(result.status.candidates[1]).toMatchObject({ kind: "residentZone", code: "P2" });
+  });
+
+  it("caps the ambiguity radius so a very inaccurate fix doesn't pull in a far-away zone", () => {
+    const now = new Date(2026, 0, 1, 10, 0);
+    const data = buildFixture(now);
+    const indexes = buildIndexes(data);
+    // P3 is ~15km from P1/P2 - far past MAX_AMBIGUITY_RADIUS_METERS even with a huge
+    // reported accuracy, so this should stay a plain two-candidate (P1, P2) ambiguity.
+    const result = queryStatus(data, indexes, 14.4005, 50.0005, now, 50_000);
+    expect(result.status.kind).toBe("ambiguous");
+    if (result.status.kind !== "ambiguous") throw new Error("unreachable");
+    expect(result.status.candidates.map((c) => c.code)).toEqual(["P1", "P2"]);
   });
 });
 

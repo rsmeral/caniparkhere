@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { describe as suite, expect, it } from "vitest";
 import { describe } from "./describe";
-import type { Status, UpcomingClosure, ZoneInfo } from "./query";
+import type { Status, UpcomingClosure, ZoneInfo, ZoneStatus } from "./query";
 
 // Codepoints referenced anywhere in the app - describe()'s statuses plus app.tsx's
 // hardcoded neutral (loading/error) states, which don't go through describe() at all.
@@ -17,6 +17,7 @@ const ALL_ICON_CODEPOINTS = [
   "1f914",
   "1f60a",
   "1f440",
+  "1f9d0",
 ];
 
 const upcomingIn3Days: UpcomingClosure = { date: "2026-04-10", daysUntil: 3, streetName: "Bar St" };
@@ -49,6 +50,7 @@ suite("describe", () => {
       { kind: "residentZone", streetName: null, ...resZone },
       { kind: "freeZoneRightNow", streetName: null, ...mixZone },
       { kind: "clear", streetName: null },
+      { kind: "ambiguous", streetName: null, candidates: [] },
     ];
     for (const status of statuses) {
       expect(describe(status).icon).toMatch(/^[0-9a-f]+$/);
@@ -60,7 +62,7 @@ suite("describe", () => {
     const display = describe(status, upcomingIn3Days);
     expect(display.tone).toBe("danger");
     expect(display.sentence).toBe("There's street cleaning here today — don't park here.");
-    expect(display.detail).toEqual({ streetName: "Foo St", zone: null });
+    expect(display.detail).toEqual({ streetName: "Foo St", zone: null, candidateZones: null });
   });
 
   it("describes a closure with no street name and no detail card", () => {
@@ -96,6 +98,7 @@ suite("describe", () => {
           { label: "Hours", value: "08:00–17:59" },
         ],
       },
+      candidateZones: null,
     });
   });
 
@@ -134,6 +137,7 @@ suite("describe", () => {
         payment: null,
         expanded: null,
       },
+      candidateZones: null,
     });
   });
 
@@ -151,6 +155,7 @@ suite("describe", () => {
         payment: null,
         expanded: null,
       },
+      candidateZones: null,
     });
   });
 
@@ -165,7 +170,7 @@ suite("describe", () => {
 
   it("shows the street name in clear's detail card when one is known", () => {
     const display = describe({ kind: "clear", streetName: "Nerudova" });
-    expect(display.detail).toEqual({ streetName: "Nerudova", zone: null });
+    expect(display.detail).toEqual({ streetName: "Nerudova", zone: null, candidateZones: null });
   });
 
   it("folds an upcoming closure into the sentence, never the detail card, with no street name", () => {
@@ -216,6 +221,7 @@ suite("describe", () => {
         payment: null,
         expanded: null,
       },
+      candidateZones: null,
     });
   });
 
@@ -225,6 +231,60 @@ suite("describe", () => {
     );
     expect(describe({ kind: "outOfArea" }, upcomingTomorrow).sentence).toBe(
       "This app only covers Prague — looks like you're somewhere else.",
+    );
+  });
+
+  it("describes an ambiguous location with a candidate chip per zone, sorted as given, no single zone", () => {
+    const candidates: ZoneStatus[] = [
+      { kind: "freeZoneRightNow", streetName: "Nerudova", ...mixZone },
+      {
+        kind: "paidZone",
+        pricePerHour: 40,
+        dailyCapCzk: null,
+        from: "08:00",
+        until: "17:59",
+        streetName: "Nerudova",
+        ...visZone,
+      },
+    ];
+    const display = describe({ kind: "ambiguous", streetName: "Nerudova", candidates });
+    expect(display.tone).toBe("caution");
+    expect(display.sentence).toBe(
+      "Your location isn't precise enough to tell exactly which zone you're in — could be any of these.",
+    );
+    expect(display.detail?.zone).toBeNull();
+    expect(display.detail?.candidateZones).toEqual([
+      {
+        code: "P2-0237",
+        categoryLabel: "Mixed",
+        colorHex: "#8b5cf6",
+        colorName: "fialová",
+        payment: null,
+        expanded: null,
+      },
+      {
+        code: "BUS-0001",
+        categoryLabel: "Visitors",
+        colorHex: "#f97316",
+        colorName: "oranžová",
+        payment: { url: "https://platba.parkujvpraze.cz/pz/BUS-0001", priceLabel: "40 Kč/hod" },
+        expanded: [
+          { label: "Price", value: "40 Kč/hod" },
+          { label: "Daily cap", value: "No cap" },
+          { label: "Hours", value: "08:00–17:59" },
+        ],
+      },
+    ]);
+  });
+
+  it("appends the upcoming-closure clause to the ambiguous sentence too", () => {
+    const display = describe(
+      { kind: "ambiguous", streetName: null, candidates: [] },
+      upcomingTomorrow,
+    );
+    expect(display.sentence).toBe(
+      "Your location isn't precise enough to tell exactly which zone you're in — could be any of these." +
+        " And watch out, street cleaning tomorrow.",
     );
   });
 

@@ -6,7 +6,7 @@ export type GeoState =
   | { status: "unsupported" }
   | { status: "denied" }
   | { status: "unavailable" }
-  | { status: "ready"; lon: number; lat: number };
+  | { status: "ready"; lon: number; lat: number; accuracyMeters: number };
 
 // How long to tolerate transient "no fix yet" errors before telling the user something's
 // wrong. The watch keeps running throughout, so a late fix still recovers the UI.
@@ -34,7 +34,12 @@ export function useGeolocation(): GeoState {
       (pos) => {
         hasFix.current = true;
         clearGiveUp();
-        setState({ status: "ready", lon: pos.coords.longitude, lat: pos.coords.latitude });
+        setState({
+          status: "ready",
+          lon: pos.coords.longitude,
+          lat: pos.coords.latitude,
+          accuracyMeters: pos.coords.accuracy,
+        });
       },
       (err) => {
         switch (classifyGeoError(err.code, hasFix.current)) {

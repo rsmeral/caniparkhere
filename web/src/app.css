@@ -129,6 +129,13 @@ body {
   opacity: 0.9;
 }
 
+.app__detail-candidates {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  align-items: center;
+}
+
 .app__swatch {
   width: 0.65rem;
   height: 0.65rem;

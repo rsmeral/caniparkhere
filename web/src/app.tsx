@@ -49,7 +49,7 @@ export function App() {
     if (!isWithinBounds(data.bounds, geo.lon, geo.lat)) {
       return describe({ kind: "outOfArea" });
     }
-    const result = queryStatus(data, indexes, geo.lon, geo.lat);
+    const result = queryStatus(data, indexes, geo.lon, geo.lat, undefined, geo.accuracyMeters);
     return describe(result.status, result.upcomingClosure);
   }, [data, indexes, geo, dataError]);
 
@@ -104,6 +104,22 @@ export function App() {
                 </span>
                 {canExpand && <span className="app__detail-chevron">{expanded ? "▲" : "▼"}</span>}
               </p>
+            )}
+            {display.detail.candidateZones && display.detail.candidateZones.length > 0 && (
+              <div className="app__detail-candidates">
+                {display.detail.candidateZones.map((candidate) => (
+                  <p className="app__detail-row app__detail-zone" key={candidate.code}>
+                    <span
+                      className="app__swatch"
+                      style={{ background: candidate.colorHex }}
+                      title={`Curb color: ${candidate.colorName}`}
+                    />
+                    <span className="app__detail-text">
+                      {candidate.code} · {candidate.categoryLabel}
+                    </span>
+                  </p>
+                ))}
+              </div>
             )}
             {zone?.expanded && (
               // Stays mounted regardless of `expanded` - the CSS max-height transition on
