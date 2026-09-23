@@ -2,9 +2,30 @@ import type { Status, UpcomingClosure, ZoneInfo } from "./query";
 
 export type Tone = "neutral" | "good" | "warn" | "caution" | "danger" | "outside";
 
-export interface Detail {
-  text: string;
+export interface ZonePayment {
+  url: string;
+  /** Short price label for the Pay button itself, e.g. "40 Kč/hod". */
+  priceLabel: string;
+}
+
+export interface ZoneChip {
+  code: string;
+  /** Friendly English label for the category, e.g. "Visitors". */
+  categoryLabel: string;
   colorHex: string;
+  /** Prague's real curb-paint color name for this category (modrá/fialová/oranžová) -
+   * shown as the color dot's tooltip so it's checkable against what's painted on the curb. */
+  colorName: string;
+  /** Deep link to pay for this zone (parkujvpraze.cz), when the zone is currently a paid one. */
+  payment: ZonePayment | null;
+  /** Extra rows (price/cap/hours) revealed when the card is tapped - null when there's
+   * nothing beyond what's already in the summary row (e.g. a resident zone). */
+  expanded: { label: string; value: string }[] | null;
+}
+
+export interface Detail {
+  streetName: string | null;
+  zone: ZoneChip | null;
 }
 
 export interface Display {
@@ -12,42 +33,68 @@ export interface Display {
   /** Twemoji codepoint (see web/public/emoji/), e.g. "1f60a" for 😊. Rendered as an <img>,
    * not the literal character - native emoji fonts render blurry at this size on most platforms. */
   icon: string;
+  /** Plain, spoken advice only - no street names, prices, or clock times (those live in
+   * the detail card below), but an upcoming street-cleaning closure is folded in here
+   * rather than the card, since it's time-sensitive enough to belong in the headline. */
   sentence: string;
-  warning: string | null;
-  /** Lower-priority "here's what we detected" line - the zone's own code/color, so the
-   * recommendation is checkable against what's actually painted on the curb. */
+  /** Lower-priority "here's what we detected" card - street name and the zone's own
+   * code/color, so the recommendation is checkable against what's actually on the ground. */
   detail: Detail | null;
 }
 
-// Prague's real curb/sign colors per zone category (modrá/fialová/oranžová), independent
-// of `tone` - this is "what you'd see painted there", not the recommendation's urgency.
-const ZONE_COLOR: Record<ZoneInfo["category"], Detail> = {
-  RES: { text: "resident zone (modrá)", colorHex: "#2563eb" },
-  MIX: { text: "mixed zone (fialová)", colorHex: "#8b5cf6" },
-  VIS: { text: "visitor zone (oranžová)", colorHex: "#f97316" },
+// Prague's real curb/sign colors and friendly labels per zone category, independent of
+// `tone` - this is "what you'd see painted there", not the recommendation's urgency.
+const ZONE_CATEGORY: Record<ZoneInfo["category"], { label: string; colorName: string; colorHex: string }> = {
+  RES: { label: "Residents", colorName: "modrá", colorHex: "#2563eb" },
+  MIX: { label: "Mixed", colorName: "fialová", colorHex: "#8b5cf6" },
+  VIS: { label: "Visitors", colorName: "oranžová", colorHex: "#f97316" },
 };
 
-/** @example zoneDetail({code:"P2-0237", category:"MIX"}) -> { text: "Zone P2-0237 — mixed zone (fialová)", colorHex: "#8b5cf6" } */
-function zoneDetail(zone: ZoneInfo): Detail {
-  const { text, colorHex } = ZONE_COLOR[zone.category];
-  return { text: `Zone ${zone.code} — ${text}`, colorHex };
+interface ZoneChipOptions {
+  /** Present only for an actively-paid zone: drives both the Pay button and its price label. */
+  payment?: { pricePerHour: number } | null;
+  expanded?: ZoneChip["expanded"];
 }
 
-/** @example upcomingWarning({date:"2026-04-07", daysUntil:2, streetName:"Foo"}) -> "Heads up: street cleaning on Foo in 2 days." */
-function upcomingWarning(upcoming: UpcomingClosure | null): string | null {
-  if (!upcoming) return null;
+/** @example zoneChip({code:"P2-0237", category:"MIX"}, {}) -> { code:"P2-0237", categoryLabel:"Mixed", colorHex:"#8b5cf6", colorName:"fialová", payment:null, expanded:null } */
+function zoneChip(zone: ZoneInfo, options: ZoneChipOptions = {}): ZoneChip {
+  const { label, colorName, colorHex } = ZONE_CATEGORY[zone.category];
+  return {
+    code: zone.code,
+    categoryLabel: label,
+    colorHex,
+    colorName,
+    payment: options.payment
+      ? {
+          url: `https://platba.parkujvpraze.cz/pz/${zone.code}`,
+          priceLabel: `${options.payment.pricePerHour} Kč/hod`,
+        }
+      : null,
+    expanded: options.expanded ?? null,
+  };
+}
+
+/** Builds the detail card, or null if there's nothing to show (no street, no zone). */
+function detailOf(streetName: string | null, zone: ZoneChip | null): Detail | null {
+  return streetName || zone ? { streetName, zone } : null;
+}
+
+/** @example upcomingClause({date:"2026-04-10", daysUntil:1, streetName:"Foo"}) -> " And watch out, street cleaning tomorrow." */
+function upcomingClause(upcoming: UpcomingClosure): string {
   const when = upcoming.daysUntil === 1 ? "tomorrow" : `in ${upcoming.daysUntil} days`;
-  const where = upcoming.streetName ? ` on ${upcoming.streetName}` : "";
-  return `Heads up: street cleaning${where} ${when}.`;
+  return ` And watch out, street cleaning ${when}.`;
 }
 
 /**
  * Maps a query result to what the UI shows. A closure today, or being out of the app's
- * coverage area entirely, both suppress the upcoming-closure warning (redundant either way).
+ * coverage area entirely, both suppress the upcoming-closure note (redundant either way).
+ * Sentences are plain, spoken advice with no street names or other specifics - those live
+ * in the detail card below - except an upcoming closure, which is folded straight into the
+ * sentence instead, since it's the one thing worth surfacing in the headline itself.
  */
 export function describe(status: Status, upcoming: UpcomingClosure | null = null): Display {
-  const warning =
-    status.kind === "closure" || status.kind === "outOfArea" ? null : upcomingWarning(upcoming);
+  const suppressUpcoming = status.kind === "closure" || status.kind === "outOfArea";
+  const clause = !suppressUpcoming && upcoming ? upcomingClause(upcoming) : "";
 
   switch (status.kind) {
     case "outOfArea":
@@ -55,50 +102,53 @@ export function describe(status: Status, upcoming: UpcomingClosure | null = null
         tone: "outside",
         icon: "1f9ed", // 🧭
         sentence: "This app only covers Prague — looks like you're somewhere else.",
-        warning: null,
         detail: null,
       };
     case "closure":
       return {
         tone: "danger",
         icon: "1f61f", // 😟
-        sentence: `Street cleaning today${status.streetName ? ` on ${status.streetName}` : ""} — don't park here.`,
-        warning: null,
-        detail: null,
+        sentence: "There's street cleaning here today — don't park here.",
+        detail: detailOf(status.streetName, null),
       };
     case "paidZone": {
-      const cap = status.dailyCapCzk ? ` (max ${status.dailyCapCzk} Kč)` : "";
       return {
         tone: "warn",
         icon: "1f642", // 🙂
-        sentence: `Paid zone: ${status.pricePerHour} Kč/hod${cap} until ${status.until}.`,
-        warning,
-        detail: zoneDetail(status),
+        sentence: `You can park here, but it's paid.${clause}`,
+        detail: detailOf(
+          status.streetName,
+          zoneChip(status, {
+            payment: { pricePerHour: status.pricePerHour },
+            expanded: [
+              { label: "Price", value: `${status.pricePerHour} Kč/hod` },
+              { label: "Daily cap", value: status.dailyCapCzk ? `${status.dailyCapCzk} Kč` : "No cap" },
+              { label: "Hours", value: `${status.from}–${status.until}` },
+            ],
+          }),
+        ),
       };
     }
     case "residentZone":
       return {
         tone: "caution",
         icon: "1f914", // 🤔
-        sentence: "Resident-only zone — you may need a permit.",
-        warning,
-        detail: zoneDetail(status),
+        sentence: `This is a resident-only zone, so you might need a permit to park here.${clause}`,
+        detail: detailOf(status.streetName, zoneChip(status)),
       };
     case "freeZoneRightNow":
       return {
         tone: "good",
         icon: "1f60a", // 😊
-        sentence: "You're in a paid zone, but it's free right now.",
-        warning,
-        detail: zoneDetail(status),
+        sentence: `You're in a paid zone, but right now it's free to park.${clause}`,
+        detail: detailOf(status.streetName, zoneChip(status)),
       };
     case "clear":
       return {
-        tone: "good",
-        icon: "1f60a", // 😊
-        sentence: "Looks clear — no restrictions found here.",
-        warning,
-        detail: null,
+        tone: "neutral",
+        icon: "1f440", // 👀
+        sentence: `I don't have parking info for this spot — better check the signs around you.${clause}`,
+        detail: detailOf(status.streetName, null),
       };
   }
 }

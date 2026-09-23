@@ -95,7 +95,9 @@ describe("queryStatus", () => {
       kind: "paidZone",
       pricePerHour: 20,
       dailyCapCzk: null,
+      from: "00:00",
       until: "23:59",
+      streetName: "Foo St",
       code: "A",
       category: "MIX",
     });
@@ -110,7 +112,9 @@ describe("queryStatus", () => {
       kind: "paidZone",
       pricePerHour: 40,
       dailyCapCzk: 90,
+      from: "08:00",
       until: "17:59",
+      streetName: null,
       code: "B",
       category: "MIX",
     });
@@ -121,7 +125,12 @@ describe("queryStatus", () => {
     const data = buildFixture(now);
     const indexes = buildIndexes(data);
     const result = queryStatus(data, indexes, 25, 25, now);
-    expect(result.status).toEqual({ kind: "freeZoneRightNow", code: "B", category: "MIX" });
+    expect(result.status).toEqual({
+      kind: "freeZoneRightNow",
+      streetName: null,
+      code: "B",
+      category: "MIX",
+    });
   });
 
   it("reports residentZone (with the zone's code/category) regardless of time", () => {
@@ -129,7 +138,12 @@ describe("queryStatus", () => {
     const data = buildFixture(now);
     const indexes = buildIndexes(data);
     const result = queryStatus(data, indexes, 45, 45, now);
-    expect(result.status).toEqual({ kind: "residentZone", code: "C", category: "RES" });
+    expect(result.status).toEqual({
+      kind: "residentZone",
+      streetName: null,
+      code: "C",
+      category: "RES",
+    });
   });
 
   it("reports clear when no zone matches", () => {
@@ -137,11 +151,11 @@ describe("queryStatus", () => {
     const data = buildFixture(now);
     const indexes = buildIndexes(data);
     const result = queryStatus(data, indexes, 100, 100, now);
-    expect(result.status).toEqual({ kind: "clear" });
+    expect(result.status).toEqual({ kind: "clear", streetName: null });
     expect(result.upcomingClosure).toBeNull();
   });
 
-  it("warns about a closure within the next 7 days", () => {
+  it("warns about a closure within the next 5 days", () => {
     const now = new Date(2026, 3, 5, 10, 0); // 2026-04-05, Bar St closes 2026-04-10 (5 days out)
     const data = buildFixture(now);
     const indexes = buildIndexes(data);
@@ -154,7 +168,7 @@ describe("queryStatus", () => {
   });
 
   it("does not warn about a closure further out than the warning window", () => {
-    const now = new Date(2026, 2, 1, 10, 0); // 2026-03-01, more than 7 days before 2026-04-10
+    const now = new Date(2026, 2, 1, 10, 0); // 2026-03-01, more than 5 days before 2026-04-10
     const data = buildFixture(now);
     const indexes = buildIndexes(data);
     const result = queryStatus(data, indexes, 65, 65, now);

@@ -16,19 +16,20 @@ const ALL_ICON_CODEPOINTS = [
   "1f642",
   "1f914",
   "1f60a",
+  "1f440",
 ];
 
-const upcoming: UpcomingClosure = { date: "2026-04-10", daysUntil: 3, streetName: "Bar St" };
+const upcomingIn3Days: UpcomingClosure = { date: "2026-04-10", daysUntil: 3, streetName: "Bar St" };
+const upcomingTomorrow: UpcomingClosure = { date: "2026-04-08", daysUntil: 1, streetName: "Foo St" };
 const mixZone: ZoneInfo = { code: "P2-0237", category: "MIX" };
 const resZone: ZoneInfo = { code: "P8-0012", category: "RES" };
 const visZone: ZoneInfo = { code: "BUS-0001", category: "VIS" };
 
 suite("describe", () => {
-  it("describes outOfArea without a warning, even when one was passed in", () => {
-    const display = describe({ kind: "outOfArea" }, upcoming);
+  it("describes outOfArea with no detail, even when an upcoming closure was passed in", () => {
+    const display = describe({ kind: "outOfArea" }, upcomingIn3Days);
     expect(display.tone).toBe("outside");
     expect(display.icon).toBe("1f9ed");
-    expect(display.warning).toBeNull();
     expect(display.detail).toBeNull();
   });
 
@@ -36,91 +37,195 @@ suite("describe", () => {
     const statuses: Status[] = [
       { kind: "outOfArea" },
       { kind: "closure", streetName: null },
-      { kind: "paidZone", pricePerHour: 1, dailyCapCzk: null, until: "00:00", ...visZone },
-      { kind: "residentZone", ...resZone },
-      { kind: "freeZoneRightNow", ...mixZone },
-      { kind: "clear" },
+      {
+        kind: "paidZone",
+        pricePerHour: 1,
+        dailyCapCzk: null,
+        from: "00:00",
+        until: "00:00",
+        streetName: null,
+        ...visZone,
+      },
+      { kind: "residentZone", streetName: null, ...resZone },
+      { kind: "freeZoneRightNow", streetName: null, ...mixZone },
+      { kind: "clear", streetName: null },
     ];
     for (const status of statuses) {
       expect(describe(status).icon).toMatch(/^[0-9a-f]+$/);
     }
   });
 
-  it("describes a closure without a warning or detail, even when one was passed in", () => {
+  it("describes a closure with the street name in the detail card, not the sentence, and ignores any upcoming closure", () => {
     const status: Status = { kind: "closure", streetName: "Foo St" };
-    const display = describe(status, upcoming);
+    const display = describe(status, upcomingIn3Days);
     expect(display.tone).toBe("danger");
-    expect(display.sentence).toContain("Foo St");
-    expect(display.warning).toBeNull();
+    expect(display.sentence).toBe("There's street cleaning here today — don't park here.");
+    expect(display.detail).toEqual({ streetName: "Foo St", zone: null });
+  });
+
+  it("describes a closure with no street name and no detail card", () => {
+    const display = describe({ kind: "closure", streetName: null });
+    expect(display.sentence).toBe("There's street cleaning here today — don't park here.");
     expect(display.detail).toBeNull();
   });
 
-  it("describes a closure with no street name", () => {
-    const display = describe({ kind: "closure", streetName: null });
-    expect(display.sentence).toBe("Street cleaning today — don't park here.");
-  });
-
-  it("describes a paid zone with a cap and the zone's code/color", () => {
+  it("describes a paid zone with a cap, a payable+expandable detail card, and a plain sentence with no price/time", () => {
     const status: Status = {
       kind: "paidZone",
       pricePerHour: 40,
       dailyCapCzk: 90,
+      from: "08:00",
       until: "17:59",
+      streetName: "Nerudova",
       ...visZone,
     };
     const display = describe(status);
     expect(display.tone).toBe("warn");
-    expect(display.sentence).toBe("Paid zone: 40 Kč/hod (max 90 Kč) until 17:59.");
+    expect(display.sentence).toBe("You can park here, but it's paid.");
     expect(display.detail).toEqual({
-      text: "Zone BUS-0001 — visitor zone (oranžová)",
-      colorHex: "#f97316",
+      streetName: "Nerudova",
+      zone: {
+        code: "BUS-0001",
+        categoryLabel: "Visitors",
+        colorHex: "#f97316",
+        colorName: "oranžová",
+        payment: { url: "https://platba.parkujvpraze.cz/pz/BUS-0001", priceLabel: "40 Kč/hod" },
+        expanded: [
+          { label: "Price", value: "40 Kč/hod" },
+          { label: "Daily cap", value: "90 Kč" },
+          { label: "Hours", value: "08:00–17:59" },
+        ],
+      },
     });
   });
 
-  it("describes a paid zone without a cap", () => {
+  it("describes a paid zone without a cap - same plain sentence, 'No cap' in the expanded rows", () => {
     const status: Status = {
       kind: "paidZone",
       pricePerHour: 20,
       dailyCapCzk: null,
+      from: "00:00",
       until: "23:59",
+      streetName: null,
       ...mixZone,
     };
     const display = describe(status);
-    expect(display.sentence).toBe("Paid zone: 20 Kč/hod until 23:59.");
+    expect(display.sentence).toBe("You can park here, but it's paid.");
+    expect(display.detail?.zone?.expanded).toEqual([
+      { label: "Price", value: "20 Kč/hod" },
+      { label: "Daily cap", value: "No cap" },
+      { label: "Hours", value: "00:00–23:59" },
+    ]);
   });
 
-  it("describes a resident zone, its detail, and an upcoming-closure warning when present", () => {
-    const display = describe({ kind: "residentZone", ...resZone }, upcoming);
+  it("describes a resident zone with a non-payable, non-expandable detail card", () => {
+    const display = describe({ kind: "residentZone", streetName: null, ...resZone });
     expect(display.tone).toBe("caution");
-    expect(display.warning).toBe("Heads up: street cleaning on Bar St in 3 days.");
+    expect(display.sentence).toBe(
+      "This is a resident-only zone, so you might need a permit to park here.",
+    );
     expect(display.detail).toEqual({
-      text: "Zone P8-0012 — resident zone (modrá)",
-      colorHex: "#2563eb",
+      streetName: null,
+      zone: {
+        code: "P8-0012",
+        categoryLabel: "Residents",
+        colorHex: "#2563eb",
+        colorName: "modrá",
+        payment: null,
+        expanded: null,
+      },
     });
   });
 
-  it("describes freeZoneRightNow with the zone's detail", () => {
-    const display = describe({ kind: "freeZoneRightNow", ...mixZone });
+  it("describes freeZoneRightNow with a non-payable, non-expandable detail card", () => {
+    const display = describe({ kind: "freeZoneRightNow", streetName: null, ...mixZone });
     expect(display.tone).toBe("good");
+    expect(display.detail?.zone?.payment).toBeNull();
     expect(display.detail).toEqual({
-      text: "Zone P2-0237 — mixed zone (fialová)",
-      colorHex: "#8b5cf6",
+      streetName: null,
+      zone: {
+        code: "P2-0237",
+        categoryLabel: "Mixed",
+        colorHex: "#8b5cf6",
+        colorName: "fialová",
+        payment: null,
+        expanded: null,
+      },
     });
   });
 
-  it("describes clear with no detail (nothing was matched)", () => {
-    const display = describe({ kind: "clear" });
-    expect(display.tone).toBe("good");
-    expect(display.warning).toBeNull();
+  it("describes clear with a friendly, non-committal sentence and no detail card when nothing is known", () => {
+    const display = describe({ kind: "clear", streetName: null });
+    expect(display.tone).toBe("neutral");
+    expect(display.sentence).toBe(
+      "I don't have parking info for this spot — better check the signs around you.",
+    );
     expect(display.detail).toBeNull();
   });
 
-  it("uses 'tomorrow' phrasing for a 1-day-out warning", () => {
-    const display = describe(
-      { kind: "clear" },
-      { date: "2026-04-08", daysUntil: 1, streetName: null },
+  it("shows the street name in clear's detail card when one is known", () => {
+    const display = describe({ kind: "clear", streetName: "Nerudova" });
+    expect(display.detail).toEqual({ streetName: "Nerudova", zone: null });
+  });
+
+  it("folds an upcoming closure into the sentence, never the detail card, with no street name", () => {
+    const tomorrow = describe({ kind: "clear", streetName: null }, upcomingTomorrow);
+    expect(tomorrow.sentence).toBe(
+      "I don't have parking info for this spot — better check the signs around you." +
+        " And watch out, street cleaning tomorrow.",
     );
-    expect(display.warning).toBe("Heads up: street cleaning tomorrow.");
+    expect(tomorrow.detail).toBeNull();
+
+    const in3Days = describe({ kind: "clear", streetName: null }, upcomingIn3Days);
+    expect(in3Days.sentence).toBe(
+      "I don't have parking info for this spot — better check the signs around you." +
+        " And watch out, street cleaning in 3 days.",
+    );
+  });
+
+  it("appends the upcoming-closure clause to the plain paid-zone sentence", () => {
+    const status: Status = {
+      kind: "paidZone",
+      pricePerHour: 40,
+      dailyCapCzk: 90,
+      from: "08:00",
+      until: "17:59",
+      streetName: null,
+      ...visZone,
+    };
+    const display = describe(status, upcomingTomorrow);
+    expect(display.sentence).toBe(
+      "You can park here, but it's paid. And watch out, street cleaning tomorrow.",
+    );
+  });
+
+  it("appends the upcoming-closure clause after any other content in the detail card", () => {
+    const status: Status = { kind: "residentZone", streetName: "Nerudova", ...resZone };
+    const display = describe(status, upcomingTomorrow);
+    expect(display.sentence).toBe(
+      "This is a resident-only zone, so you might need a permit to park here." +
+        " And watch out, street cleaning tomorrow.",
+    );
+    expect(display.detail).toEqual({
+      streetName: "Nerudova",
+      zone: {
+        code: "P8-0012",
+        categoryLabel: "Residents",
+        colorHex: "#2563eb",
+        colorName: "modrá",
+        payment: null,
+        expanded: null,
+      },
+    });
+  });
+
+  it("suppresses the upcoming-closure clause for closure and outOfArea, since it's redundant", () => {
+    expect(describe({ kind: "closure", streetName: null }, upcomingTomorrow).sentence).toBe(
+      "There's street cleaning here today — don't park here.",
+    );
+    expect(describe({ kind: "outOfArea" }, upcomingTomorrow).sentence).toBe(
+      "This app only covers Prague — looks like you're somewhere else.",
+    );
   });
 
   it("has a downloaded SVG for every icon codepoint used in the app", () => {
