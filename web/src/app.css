@@ -49,14 +49,16 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: min(38vw, 9rem);
-  height: min(38vw, 9rem);
+  width: min(44vw, 11rem);
+  height: min(44vw, 11rem);
   border-radius: 50%;
   background: radial-gradient(
     circle,
-    rgba(0, 0, 0, 0.22) 0%,
-    rgba(0, 0, 0, 0.11) 55%,
-    rgba(0, 0, 0, 0) 75%
+    rgba(0, 0, 0, 0.16) 0%,
+    rgba(0, 0, 0, 0.1) 25%,
+    rgba(0, 0, 0, 0.05) 45%,
+    rgba(0, 0, 0, 0.02) 65%,
+    rgba(0, 0, 0, 0) 100%
   );
 }
 
