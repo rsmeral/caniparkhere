@@ -33,9 +33,10 @@ export interface Display {
   /** Twemoji codepoint (see web/public/emoji/), e.g. "1f60a" for 😊. Rendered as an <img>,
    * not the literal character - native emoji fonts render blurry at this size on most platforms. */
   icon: string;
-  /** Plain, spoken advice only - no street names, prices, or clock times (those live in
-   * the detail card below), but an upcoming street-cleaning closure is folded in here
-   * rather than the card, since it's time-sensitive enough to belong in the headline. */
+  /** Plain, spoken recommendation. Anything checkable against the ground - street, zone
+   * code, price - belongs in the detail card below instead, keeping this skimmable. An
+   * upcoming street-cleaning closure is the exception, folded straight into this sentence
+   * since it's time-sensitive enough to belong in the headline. */
   sentence: string;
   /** Lower-priority "here's what we detected" card - street name and the zone's own
    * code/color, so the recommendation is checkable against what's actually on the ground. */
@@ -88,9 +89,8 @@ function upcomingClause(upcoming: UpcomingClosure): string {
 /**
  * Maps a query result to what the UI shows. A closure today, or being out of the app's
  * coverage area entirely, both suppress the upcoming-closure note (redundant either way).
- * Sentences are plain, spoken advice with no street names or other specifics - those live
- * in the detail card below - except an upcoming closure, which is folded straight into the
- * sentence instead, since it's the one thing worth surfacing in the headline itself.
+ * Sentences read as plain, spoken advice; specifics belong in the detail card, with one
+ * exception - an upcoming closure is time-sensitive enough to earn a spot in the headline.
  */
 export function describe(status: Status, upcoming: UpcomingClosure | null = null): Display {
   const suppressUpcoming = status.kind === "closure" || status.kind === "outOfArea";

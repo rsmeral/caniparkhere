@@ -143,10 +143,10 @@ body {
 }
 
 .app__detail-expand-wrap {
-  /* Animates the expand/collapse height without JS measuring the content. overflow:hidden
-     here (not just on .app__detail-expanded below) is what fully hides the child at 0
-     height - a child's own border/margin paint outside what its own overflow clips. The
-     ceiling (6rem) just needs to comfortably clear the tallest real content (3 rows). */
+  /* Animates the expand/collapse height without JS measuring the content. A child's own
+     border/margin paint outside what that child's own overflow clips, so overflow:hidden
+     belongs on this wrapper to fully hide it at 0 height. The ceiling (6rem) just needs to
+     comfortably clear the tallest real content (3 rows). */
   max-height: 0;
   overflow: hidden;
   transition: max-height 0.25s ease;
