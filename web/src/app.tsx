@@ -6,6 +6,7 @@ import { describe, type Display } from "./describe";
 import type { QueryResult } from "./query";
 import { createQueryClient } from "./queryClient";
 import { useGeolocation } from "./useGeolocation";
+import { useThemeColor } from "./useThemeColor";
 
 const neutral = (icon: string, sentence: string): Display => ({
   tone: "neutral",
@@ -65,6 +66,8 @@ export function App() {
     }
     return describe(result.status, result.upcomingClosure);
   }, [result, geo, dataError]);
+
+  useThemeColor(display.tone);
 
   const zone = display.detail?.zone ?? null;
   const candidates = display.detail?.candidateZones ?? null;
