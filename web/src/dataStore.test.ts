@@ -124,7 +124,7 @@ describe("loadData", () => {
     vi.stubGlobal("fetch", offlineFetch());
     vi.mocked(get).mockResolvedValue(undefined);
 
-    await expect(loadData()).rejects.toThrow(/offline and this device hasn't saved/);
+    await expect(loadData()).rejects.toThrow("you'll need to be online the first time.");
   });
 
   it("backfills the manifest for a device cached before it was stored, without refetching", async () => {

@@ -47,7 +47,9 @@ export async function loadData(): Promise<LoadedData> {
   if (!manifest) {
     const cached = await cachedData(await get<Manifest>(MANIFEST_KEY));
     if (!cached) {
-      throw new Error("you're offline and this device hasn't saved the zone data yet");
+      // Reads as one sentence with the "Couldn't load zone data" the UI puts in front of
+      // it, and says what to do rather than what went wrong.
+      throw new Error("you'll need to be online the first time.");
     }
     return cached;
   }
