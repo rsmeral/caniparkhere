@@ -1,9 +1,9 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useMemo, useState } from "preact/hooks";
 import "./app.css";
-import { loadData, type LoadedData } from "./dataStore";
 import { describe, type CandidateZone, type Display, type ZoneChip } from "./describe";
-import { buildIndexes, isWithinBounds, queryStatus } from "./query";
+import type { QueryResult } from "./query";
+import { createQueryClient } from "./queryClient";
 import { useGeolocation } from "./useGeolocation";
 
 const neutral = (icon: string, sentence: string): Display => ({
@@ -181,17 +181,32 @@ function CandidateBox({ streetName, candidate, expanded, onToggle }: CandidateBo
 
 export function App() {
   const geo = useGeolocation();
-  const [data, setData] = useState<LoadedData | null>(null);
+  // Spinning the worker up on first render starts its data load immediately, alongside the
+  // browser's search for a GPS fix.
+  const client = useMemo(() => createQueryClient(), []);
+  const [result, setResult] = useState<QueryResult | null>(null);
   const [dataError, setDataError] = useState<string | null>(null);
   const [expandedCode, setExpandedCode] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadData()
-      .then(setData)
-      .catch((err) => setDataError((err as Error).message));
-  }, []);
+  useEffect(() => () => client.terminate(), [client]);
 
-  const indexes = useMemo(() => (data ? buildIndexes(data) : null), [data]);
+  // Each fix is resolved by the worker. `live` drops an answer whose location has already
+  // been superseded, since replies can land in a different order than they were asked for.
+  useEffect(() => {
+    if (geo.status !== "ready") return;
+    let live = true;
+    client
+      .query(geo.lon, geo.lat, geo.accuracyMeters)
+      .then((r) => {
+        if (live) setResult(r);
+      })
+      .catch((err) => {
+        if (live) setDataError((err as Error).message);
+      });
+    return () => {
+      live = false;
+    };
+  }, [client, geo]);
 
   const display: Display = useMemo(() => {
     if (dataError) return neutral("1f635", `Couldn't load zone data: ${dataError}`); // 😵
@@ -210,15 +225,11 @@ export function App() {
         "Still can't get a location fix. Try moving somewhere with a clearer view of the sky.",
       ); // 🛰
     }
-    if (!data || !indexes || geo.status === "searching") {
+    if (geo.status === "searching" || !result) {
       return neutral("23f3", "Figuring out where you are..."); // ⏳
     }
-    if (!isWithinBounds(data.bounds, geo.lon, geo.lat)) {
-      return describe({ kind: "outOfArea" });
-    }
-    const result = queryStatus(data, indexes, geo.lon, geo.lat, undefined, geo.accuracyMeters);
     return describe(result.status, result.upcomingClosure);
-  }, [data, indexes, geo, dataError]);
+  }, [result, geo, dataError]);
 
   const zone = display.detail?.zone ?? null;
   const candidates = display.detail?.candidateZones ?? null;
