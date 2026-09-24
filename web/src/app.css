@@ -1,3 +1,20 @@
+:root {
+  /* One colour per value of `tone` in describe.ts - the urgency of a recommendation, not
+     a hue. Each is worn twice: as the page background under a confident answer, and as the
+     panel a candidate card opens to for the same zone. */
+  --tone-neutral: #6b7280;
+  --tone-good: #22c55e;
+  --tone-warn: #eab308;
+  --tone-caution: #f97316;
+  --tone-danger: #ef4444;
+  --tone-outside: #3b82f6;
+  /* White on the warn yellow fails WCAG contrast (~1.9:1); this clears it (~7.7:1). */
+  --tone-warn-text: #1f2937;
+
+  /* A faint divider that reads on the dark chip and on a tone panel alike. */
+  --hairline: rgba(255, 255, 255, 0.15);
+}
+
 html,
 body {
   margin: 0;
@@ -23,24 +40,23 @@ body {
 }
 
 .app--neutral {
-  background: #6b7280;
+  background: var(--tone-neutral);
 }
 .app--good {
-  background: #22c55e;
+  background: var(--tone-good);
 }
 .app--warn {
-  background: #eab308;
-  /* White text on this yellow fails WCAG contrast (~1.9:1) - dark text clears it (~7.7:1). */
-  color: #1f2937;
+  background: var(--tone-warn);
+  color: var(--tone-warn-text);
 }
 .app--caution {
-  background: #f97316;
+  background: var(--tone-caution);
 }
 .app--danger {
-  background: #ef4444;
+  background: var(--tone-danger);
 }
 .app--outside {
-  background: #3b82f6;
+  background: var(--tone-outside);
 }
 
 .app__emoji-halo {
@@ -180,7 +196,7 @@ body {
   overflow: hidden;
   margin: 0.15rem 0 0;
   padding-top: 0.4rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  border-top: 1px solid var(--hairline);
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
@@ -246,15 +262,14 @@ body {
 }
 
 .app__resolve--good {
-  background: #22c55e;
+  background: var(--tone-good);
 }
 .app__resolve--warn {
-  background: #eab308;
-  /* Matches .app--warn: white on this yellow fails WCAG contrast, dark text clears it. */
-  color: #1f2937;
+  background: var(--tone-warn);
+  color: var(--tone-warn-text);
 }
 .app__resolve--caution {
-  background: #f97316;
+  background: var(--tone-caution);
 }
 
 .app__resolve-emoji {
@@ -295,7 +310,7 @@ body {
   gap: 0.1rem;
   padding: 0.4rem 0.4rem;
   background: #15803d;
-  border-left: 1px solid rgba(255, 255, 255, 0.15);
+  border-left: 1px solid var(--hairline);
   color: #fff;
   text-decoration: none;
   text-align: center;
