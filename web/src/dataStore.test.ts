@@ -33,6 +33,25 @@ function mockFetch() {
   });
 }
 
+/** An IndexedDB standing in for a device that has already loaded the app once. */
+function cacheOf({ version, withManifest = true }: { version?: string; withManifest?: boolean }) {
+  return async (key: IDBValidKey) => {
+    if (key === "caniparkhere:data-version") return version;
+    if (key === "caniparkhere:manifest") return withManifest ? manifest : undefined;
+    if (key === "caniparkhere:zps") return zps;
+    if (key === "caniparkhere:letni") return letni;
+    if (key === "caniparkhere:streets") return streets;
+    return undefined;
+  };
+}
+
+/** A fetch that fails the way a browser does with no connection. */
+function offlineFetch() {
+  return vi.fn(async () => {
+    throw new TypeError("NetworkError when attempting to fetch resource");
+  });
+}
+
 describe("loadData", () => {
   beforeEach(() => {
     vi.mocked(get).mockReset();
@@ -45,20 +64,16 @@ describe("loadData", () => {
   });
 
   it("serves cached data without refetching datasets when the cached version matches", async () => {
-    vi.mocked(get).mockImplementation(async (key) => {
-      if (key === "caniparkhere:data-version") return "abc123";
-      if (key === "caniparkhere:zps") return zps;
-      if (key === "caniparkhere:letni") return letni;
-      if (key === "caniparkhere:streets") return streets;
-      return undefined;
-    });
+    vi.mocked(get).mockImplementation(cacheOf({ version: "abc123" }));
 
     const result = await loadData();
 
     expect(result).toEqual({ zps, letni, streets, bounds });
     // Only the manifest should have been fetched over the network - not the datasets.
     expect(fetch).toHaveBeenCalledTimes(1);
-    expect(set).not.toHaveBeenCalled();
+    // The live manifest is kept so the next load can fall back to it offline.
+    expect(set).toHaveBeenCalledWith("caniparkhere:manifest", manifest);
+    expect(set).not.toHaveBeenCalledWith("caniparkhere:zps", zps);
   });
 
   it("fetches and caches datasets when the cached version is stale", async () => {
@@ -84,5 +99,44 @@ describe("loadData", () => {
 
     expect(result).toEqual({ zps, letni, streets, bounds });
     expect(fetch).toHaveBeenCalledTimes(4);
+  });
+
+  it("serves cached data offline, when the manifest itself can't be fetched", async () => {
+    vi.stubGlobal("fetch", offlineFetch());
+    vi.mocked(get).mockImplementation(cacheOf({ version: "abc123" }));
+
+    const result = await loadData();
+
+    expect(result).toEqual({ zps, letni, streets, bounds });
+  });
+
+  it("serves cached data offline even when the cached version is stale", async () => {
+    // Nothing can be refreshed without a connection, so out-of-date data beats no data.
+    vi.stubGlobal("fetch", offlineFetch());
+    vi.mocked(get).mockImplementation(cacheOf({ version: "old-version" }));
+
+    const result = await loadData();
+
+    expect(result).toEqual({ zps, letni, streets, bounds });
+  });
+
+  it("explains itself when offline with nothing cached to fall back on", async () => {
+    vi.stubGlobal("fetch", offlineFetch());
+    vi.mocked(get).mockResolvedValue(undefined);
+
+    await expect(loadData()).rejects.toThrow("you'll need to be online the first time.");
+  });
+
+  it("backfills the manifest for a device cached before it was stored, without refetching", async () => {
+    // Datasets cached by an earlier version have no manifest saved alongside them. The
+    // live one supplies bounds for this load and is stored, so the next load works offline.
+    vi.mocked(get).mockImplementation(cacheOf({ version: "abc123", withManifest: false }));
+
+    const result = await loadData();
+
+    expect(result).toEqual({ zps, letni, streets, bounds });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(set).toHaveBeenCalledWith("caniparkhere:manifest", manifest);
+    expect(set).not.toHaveBeenCalledWith("caniparkhere:zps", zps);
   });
 });
