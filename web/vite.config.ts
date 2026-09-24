@@ -30,9 +30,10 @@ export default defineConfig({
         // install prompt. Kept short because launchers truncate past about 12 characters.
         short_name: "Can I Park?",
         description: "Is it OK to park here right now, in Prague?",
-        // The status bar in standalone mode. Set to the neutral tone the app opens on,
-        // then kept in step with the tone on screen at runtime by useThemeColor.
-        theme_color: "#6b7280",
+        // The status bar an installed window paints above the app. It reads as chrome
+        // rather than as one of the tones, since a single fixed colour can only ever match
+        // one of them - this is the same neutral as the splash below.
+        theme_color: "#1f2937",
         // The splash while the app boots. Deliberately neutral: the app's own background
         // is whichever tone the answer turns out to warrant, and this shows before there
         // is an answer.
