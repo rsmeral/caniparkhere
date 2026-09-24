@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { Feature, FeatureCollection, Geometry, MultiPolygon } from "geojson";
+import type { Feature, FeatureCollection, Geometry, MultiLineString, MultiPolygon } from "geojson";
 
 import { buildDictionary } from "./lib/dictionary.js";
 import {
@@ -86,6 +86,35 @@ function buildLetni(fc: FeatureCollection) {
   return { dates, features };
 }
 
+// The RÚIAN query returns a mix of LineString (single stretch) and MultiLineString
+// (a street with multiple disjoint stretches) - normalized to one shape for the index.
+function toMultiLineString(geometry: Geometry): MultiLineString {
+  if (geometry.type === "MultiLineString") return geometry;
+  if (geometry.type === "LineString") {
+    return { type: "MultiLineString", coordinates: [geometry.coordinates] };
+  }
+  throw new Error(`Unexpected street geometry type: ${geometry.type}`);
+}
+
+interface StreetFeatureProps {
+  nameId: number | null;
+}
+
+function buildStreets(fc: FeatureCollection) {
+  const names = fc.features.map((f) => ((f.properties as any).nazev as string) ?? null);
+  const { table: nameTable, indexes: nameIndexes } = buildDictionary(names);
+
+  const features: Feature<MultiLineString, StreetFeatureProps>[] = fc.features.map((f, i) => ({
+    type: "Feature",
+    geometry: cleanGeometry(toMultiLineString(f.geometry), 0.00002) as MultiLineString,
+    properties: {
+      nameId: nameIndexes[i],
+    },
+  }));
+
+  return { names: nameTable, features };
+}
+
 function bboxOfFeatures(features: Feature<Geometry, unknown>[]): Bbox {
   return features.map((f) => bboxOfGeometry(f.geometry)).reduce(mergeBbox);
 }
@@ -118,15 +147,22 @@ async function main() {
   await mkdir(OUT_DIR, { recursive: true });
 
   console.log("Fetching + cleaning source datasets...");
-  const [zps, letni] = await Promise.all([
+  const [zps, letni, streets] = await Promise.all([
     fetchAndBuild(SOURCES.zps, buildZps),
     fetchAndBuild(SOURCES.letni, buildLetni),
+    fetchAndBuild(SOURCES.streets, buildStreets),
   ]);
 
   console.log("Writing output...");
-  const written = await Promise.all([writeJSON("zps", zps), writeJSON("letni", letni)]);
+  const written = await Promise.all([
+    writeJSON("zps", zps),
+    writeJSON("letni", letni),
+    writeJSON("streets", streets),
+  ]);
 
-  const bounds = padBbox([zps, letni].map((d) => bboxOfFeatures(d.features)).reduce(mergeBbox));
+  const bounds = padBbox(
+    [zps, letni, streets].map((d) => bboxOfFeatures(d.features)).reduce(mergeBbox),
+  );
 
   const manifest = {
     generatedAt: new Date().toISOString(),

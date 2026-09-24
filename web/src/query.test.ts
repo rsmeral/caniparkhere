@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { Feature, MultiPolygon } from "geojson";
+import type { Feature, MultiLineString, MultiPolygon } from "geojson";
 import type { LoadedData } from "./dataStore";
 import { buildIndexes, isWithinBounds, queryStatus } from "./query";
-import type { LetniProps, ZpsProps } from "./types";
+import type { LetniProps, StreetProps, ZpsProps } from "./types";
 
 function square(x0: number, y0: number, x1: number, y1: number) {
   return {
@@ -27,6 +27,13 @@ function zpsFeature(geom: MultiPolygon, props: ZpsProps): Feature<MultiPolygon, 
 
 function letniFeature(geom: MultiPolygon, props: LetniProps): Feature<MultiPolygon, LetniProps> {
   return { type: "Feature", geometry: geom, properties: props };
+}
+
+function streetFeature(
+  coords: [number, number][],
+  props: StreetProps,
+): Feature<MultiLineString, StreetProps> {
+  return { type: "Feature", geometry: { type: "MultiLineString", coordinates: [coords] }, properties: props };
 }
 
 function dayIndexOf(date: Date): number {
@@ -71,6 +78,10 @@ function buildFixture(now: Date): LoadedData {
         letniFeature(square(0, 0, 10, 10), { name: "Foo St", datesId: 0 }),
         letniFeature(square(60, 60, 70, 70), { name: "Bar St", datesId: 1 }),
       ],
+    },
+    streets: {
+      names: ["Foo St"],
+      features: [streetFeature([[0, 5], [10, 5]], { nameId: 0 })],
     },
     bounds: { minLon: -100, minLat: -100, maxLon: 100, maxLat: 100 },
   };

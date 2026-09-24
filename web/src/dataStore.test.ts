@@ -17,6 +17,7 @@ const manifest = {
 };
 const zps = { tariffs: [], features: [] };
 const letni = { dates: [], features: [] };
+const streets = { names: [], features: [] };
 
 function jsonResponse(body: unknown) {
   return { ok: true, status: 200, json: async () => body } as Response;
@@ -27,6 +28,7 @@ function mockFetch() {
     if (url.endsWith("manifest.json")) return jsonResponse(manifest);
     if (url.endsWith("zps.json")) return jsonResponse(zps);
     if (url.endsWith("letni.json")) return jsonResponse(letni);
+    if (url.endsWith("streets.json")) return jsonResponse(streets);
     throw new Error(`unexpected fetch: ${url}`);
   });
 }
@@ -47,13 +49,14 @@ describe("loadData", () => {
       if (key === "caniparkhere:data-version") return "abc123";
       if (key === "caniparkhere:zps") return zps;
       if (key === "caniparkhere:letni") return letni;
+      if (key === "caniparkhere:streets") return streets;
       return undefined;
     });
 
     const result = await loadData();
 
-    expect(result).toEqual({ zps, letni, bounds });
-    // Only the manifest should have been fetched over the network - not zps/letni.
+    expect(result).toEqual({ zps, letni, streets, bounds });
+    // Only the manifest should have been fetched over the network - not the datasets.
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(set).not.toHaveBeenCalled();
   });
@@ -66,10 +69,11 @@ describe("loadData", () => {
 
     const result = await loadData();
 
-    expect(result).toEqual({ zps, letni, bounds });
-    expect(fetch).toHaveBeenCalledTimes(3); // manifest + zps + letni
+    expect(result).toEqual({ zps, letni, streets, bounds });
+    expect(fetch).toHaveBeenCalledTimes(4); // manifest + zps + letni + streets
     expect(set).toHaveBeenCalledWith("caniparkhere:zps", zps);
     expect(set).toHaveBeenCalledWith("caniparkhere:letni", letni);
+    expect(set).toHaveBeenCalledWith("caniparkhere:streets", streets);
     expect(set).toHaveBeenCalledWith("caniparkhere:data-version", "abc123");
   });
 
@@ -78,7 +82,7 @@ describe("loadData", () => {
 
     const result = await loadData();
 
-    expect(result).toEqual({ zps, letni, bounds });
-    expect(fetch).toHaveBeenCalledTimes(3);
+    expect(result).toEqual({ zps, letni, streets, bounds });
+    expect(fetch).toHaveBeenCalledTimes(4);
   });
 });

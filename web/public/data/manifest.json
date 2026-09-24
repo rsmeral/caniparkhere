@@ -1,1 +1,1 @@
-{"generatedAt":"2026-09-21T11:12:14.091Z","version":"386ecc939d802310","datasets":{"zps":{"bytes":1818260},"letni":{"bytes":2240005}},"bounds":{"minLon":14.18532,"minLat":49.8643,"maxLon":14.78875,"maxLat":50.24613}}
+{"generatedAt":"2026-09-23T22:15:23.972Z","version":"e6776e4cb66ae9f0","datasets":{"zps":{"bytes":1818260},"letni":{"bytes":2240005},"streets":{"bytes":3084329}},"bounds":{"minLon":14.15892,"minLat":49.84294,"maxLon":14.79069,"maxLat":50.27234}}

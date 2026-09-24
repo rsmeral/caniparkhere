@@ -1,5 +1,5 @@
 import type { LoadedData } from "./dataStore";
-import { PolygonIndex } from "./spatialIndex";
+import { LineIndex, PolygonIndex } from "./spatialIndex";
 import { activeRuleNow } from "./tariffLogic";
 import type { Bounds, ZpsProps } from "./types";
 
@@ -49,16 +49,22 @@ export interface QueryResult {
 export interface Indexes {
   zps: PolygonIndex<LoadedData["zps"]["features"][number]["properties"]>;
   letni: PolygonIndex<LoadedData["letni"]["features"][number]["properties"]>;
+  streets: LineIndex<LoadedData["streets"]["features"][number]["properties"]>;
 }
 
 // How far ahead to warn about an upcoming street-cleaning closure.
 const WARNING_WINDOW_DAYS = 5;
+
+// How close a point needs to be to a RÚIAN street centerline to trust it as "this street" -
+// close enough to be curb-level, wide enough to absorb ordinary GPS jitter.
+const STREET_MATCH_RADIUS_METERS = 25;
 
 /** Builds the R-tree indexes for a loaded dataset; do this once per data load, not per query. */
 export function buildIndexes(data: LoadedData): Indexes {
   return {
     zps: new PolygonIndex(data.zps.features),
     letni: new PolygonIndex(data.letni.features),
+    streets: new LineIndex(data.streets.features),
   };
 }
 
@@ -82,15 +88,14 @@ function daysBetween(fromISO: string, toISO: string): number {
 }
 
 /**
- * Picks a street name to display alongside the result, if the point falls within a named
- * letni (street-cleaning) segment - the only dataset that carries street names. Zone (zps)
- * polygons don't carry names of their own, so this is best-effort, not guaranteed.
+ * Picks the RÚIAN street centerline nearest the point, if one falls within
+ * STREET_MATCH_RADIUS_METERS - zone (zps) and street-cleaning (letni) polygons don't carry
+ * street names of their own, so this is the app's one source for "what street is this".
  */
-function findStreetName(letniMatches: LoadedData["letni"]["features"]): string | null {
-  for (const feature of letniMatches) {
-    if (feature.properties.name) return feature.properties.name;
-  }
-  return null;
+function findStreetName(data: LoadedData, streets: Indexes["streets"], lon: number, lat: number): string | null {
+  const feature = streets.findNearest(lon, lat, STREET_MATCH_RADIUS_METERS);
+  if (!feature || feature.properties.nameId === null) return null;
+  return data.streets.names[feature.properties.nameId];
 }
 
 /** Finds the soonest closure date within the warning window across a set of matched letni features. */
@@ -143,7 +148,7 @@ export function queryStatus(
   }
 
   const upcomingClosure = findUpcomingClosure(data, letniMatches, today);
-  const streetName = findStreetName(letniMatches);
+  const streetName = findStreetName(data, indexes.streets, lon, lat);
 
   const zpsMatches = indexes.zps.findContaining(lon, lat);
   for (const feature of zpsMatches) {

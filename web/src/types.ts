@@ -1,4 +1,4 @@
-import type { Feature, MultiPolygon } from "geojson";
+import type { Feature, MultiLineString, MultiPolygon } from "geojson";
 
 export interface TariffRule {
   days: number[]; // 0=Mon .. 6=Sun
@@ -33,6 +33,15 @@ export interface LetniProps {
 export interface LetniData {
   dates: string[][]; // ISO date strings, e.g. ["2026-04-07", "2026-10-05"]
   features: Feature<MultiPolygon, LetniProps>[];
+}
+
+export interface StreetProps {
+  nameId: number | null;
+}
+
+export interface StreetData {
+  names: string[];
+  features: Feature<MultiLineString, StreetProps>[];
 }
 
 export interface Bounds {
