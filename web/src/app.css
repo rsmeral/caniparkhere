@@ -202,6 +202,89 @@ body {
   font-weight: 600;
 }
 
+.app__detail--resolvable {
+  /* A candidate card stacks its summary row and its resolve panel, so the panel can span
+     the card's full width. */
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.app__detail-summary {
+  display: flex;
+  align-items: stretch;
+}
+
+.app__resolve-wrap {
+  /* Same JS-free height animation as .app__detail-expand-wrap. The ceiling clears the
+     tallest panel: emoji, a three-line sentence, three rows and a Pay button. */
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.28s ease;
+}
+
+.app__resolve-wrap--open {
+  max-height: 24rem;
+}
+
+.app__resolve-inset {
+  /* Leaves a margin of the card's dark chip around the panel on the three sides the
+     summary row doesn't cover, so the tone colour always has a frame between it and the
+     page - the two can be the same hue, as resident-zone orange is on this screen. */
+  padding: 0 0.5rem 0.5rem;
+}
+
+.app__resolve {
+  /* A miniature of the main screen for one candidate: the tone, emoji and recommendation
+     that zone would carry on its own. */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.9rem 0.85rem 1rem;
+  border-radius: 0.5rem;
+  text-align: center;
+}
+
+.app__resolve--good {
+  background: #22c55e;
+}
+.app__resolve--warn {
+  background: #eab308;
+  /* Matches .app--warn: white on this yellow fails WCAG contrast, dark text clears it. */
+  color: #1f2937;
+}
+.app__resolve--caution {
+  background: #f97316;
+}
+
+.app__resolve-emoji {
+  width: 3.2rem;
+  height: 3.2rem;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.3));
+}
+
+.app__resolve-sentence {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.app__resolve .app__detail-expanded {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 0.1rem;
+  padding-top: 0.5rem;
+}
+
+.app__resolve--warn .app__detail-expanded {
+  border-top-color: rgba(31, 41, 55, 0.3);
+}
+
+.app__resolve--caution .app__detail-expanded,
+.app__resolve--good .app__detail-expanded {
+  border-top-color: rgba(255, 255, 255, 0.35);
+}
+
 .app__pay {
   flex-shrink: 0;
   width: 4.75rem;
@@ -228,4 +311,19 @@ body {
   font-weight: 600;
   opacity: 0.92;
   white-space: nowrap;
+}
+
+.app__pay--block {
+  /* Inside a resolve panel Pay is a button in the flow, not a slice of the card's edge. */
+  width: 100%;
+  box-sizing: border-box;
+  flex-direction: row;
+  gap: 0.4rem;
+  padding: 0.5rem;
+  border-left: none;
+  border-radius: 0.45rem;
+}
+
+.app__pay--block .app__pay-price {
+  font-size: 0.72rem;
 }

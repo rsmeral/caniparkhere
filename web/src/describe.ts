@@ -23,12 +23,24 @@ export interface ZoneChip {
   expanded: { label: string; value: string }[] | null;
 }
 
+/**
+ * A candidate for an ambiguous location: the zone's chip, plus the advice that zone carries
+ * on its own. The card reveals that advice when tapped, so each candidate can be read the
+ * way the main screen reads a confident answer. The upcoming-closure clause stays out of
+ * these sentences - it belongs once, in the headline above them.
+ */
+export interface CandidateZone extends ZoneChip {
+  tone: Tone;
+  icon: string;
+  sentence: string;
+}
+
 export interface Detail {
   streetName: string | null;
   zone: ZoneChip | null;
   /** Set only when the location is ambiguous between multiple zones (zone is null in that
    * case) - every zone the GPS fix's accuracy radius could plausibly place you in. */
-  candidateZones: ZoneChip[] | null;
+  candidateZones: CandidateZone[] | null;
 }
 
 export interface Display {
@@ -52,6 +64,27 @@ const ZONE_CATEGORY: Record<ZoneInfo["category"], { label: string; colorName: st
   RES: { label: "Residents", colorName: "modrá", colorHex: "#2563eb" },
   MIX: { label: "Mixed", colorName: "fialová", colorHex: "#8b5cf6" },
   VIS: { label: "Visitors", colorName: "oranžová", colorHex: "#f97316" },
+};
+
+// The tone, emoji and recommendation for each way a point can resolve to a single zone.
+// Shared by the main screen's headline and by each candidate card an ambiguous location
+// offers, so a candidate says exactly what it would say if the fix had landed on it alone.
+const ZONE_ADVICE: Record<ZoneStatus["kind"], { tone: Tone; icon: string; sentence: string }> = {
+  paidZone: {
+    tone: "warn",
+    icon: "1f642", // 🙂
+    sentence: "You can park here, but it's paid.",
+  },
+  residentZone: {
+    tone: "caution",
+    icon: "1f914", // 🤔
+    sentence: "This is a resident-only zone, so you might need a permit to park here.",
+  },
+  freeZoneRightNow: {
+    tone: "good",
+    icon: "1f60a", // 😊
+    sentence: "You're in a paid zone, but right now it's free to park.",
+  },
 };
 
 interface ZoneChipOptions {
@@ -99,6 +132,11 @@ function chipForZoneStatus(status: ZoneStatus): ZoneChip {
   return zoneChip(status);
 }
 
+/** Builds one entry of an ambiguous location's candidate list. */
+function candidateFor(status: ZoneStatus): CandidateZone {
+  return { ...chipForZoneStatus(status), ...ZONE_ADVICE[status.kind] };
+}
+
 /** @example upcomingClause({date:"2026-04-10", daysUntil:1, streetName:"Foo"}) -> " And watch out, street cleaning tomorrow." */
 function upcomingClause(upcoming: UpcomingClosure): string {
   const when = upcoming.daysUntil === 1 ? "tomorrow" : `in ${upcoming.daysUntil} days`;
@@ -131,26 +169,15 @@ export function describe(status: Status, upcoming: UpcomingClosure | null = null
         detail: detailOf(status.streetName, null),
       };
     case "paidZone":
-      return {
-        tone: "warn",
-        icon: "1f642", // 🙂
-        sentence: `You can park here, but it's paid.${clause}`,
-        detail: detailOf(status.streetName, chipForZoneStatus(status)),
-      };
     case "residentZone":
+    case "freeZoneRightNow": {
+      const advice = ZONE_ADVICE[status.kind];
       return {
-        tone: "caution",
-        icon: "1f914", // 🤔
-        sentence: `This is a resident-only zone, so you might need a permit to park here.${clause}`,
+        ...advice,
+        sentence: `${advice.sentence}${clause}`,
         detail: detailOf(status.streetName, chipForZoneStatus(status)),
       };
-    case "freeZoneRightNow":
-      return {
-        tone: "good",
-        icon: "1f60a", // 😊
-        sentence: `You're in a paid zone, but right now it's free to park.${clause}`,
-        detail: detailOf(status.streetName, chipForZoneStatus(status)),
-      };
+    }
     case "clear":
       return {
         tone: "neutral",
@@ -166,7 +193,7 @@ export function describe(status: Status, upcoming: UpcomingClosure | null = null
         detail: {
           streetName: status.streetName,
           zone: null,
-          candidateZones: status.candidates.map(chipForZoneStatus),
+          candidateZones: status.candidates.map(candidateFor),
         },
       };
   }
