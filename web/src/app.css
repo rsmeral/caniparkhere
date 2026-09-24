@@ -19,6 +19,7 @@ body {
   transition: background 0.3s ease;
   user-select: none;
   -webkit-user-select: none;
+  overflow-y: auto;
 }
 
 .app--neutral {
@@ -49,6 +50,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   width: min(44vw, 11rem);
   height: min(44vw, 11rem);
   border-radius: 50%;
@@ -85,6 +87,7 @@ body {
   margin-top: 0.4rem;
   display: flex;
   align-items: stretch;
+  flex-shrink: 0;
   max-width: 28rem;
   background: rgba(0, 0, 0, 0.4);
   border-radius: 0.65rem;
