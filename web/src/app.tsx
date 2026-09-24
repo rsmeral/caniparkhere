@@ -1,7 +1,8 @@
+import type { ComponentChildren } from "preact";
 import { useEffect, useMemo, useState } from "preact/hooks";
 import "./app.css";
 import { loadData, type LoadedData } from "./dataStore";
-import { describe, type Display, type ZoneChip } from "./describe";
+import { describe, type CandidateZone, type Display, type ZoneChip } from "./describe";
 import { buildIndexes, isWithinBounds, queryStatus } from "./query";
 import { useGeolocation } from "./useGeolocation";
 
@@ -12,6 +13,90 @@ const neutral = (icon: string, sentence: string): Display => ({
   detail: null,
 });
 
+/** The price/cap/hours rows a zone reveals when its card is open. */
+function ExpandedRows({ rows }: { rows: { label: string; value: string }[] }) {
+  return (
+    <dl className="app__detail-expanded">
+      {rows.map((row) => (
+        <div className="app__detail-expanded-row" key={row.label}>
+          <dt>{row.label}</dt>
+          <dd>{row.value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function PayLink({ payment, block }: { payment: NonNullable<ZoneChip["payment"]>; block?: boolean }) {
+  return (
+    <a
+      className={`app__pay${block ? " app__pay--block" : ""}`}
+      href={payment.url}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      <span className="app__pay-label">Pay</span>
+      <span className="app__pay-price">{payment.priceLabel}</span>
+    </a>
+  );
+}
+
+interface ZoneSummaryProps {
+  streetName?: string | null;
+  zone?: ZoneChip | null;
+  canExpand: boolean;
+  expanded: boolean;
+  onToggle: () => void;
+  children?: ComponentChildren;
+}
+
+/** The dark "here's what we detected" row - the street name plus the zone's own code and
+ * curb colour - and the control that opens whatever the card reveals. */
+function ZoneSummary({
+  streetName,
+  zone,
+  canExpand,
+  expanded,
+  onToggle,
+  children,
+}: ZoneSummaryProps) {
+  return (
+    <div
+      className="app__detail-info"
+      role={canExpand ? "button" : undefined}
+      tabIndex={canExpand ? 0 : undefined}
+      aria-expanded={canExpand ? expanded : undefined}
+      onClick={canExpand ? onToggle : undefined}
+      onKeyDown={
+        canExpand
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onToggle();
+              }
+            }
+          : undefined
+      }
+    >
+      {streetName && <p className="app__detail-row app__detail-street">{streetName}</p>}
+      {zone && (
+        <p className="app__detail-row app__detail-zone">
+          <span
+            className="app__swatch"
+            style={{ background: zone.colorHex }}
+            title={`Curb color: ${zone.colorName}`}
+          />
+          <span className="app__detail-text">
+            {zone.code} · {zone.categoryLabel}
+          </span>
+          {canExpand && <span className="app__detail-chevron">{expanded ? "▲" : "▼"}</span>}
+        </p>
+      )}
+      {children}
+    </div>
+  );
+}
+
 interface ZoneBoxProps {
   streetName?: string | null;
   zone?: ZoneChip | null;
@@ -19,44 +104,19 @@ interface ZoneBoxProps {
   onToggle: () => void;
 }
 
-/** One "here's what we detected" card - a zone's identity plus the street it's on. Reused
- * once per candidate for an ambiguous location, each with the same streetName (the point
- * has exactly one nearest street regardless of which zone turns out to be right). */
+/** The card under a confident answer - the zone's identity, its price rows when it has
+ * any, and Pay as a full-height slice cut down the right edge. */
 function ZoneBox({ streetName, zone, expanded, onToggle }: ZoneBoxProps) {
   const canExpand = Boolean(zone?.expanded);
   return (
     <div className="app__detail">
-      <div
-        className="app__detail-info"
-        role={canExpand ? "button" : undefined}
-        tabIndex={canExpand ? 0 : undefined}
-        aria-expanded={canExpand ? expanded : undefined}
-        onClick={canExpand ? onToggle : undefined}
-        onKeyDown={
-          canExpand
-            ? (e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  onToggle();
-                }
-              }
-            : undefined
-        }
+      <ZoneSummary
+        streetName={streetName}
+        zone={zone}
+        canExpand={canExpand}
+        expanded={expanded}
+        onToggle={onToggle}
       >
-        {streetName && <p className="app__detail-row app__detail-street">{streetName}</p>}
-        {zone && (
-          <p className="app__detail-row app__detail-zone">
-            <span
-              className="app__swatch"
-              style={{ background: zone.colorHex }}
-              title={`Curb color: ${zone.colorName}`}
-            />
-            <span className="app__detail-text">
-              {zone.code} · {zone.categoryLabel}
-            </span>
-            {canExpand && <span className="app__detail-chevron">{expanded ? "▲" : "▼"}</span>}
-          </p>
-        )}
         {zone?.expanded && (
           // Stays mounted regardless of `expanded` - the CSS max-height transition on
           // .app__detail-expand-wrap needs the element present to animate between its
@@ -64,23 +124,57 @@ function ZoneBox({ streetName, zone, expanded, onToggle }: ZoneBoxProps) {
           <div
             className={`app__detail-expand-wrap${expanded ? " app__detail-expand-wrap--open" : ""}`}
           >
-            <dl className="app__detail-expanded">
-              {zone.expanded.map((row) => (
-                <div className="app__detail-expanded-row" key={row.label}>
-                  <dt>{row.label}</dt>
-                  <dd>{row.value}</dd>
-                </div>
-              ))}
-            </dl>
+            <ExpandedRows rows={zone.expanded} />
           </div>
         )}
+      </ZoneSummary>
+      {zone?.payment && <PayLink payment={zone.payment} />}
+    </div>
+  );
+}
+
+interface CandidateBoxProps {
+  streetName: string | null;
+  candidate: CandidateZone;
+  expanded: boolean;
+  onToggle: () => void;
+}
+
+/**
+ * One candidate for an ambiguous location. Tapping it opens that zone's own answer - the
+ * tone, emoji and recommendation the main screen would show had the fix landed on it - so
+ * an ambiguous result stays somewhere the user can act from. Every candidate opens,
+ * including a permit-only zone with no price rows to show.
+ *
+ * The parts stack rather than sharing a row, which lets the panel span the card's full
+ * width and keeps Pay a normal button inside it instead of a slice stretched to the height
+ * of the opened card.
+ */
+function CandidateBox({ streetName, candidate, expanded, onToggle }: CandidateBoxProps) {
+  return (
+    <div className="app__detail app__detail--resolvable">
+      <div className="app__detail-summary">
+        <ZoneSummary
+          streetName={streetName}
+          zone={candidate}
+          canExpand
+          expanded={expanded}
+          onToggle={onToggle}
+        />
       </div>
-      {zone?.payment && (
-        <a className="app__pay" href={zone.payment.url} target="_blank" rel="noopener noreferrer">
-          <span className="app__pay-label">Pay</span>
-          <span className="app__pay-price">{zone.payment.priceLabel}</span>
-        </a>
-      )}
+      <div className={`app__resolve-wrap${expanded ? " app__resolve-wrap--open" : ""}`}>
+        {/* The inset keeps a margin of the card's own dark chip around the panel, so the
+            tone colour reads as a distinct card however closely it matches the page behind
+            it - resident-zone orange on the ambiguous screen's orange, for instance. */}
+        <div className="app__resolve-inset">
+          <div className={`app__resolve app__resolve--${candidate.tone}`}>
+            <img className="app__resolve-emoji" src={`/emoji/${candidate.icon}.svg`} alt="" />
+            <p className="app__resolve-sentence">{candidate.sentence}</p>
+            {candidate.expanded && <ExpandedRows rows={candidate.expanded} />}
+            {candidate.payment && <PayLink payment={candidate.payment} block />}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -157,10 +251,10 @@ export function App() {
       {candidates && candidates.length > 0 && (
         <div className="app__candidates">
           {candidates.map((candidate) => (
-            <ZoneBox
+            <CandidateBox
               key={candidate.code}
               streetName={candidatesStreetName}
-              zone={candidate}
+              candidate={candidate}
               expanded={expandedCode === candidate.code}
               onToggle={() => toggleExpanded(candidate.code)}
             />

@@ -261,6 +261,9 @@ suite("describe", () => {
         colorName: "fialová",
         payment: null,
         expanded: null,
+        tone: "good",
+        icon: "1f60a",
+        sentence: "You're in a paid zone, but right now it's free to park.",
       },
       {
         code: "BUS-0001",
@@ -273,8 +276,54 @@ suite("describe", () => {
           { label: "Daily cap", value: "No cap" },
           { label: "Hours", value: "08:00–17:59" },
         ],
+        tone: "warn",
+        icon: "1f642",
+        sentence: "You can park here, but it's paid.",
       },
     ]);
+  });
+
+  it("gives a candidate the same advice that zone would get as a confident answer", () => {
+    const status: ZoneStatus = { kind: "paidZone", pricePerHour: 40, dailyCapCzk: null,
+      from: "08:00", until: "17:59", streetName: "Nerudova", ...visZone };
+    const alone = describe(status);
+    const [candidate] = describe({
+      kind: "ambiguous", streetName: "Nerudova", candidates: [status],
+    }).detail!.candidateZones!;
+
+    expect(candidate.tone).toBe(alone.tone);
+    expect(candidate.icon).toBe(alone.icon);
+    expect(candidate.sentence).toBe(alone.sentence);
+  });
+
+  it("gives a resident candidate its advice even though it has no price rows to show", () => {
+    const [candidate] = describe({
+      kind: "ambiguous",
+      streetName: "Tovačovského",
+      candidates: [{ kind: "residentZone", streetName: "Tovačovského", ...resZone }],
+    }).detail!.candidateZones!;
+
+    expect(candidate).toMatchObject({
+      tone: "caution",
+      icon: "1f914",
+      sentence: "This is a resident-only zone, so you might need a permit to park here.",
+      payment: null,
+      expanded: null,
+    });
+  });
+
+  it("keeps the upcoming-closure clause out of candidate sentences, leaving it in the headline", () => {
+    const display = describe(
+      {
+        kind: "ambiguous",
+        streetName: "Nerudova",
+        candidates: [{ kind: "residentZone", streetName: "Nerudova", ...resZone }],
+      },
+      upcomingTomorrow,
+    );
+
+    expect(display.sentence).toContain("street cleaning tomorrow");
+    expect(display.detail!.candidateZones![0].sentence).not.toContain("street cleaning");
   });
 
   it("appends the upcoming-closure clause to the ambiguous sentence too", () => {
