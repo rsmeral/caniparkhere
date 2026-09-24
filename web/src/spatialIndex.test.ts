@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 import type { Feature, MultiLineString, MultiPolygon } from "geojson";
 import { LineIndex, PolygonIndex } from "./spatialIndex";
 
+// A degree of longitude at this latitude (~50°N, Prague) is roughly 71.5km, vs ~111.3km for
+// a degree of latitude - fixtures below pick offsets small enough that the difference
+// doesn't matter, so distances stay easy to reason about in plain "roughly N meters" terms.
+const PRAGUE_LAT = 50;
+
 function square(
   id: string,
   x0: number,
@@ -72,12 +77,43 @@ describe("PolygonIndex", () => {
     expect(index.findContaining(25, 25).map((f) => f.properties.id)).toEqual(["b"]);
     expect(index.findContaining(5, 5).map((f) => f.properties.id)).toEqual(["a"]);
   });
-});
 
-// One degree of longitude at Prague's latitude (~50°N) is roughly 71.5km, vs ~111.3km for
-// a degree of latitude - these fixtures pick offsets small enough that the difference
-// doesn't matter, so distances stay easy to reason about in plain "roughly N meters" terms.
-const PRAGUE_LAT = 50;
+  describe("findNearby", () => {
+    it("reports 0 distance for a point inside the feature", () => {
+      const index = new PolygonIndex([
+        square("a", 14.4, PRAGUE_LAT, 14.5, PRAGUE_LAT + 1),
+      ]);
+      const [match] = index.findNearby(14.45, PRAGUE_LAT + 0.5, 10);
+      expect(match.feature.properties.id).toBe("a");
+      expect(match.distanceMeters).toBe(0);
+    });
+
+    it("reports the distance to the nearest edge for a point just outside", () => {
+      const index = new PolygonIndex([
+        square("a", 14.4, PRAGUE_LAT, 14.5, PRAGUE_LAT + 1),
+      ]);
+      // ~0.0002 degrees of longitude at 50°N is roughly 14m.
+      const [match] = index.findNearby(14.3998, PRAGUE_LAT + 0.5, 20);
+      expect(match.feature.properties.id).toBe("a");
+      expect(match.distanceMeters).toBeGreaterThan(0);
+      expect(match.distanceMeters).toBeLessThan(20);
+    });
+
+    it("excludes features further than the search radius", () => {
+      const index = new PolygonIndex([square("a", 14.4, PRAGUE_LAT, 14.5, PRAGUE_LAT + 1)]);
+      expect(index.findNearby(14.3, PRAGUE_LAT + 0.5, 20)).toEqual([]);
+    });
+
+    it("returns every feature within radius, nearest first", () => {
+      const index = new PolygonIndex([
+        square("far", 14.4, PRAGUE_LAT, 14.5, PRAGUE_LAT + 1),
+        square("near", 20, PRAGUE_LAT, 20.01, PRAGUE_LAT + 1),
+      ]);
+      const results = index.findNearby(20, PRAGUE_LAT + 0.5, 5);
+      expect(results.map((r) => r.feature.properties.id)).toEqual(["near"]);
+    });
+  });
+});
 
 function line(
   id: string,

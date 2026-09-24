@@ -49,10 +49,42 @@ export class PolygonIndex<P> {
       .filter((c) => booleanPointInPolygon(point, c.feature as Feature<MultiPolygon>))
       .map((c) => c.feature);
   }
+
+  /**
+   * Finds every feature within maxDistanceMeters of the point - 0 for one the point sits
+   * inside, otherwise the distance to its nearest edge. For a GPS fix too coarse to trust
+   * a single containment check: passing the fix's own accuracy radius here surfaces every
+   * zone the point could plausibly actually be in. Sorted nearest-first.
+   */
+  findNearby(
+    lon: number,
+    lat: number,
+    maxDistanceMeters: number,
+  ): { feature: Feature<MultiPolygon, P>; distanceMeters: number }[] {
+    const lonPad = maxDistanceMeters / metersPerDegLon(lat);
+    const latPad = maxDistanceMeters / METERS_PER_DEG_LAT;
+    const candidates = this.tree.search({
+      minX: lon - lonPad,
+      minY: lat - latPad,
+      maxX: lon + lonPad,
+      maxY: lat + latPad,
+    });
+    const point: [number, number] = [lon, lat];
+
+    const results: { feature: Feature<MultiPolygon, P>; distanceMeters: number }[] = [];
+    for (const c of candidates) {
+      const inside = booleanPointInPolygon(point, c.feature as Feature<MultiPolygon>);
+      const distanceMeters = inside ? 0 : pointToPolygonMeters(lon, lat, c.feature.geometry);
+      if (distanceMeters <= maxDistanceMeters) results.push({ feature: c.feature, distanceMeters });
+    }
+    return results.sort((a, b) => a.distanceMeters - b.distanceMeters);
+  }
 }
 
 // Degrees-to-meters conversion is only approximate (a flat-earth projection local to the
-// query point), which is plenty accurate at the scale of a single street lookup.
+// query point), which is plenty accurate at the scale of a single zone or street lookup.
+// Shared by both PolygonIndex.findNearby (zone-boundary distance) and LineIndex (street
+// centerline distance) below.
 const METERS_PER_DEG_LAT = 111_320;
 
 function metersPerDegLon(lat: number): number {
@@ -77,6 +109,25 @@ function pointToSegmentMeters(
   if (lengthSq === 0) return Math.hypot(ax, ay);
   const t = Math.max(0, Math.min(1, (-ax * dx - ay * dy) / lengthSq));
   return Math.hypot(ax + t * dx, ay + t * dy);
+}
+
+/** Shortest distance in meters from (lon, lat) to a MultiPolygon's boundary (all rings, all parts). */
+function pointToPolygonMeters(lon: number, lat: number, geometry: MultiPolygon): number {
+  let min = Infinity;
+  for (const polygon of geometry.coordinates) {
+    for (const ring of polygon) {
+      for (let i = 0; i < ring.length - 1; i++) {
+        const distance = pointToSegmentMeters(
+          lon,
+          lat,
+          ring[i] as [number, number],
+          ring[i + 1] as [number, number],
+        );
+        if (distance < min) min = distance;
+      }
+    }
+  }
+  return min;
 }
 
 interface LineSegmentItem<P> {

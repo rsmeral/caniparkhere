@@ -1,4 +1,4 @@
-import type { Status, UpcomingClosure, ZoneInfo } from "./query";
+import type { Status, UpcomingClosure, ZoneInfo, ZoneStatus } from "./query";
 
 export type Tone = "neutral" | "good" | "warn" | "caution" | "danger" | "outside";
 
@@ -26,6 +26,9 @@ export interface ZoneChip {
 export interface Detail {
   streetName: string | null;
   zone: ZoneChip | null;
+  /** Set only when the location is ambiguous between multiple zones (zone is null in that
+   * case) - every zone the GPS fix's accuracy radius could plausibly place you in. */
+  candidateZones: ZoneChip[] | null;
 }
 
 export interface Display {
@@ -77,7 +80,23 @@ function zoneChip(zone: ZoneInfo, options: ZoneChipOptions = {}): ZoneChip {
 
 /** Builds the detail card, or null if there's nothing to show (no street, no zone). */
 function detailOf(streetName: string | null, zone: ZoneChip | null): Detail | null {
-  return streetName || zone ? { streetName, zone } : null;
+  return streetName || zone ? { streetName, zone, candidateZones: null } : null;
+}
+
+/** Builds the ZoneChip for a single resolved zone status - shared by the main switch below
+ * and by each entry in an ambiguous location's candidate list. */
+function chipForZoneStatus(status: ZoneStatus): ZoneChip {
+  if (status.kind === "paidZone") {
+    return zoneChip(status, {
+      payment: { pricePerHour: status.pricePerHour },
+      expanded: [
+        { label: "Price", value: `${status.pricePerHour} Kč/hod` },
+        { label: "Daily cap", value: status.dailyCapCzk ? `${status.dailyCapCzk} Kč` : "No cap" },
+        { label: "Hours", value: `${status.from}–${status.until}` },
+      ],
+    });
+  }
+  return zoneChip(status);
 }
 
 /** @example upcomingClause({date:"2026-04-10", daysUntil:1, streetName:"Foo"}) -> " And watch out, street cleaning tomorrow." */
@@ -111,37 +130,26 @@ export function describe(status: Status, upcoming: UpcomingClosure | null = null
         sentence: "There's street cleaning here today — don't park here.",
         detail: detailOf(status.streetName, null),
       };
-    case "paidZone": {
+    case "paidZone":
       return {
         tone: "warn",
         icon: "1f642", // 🙂
         sentence: `You can park here, but it's paid.${clause}`,
-        detail: detailOf(
-          status.streetName,
-          zoneChip(status, {
-            payment: { pricePerHour: status.pricePerHour },
-            expanded: [
-              { label: "Price", value: `${status.pricePerHour} Kč/hod` },
-              { label: "Daily cap", value: status.dailyCapCzk ? `${status.dailyCapCzk} Kč` : "No cap" },
-              { label: "Hours", value: `${status.from}–${status.until}` },
-            ],
-          }),
-        ),
+        detail: detailOf(status.streetName, chipForZoneStatus(status)),
       };
-    }
     case "residentZone":
       return {
         tone: "caution",
         icon: "1f914", // 🤔
         sentence: `This is a resident-only zone, so you might need a permit to park here.${clause}`,
-        detail: detailOf(status.streetName, zoneChip(status)),
+        detail: detailOf(status.streetName, chipForZoneStatus(status)),
       };
     case "freeZoneRightNow":
       return {
         tone: "good",
         icon: "1f60a", // 😊
         sentence: `You're in a paid zone, but right now it's free to park.${clause}`,
-        detail: detailOf(status.streetName, zoneChip(status)),
+        detail: detailOf(status.streetName, chipForZoneStatus(status)),
       };
     case "clear":
       return {
@@ -149,6 +157,17 @@ export function describe(status: Status, upcoming: UpcomingClosure | null = null
         icon: "1f440", // 👀
         sentence: `I don't have parking info for this spot — better check the signs around you.${clause}`,
         detail: detailOf(status.streetName, null),
+      };
+    case "ambiguous":
+      return {
+        tone: "caution",
+        icon: "1f9d0", // 🧐
+        sentence: `Your location isn't precise enough to tell exactly which zone you're in — could be any of these.${clause}`,
+        detail: {
+          streetName: status.streetName,
+          zone: null,
+          candidateZones: status.candidates.map(chipForZoneStatus),
+        },
       };
   }
 }
