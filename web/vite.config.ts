@@ -26,13 +26,29 @@ export default defineConfig({
       },
       manifest: {
         name: "Can I Park Here",
-        short_name: "ParkHere",
+        // What a launcher labels the installed app with, and what Firefox offers at the
+        // install prompt. Kept short because launchers truncate past about 12 characters.
+        short_name: "Can I Park?",
         description: "Is it OK to park here right now, in Prague?",
         theme_color: "#22c55e",
-        background_color: "#22c55e",
+        // The splash while the app boots. Deliberately neutral: the app's own background
+        // is whichever tone the answer turns out to warrant, and this shows before there
+        // is an answer.
+        background_color: "#1f2937",
         display: "standalone",
         start_url: "/",
-        icons: [{ src: "/icons/icon.png", sizes: "400x400", type: "image/png", purpose: "any" }],
+        // The maskable icon is what keeps a launcher from shrinking the plate onto a
+        // backdrop of its own: it is opaque to the edges and keeps the artwork inside the
+        // 80% safe zone, so an adaptive icon of any shape can crop it directly.
+        icons: [
+          { src: "/icons/icon.png", sizes: "400x400", type: "image/png", purpose: "any" },
+          {
+            src: "/icons/icon-maskable.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "maskable",
+          },
+        ],
       },
     }),
   ],
