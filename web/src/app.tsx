@@ -5,7 +5,7 @@ import { ZoneBox } from "./components/ZoneBox";
 import { describe, type Display } from "./describe";
 import type { QueryResult } from "./query";
 import { createQueryClient } from "./queryClient";
-import { useGeolocation } from "./useGeolocation";
+import type { GeoState } from "./useGeolocation";
 import { useThemeColor } from "./useThemeColor";
 
 const neutral = (icon: string, sentence: string): Display => ({
@@ -15,8 +15,11 @@ const neutral = (icon: string, sentence: string): Display => ({
   detail: null,
 });
 
-export function App() {
-  const geo = useGeolocation();
+/**
+ * The whole screen, for whatever location it's given. Where that location comes from is up
+ * to the caller: the browser's GPS in the real app, or a pin on a map in the jig.
+ */
+export function App({ geo }: { geo: GeoState }) {
   // Spinning the worker up on first render starts its data load immediately, alongside the
   // browser's search for a GPS fix.
   const client = useMemo(() => createQueryClient(), []);
