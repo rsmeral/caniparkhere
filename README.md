@@ -16,15 +16,17 @@ For the spot you're standing on, the app shows:
 
 ## Data sources
 
-All data comes from Prague's open data catalog, [LKOD](https://lkod.cz/):
+From Prague's open data catalog, [LKOD](https://lkod.cz/):
 
 - [Zóny placeného stání vymezené tarifem](https://lkod.cz/catalog/praha/datasets/https%3A%2F%2Fapi.lkod.cz%2Flod%2F03bdf7d6-a255-4e22-83f9-4b17b6822602%2Fcatalog%2F1f8589e3-7cd1-4267-b3ba-292e375e708d)
   – paid parking zones, with their prices and hours
 - [Letní údržba komunikací TSK](https://lkod.cz/catalog/praha/datasets/https%3A%2F%2Fapi.lkod.cz%2Flod%2F03bdf7d6-a255-4e22-83f9-4b17b6822602%2Fcatalog%2Fc6363a9e-9e46-4bec-ae26-b6149c1e8dd8)
   – summer street cleaning (blokové čištění), with the cleaning dates for each street
 
-Street names come from [RÚIAN](https://cuzk.gov.cz/ruian/RUIAN.aspx), the Czech national
-address register.
+From ČÚZK, the Czech land survey office:
+
+- [RÚIAN – Ulice](https://ags.cuzk.gov.cz/arcgis/rest/services/RUIAN/MapServer/4) – street
+  centre lines and names from RÚIAN, the national address register
 
 ## How it works
 
