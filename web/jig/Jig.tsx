@@ -1,9 +1,11 @@
 import type { RefObject } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
+import { ZONE_CATEGORY } from "../src/describe";
 import type { GeoState } from "../src/useGeolocation";
 import { PinMap } from "./PinMap";
 import { DEFAULT_PIN, formatPinHash, parsePinHash, type Pin } from "./pinState";
 import type { FrameMessage, JigMessage } from "./protocol";
+import { CLEANING_COLOR, type Overlays } from "./zoneLayers";
 
 /** "pin" is a fix at the pin; the others are the states the browser's GPS can be in. */
 type Source = "pin" | Exclude<GeoState["status"], "ready">;
@@ -29,6 +31,7 @@ export function Jig() {
   const [pin, setPin] = useState<Pin>(() => parsePinHash(location.hash) ?? DEFAULT_PIN);
   const [source, setSource] = useState<Source>("pin");
   const [deviceIndex, setDeviceIndex] = useState(0);
+  const [overlays, setOverlays] = useState<Overlays>({ zones: true, cleaning: false });
   const frame = useRef<HTMLIFrameElement>(null);
 
   const geo: GeoState = useMemo(
@@ -76,7 +79,11 @@ export function Jig() {
     <div className="jig">
       <PhoneFrame frameRef={frame} width={device.width} height={device.height} />
       <div className="jig__map-area">
-        <PinMap pin={pin} onMove={(lon, lat) => setPin((p) => ({ ...p, lon, lat }))} />
+        <PinMap
+          pin={pin}
+          overlays={overlays}
+          onMove={(lon, lat) => setPin((p) => ({ ...p, lon, lat }))}
+        />
         <form className="jig__controls" onSubmit={(e) => e.preventDefault()}>
           <label className="jig__field">
             <span>Location</span>
@@ -114,6 +121,34 @@ export function Jig() {
               ))}
             </select>
           </label>
+          <fieldset className="jig__field jig__overlays">
+            <legend>Map</legend>
+            <label>
+              <input
+                type="checkbox"
+                checked={overlays.zones}
+                onChange={(e) => setOverlays((o) => ({ ...o, zones: e.currentTarget.checked }))}
+              />
+              Paid zones
+              {Object.values(ZONE_CATEGORY).map((c) => (
+                <span
+                  key={c.label}
+                  className="jig__swatch"
+                  style={{ background: c.colorHex }}
+                  title={c.label}
+                />
+              ))}
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                checked={overlays.cleaning}
+                onChange={(e) => setOverlays((o) => ({ ...o, cleaning: e.currentTarget.checked }))}
+              />
+              Street cleaning
+              <span className="jig__swatch" style={{ background: CLEANING_COLOR }} />
+            </label>
+          </fieldset>
           <p className="jig__coords">
             {pin.lat.toFixed(5)}, {pin.lon.toFixed(5)}
           </p>

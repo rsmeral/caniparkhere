@@ -120,6 +120,8 @@ npm run jig       # opens http://localhost:5173/jig/
   as if it came from a GPS fix.
 - The Location menu switches to the other states the GPS can be in: still searching, gave
   up, permission denied, or no geolocation at all.
+- The map draws the app's own data under the pin: paid zones in their category colours
+  with their codes, and, when switched on, street-cleaning sections in red.
 - The Screen menu sets the frame to a few common phone sizes. The frame shrinks to fit a
   shorter window, but the app still lays out at the phone's real size.
 - The pin and accuracy are kept in the URL (`#lat,lon,accuracy`), so a spot can be

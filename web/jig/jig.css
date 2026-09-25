@@ -85,3 +85,27 @@ body {
   margin: 0;
   color: #6b7280;
 }
+
+.jig__overlays {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.jig__overlays legend {
+  padding: 0;
+  margin-bottom: 0.3rem;
+  font-weight: 600;
+}
+
+.jig__overlays label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.jig__swatch {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+}
