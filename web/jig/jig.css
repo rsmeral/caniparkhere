@@ -1,0 +1,87 @@
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background: #111827;
+  font-family: system-ui, sans-serif;
+}
+
+.jig {
+  display: flex;
+  height: 100vh;
+}
+
+.jig__phone-area {
+  /* Its height is what the phone is scaled to fit; its width follows the phone. */
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.jig__phone {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.25rem;
+  box-shadow:
+    0 0 0 0.5rem #000,
+    0 0 0 calc(0.5rem + 1px) #374151,
+    0 1rem 3rem rgba(0, 0, 0, 0.5);
+}
+
+.jig__frame {
+  display: block;
+  border: 0;
+  transform-origin: top left;
+}
+
+.jig__map-area {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.jig__map {
+  position: absolute;
+  inset: 0;
+}
+
+.jig__controls {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 15rem;
+  padding: 0.85rem 1rem;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  font-size: 0.85rem;
+  color: #111827;
+}
+
+.jig__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.jig__field > span {
+  font-weight: 600;
+}
+
+.jig__coords {
+  margin: 0;
+  font-family: ui-monospace, monospace;
+}
+
+.jig__hint {
+  margin: 0;
+  color: #6b7280;
+}

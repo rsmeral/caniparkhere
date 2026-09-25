@@ -1,0 +1,92 @@
+/// <reference types="vite/client" />
+import {
+  type GeoJSONSource,
+  Map as MapLibreMap,
+  Marker,
+  NavigationControl,
+  ScaleControl,
+  setWorkerUrl,
+} from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
+import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
+import { useEffect, useRef } from "preact/hooks";
+import { accuracyCircle } from "./circle";
+import type { Pin } from "./pinState";
+
+// OpenFreeMap: OpenStreetMap vector tiles with no API key, no registration and no usage
+// limits. Positron is its quietest style, so anything drawn over it stands out.
+const STYLE_URL = "https://tiles.openfreemap.org/styles/positron";
+
+// MapLibre looks for its worker next to its own module, which isn't where Vite serves a
+// pre-bundled dependency from.
+setWorkerUrl(workerUrl);
+
+interface Props {
+  pin: Pin;
+  onMove(lon: number, lat: number): void;
+}
+
+/** A map with one draggable pin and its accuracy circle. Clicking the map moves the pin. */
+export function PinMap({ pin, onMove }: Props) {
+  const container = useRef<HTMLDivElement>(null);
+  const map = useRef<MapLibreMap | null>(null);
+  const marker = useRef<Marker | null>(null);
+  // MapLibre's handlers are bound once, so they read the latest props through refs.
+  const latest = useRef({ pin, onMove });
+  latest.current = { pin, onMove };
+
+  useEffect(() => {
+    const m = new MapLibreMap({
+      container: container.current!,
+      style: STYLE_URL,
+      center: [pin.lon, pin.lat],
+      zoom: 16,
+    });
+    m.addControl(new NavigationControl({ showCompass: false }));
+    m.addControl(new ScaleControl({ maxWidth: 120 }), "bottom-left");
+
+    const mk = new Marker({ draggable: true }).setLngLat([pin.lon, pin.lat]).addTo(m);
+    mk.on("drag", () => {
+      const { lng, lat } = mk.getLngLat();
+      latest.current.onMove(lng, lat);
+    });
+    m.on("click", (e) => latest.current.onMove(e.lngLat.lng, e.lngLat.lat));
+
+    m.on("load", () => {
+      const p = latest.current.pin;
+      m.addSource("accuracy", {
+        type: "geojson",
+        data: accuracyCircle(p.lon, p.lat, p.accuracyMeters),
+      });
+      m.addLayer({
+        id: "accuracy-fill",
+        type: "fill",
+        source: "accuracy",
+        paint: { "fill-color": "#3b82f6", "fill-opacity": 0.15 },
+      });
+      m.addLayer({
+        id: "accuracy-line",
+        type: "line",
+        source: "accuracy",
+        paint: { "line-color": "#2563eb", "line-width": 1.5 },
+      });
+    });
+
+    map.current = m;
+    marker.current = mk;
+    return () => m.remove();
+  }, []);
+
+  useEffect(() => {
+    const m = map.current;
+    if (!m) return;
+    marker.current?.setLngLat([pin.lon, pin.lat]);
+    m.getSource<GeoJSONSource>("accuracy")?.setData(
+      accuracyCircle(pin.lon, pin.lat, pin.accuracyMeters),
+    );
+    // A pin set from outside the map, such as an edited URL hash, can land off screen.
+    if (!m.getBounds().contains([pin.lon, pin.lat])) m.jumpTo({ center: [pin.lon, pin.lat] });
+  }, [pin]);
+
+  return <div className="jig__map" ref={container} />;
+}

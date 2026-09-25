@@ -106,6 +106,36 @@ How the app uses the data:
 - If it can't reach the network, it uses the stored copy.
 - The lookups run in a web worker, using an R-tree index built from the data.
 
+### Jig
+
+A test page for the app that runs it without real GPS. It shows the app in a phone-sized
+frame, next to a map with a pin:
+
+```
+cd web
+npm run jig       # opens http://localhost:5173/jig/
+```
+
+- Click the map or drag the pin to move the location. The slider sets the accuracy radius,
+  as if it came from a GPS fix.
+- The Location menu switches to the other states the GPS can be in: still searching, gave
+  up, permission denied, or no geolocation at all.
+- The Screen menu sets the frame to a few common phone sizes. The frame shrinks to fit a
+  shorter window, but the app still lays out at the phone's real size.
+- The pin and accuracy are kept in the URL (`#lat,lon,accuracy`), so a spot can be
+  bookmarked or shared.
+
+How it works:
+
+- `App` takes the location as a prop. The real app passes it the browser's GPS
+  (`src/main.tsx`). The jig runs the same `App` in an iframe (`jig/frame.tsx`) and sends
+  it the pin's location with `postMessage`.
+- The iframe gives the app its own viewport, so it lays out the same as on a phone.
+- The jig lives in `web/jig/` and is only served by the dev server. It is not part of
+  `npm run build`, and its map library (MapLibre) is a dev dependency.
+- The map tiles come from [OpenFreeMap](https://openfreemap.org/), which is free, needs no
+  API key and has no usage limits. The map data is © OpenStreetMap contributors.
+
 ## Tests and formatting
 
 - `pipeline/` and `web/` each have `npm run test`.
