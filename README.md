@@ -118,20 +118,24 @@ npm run jig       # opens http://localhost:5173/jig/
 
 - Click the map or drag the pin to move the location. The slider sets the accuracy radius,
   as if it came from a GPS fix.
+- Time is either Now, which follows the real clock, or Custom, a date and time you pick,
+  to see prices and paid hours at other times. Times are in your computer's time zone,
+  which is also the one the app reads tariff hours in.
 - The Location menu switches to the other states the GPS can be in: still searching, gave
   up, permission denied, or no geolocation at all.
 - The map draws the app's own data under the pin: paid zones in their category colours
   with their codes, and, when switched on, street-cleaning sections in red.
 - The Screen menu sets the frame to a few common phone sizes. The frame shrinks to fit a
   shorter window, but the app still lays out at the phone's real size.
-- The pin and accuracy are kept in the URL (`#lat,lon,accuracy`), so a spot can be
-  bookmarked or shared.
+- The pin, accuracy and custom time are kept in the URL (`#lat,lon,accuracy[,time]`), so a
+  spot can be bookmarked or shared.
 
 How it works:
 
-- `App` takes the location as a prop. The real app passes it the browser's GPS
-  (`src/main.tsx`). The jig runs the same `App` in an iframe (`jig/frame.tsx`) and sends
-  it the pin's location with `postMessage`.
+- `App` takes the location, and optionally the time, as props. The real app passes it the
+  browser's GPS and leaves the time to the clock (`src/main.tsx`). The jig runs the same
+  `App` in an iframe (`jig/frame.tsx`) and sends it the pin's location and the chosen time
+  with `postMessage`.
 - The iframe gives the app its own viewport, so it lays out the same as on a phone.
 - The jig lives in `web/jig/` and is only served by the dev server. It is not part of
   `npm run build`, and its map library (MapLibre) is a dev dependency.

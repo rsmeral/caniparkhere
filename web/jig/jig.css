@@ -57,7 +57,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  width: 15rem;
+  width: 17.5rem;
   padding: 0.85rem 1rem;
   background: rgba(255, 255, 255, 0.95);
   border-radius: 0.5rem;
@@ -108,4 +108,49 @@ body {
   width: 0.6rem;
   height: 0.6rem;
   border-radius: 50%;
+}
+
+.jig__time {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.jig__time legend {
+  padding: 0;
+  margin-bottom: 0.3rem;
+  font-weight: 600;
+}
+
+.jig__time-modes,
+.jig__time-steps {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.jig__time-modes label {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.jig__time-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.35rem 0;
+}
+
+.jig__time-row span {
+  color: #6b7280;
+}
+
+.jig__time-steps {
+  gap: 0.35rem;
+}
+
+.jig__time-steps button {
+  flex: 1;
+  font: inherit;
+  font-size: 0.8rem;
 }

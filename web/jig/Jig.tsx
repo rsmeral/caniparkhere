@@ -3,8 +3,15 @@ import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { ZONE_CATEGORY } from "../src/describe";
 import type { GeoState } from "../src/useGeolocation";
 import { PinMap } from "./PinMap";
-import { DEFAULT_PIN, formatPinHash, parsePinHash, type Pin } from "./pinState";
 import type { FrameMessage, JigMessage } from "./protocol";
+import {
+  DEFAULT_SCENARIO,
+  formatScenarioHash,
+  parseScenarioHash,
+  type Pin,
+  shiftLocalTime,
+  toLocalTime,
+} from "./scenario";
 import { CLEANING_COLOR, type Overlays } from "./zoneLayers";
 
 /** "pin" is a fix at the pin; the others are the states the browser's GPS can be in. */
@@ -27,8 +34,18 @@ const DEVICES = [
 
 const MAX_ACCURACY_METERS = 250;
 
+const TIME_STEPS = [
+  { label: "−1 h", minutes: -60 },
+  { label: "+1 h", minutes: 60 },
+  { label: "+1 day", minutes: 24 * 60 },
+];
+
+const initialScenario = parseScenarioHash(location.hash) ?? DEFAULT_SCENARIO;
+
 export function Jig() {
-  const [pin, setPin] = useState<Pin>(() => parsePinHash(location.hash) ?? DEFAULT_PIN);
+  const [pin, setPin] = useState<Pin>(initialScenario.pin);
+  // Null follows the real clock; a local `YYYY-MM-DDTHH:MM` pins the app to that moment.
+  const [time, setTime] = useState<string | null>(initialScenario.time);
   const [source, setSource] = useState<Source>("pin");
   const [deviceIndex, setDeviceIndex] = useState(0);
   const [overlays, setOverlays] = useState<Overlays>({ zones: true, cleaning: false });
@@ -42,32 +59,34 @@ export function Jig() {
     [pin, source],
   );
 
-  const send = (g: GeoState) =>
-    frame.current?.contentWindow?.postMessage(
-      { type: "geo", geo: g } satisfies JigMessage,
-      location.origin,
-    );
+  const message: JigMessage = useMemo(
+    () => ({ type: "show", geo, at: time === null ? null : new Date(time).getTime() }),
+    [geo, time],
+  );
+  const send = (m: JigMessage) => frame.current?.contentWindow?.postMessage(m, location.origin);
 
   // The frame announces itself on every load, including reloads from a code change, and
-  // gets the current location in reply.
-  const latestGeo = useRef(geo);
-  latestGeo.current = geo;
+  // gets what to show in reply.
+  const latestMessage = useRef(message);
+  latestMessage.current = message;
   useEffect(() => {
     const onMessage = (event: MessageEvent<FrameMessage>) => {
       if (event.source !== frame.current?.contentWindow || event.data?.type !== "ready") return;
-      send(latestGeo.current);
+      send(latestMessage.current);
     };
     addEventListener("message", onMessage);
     return () => removeEventListener("message", onMessage);
   }, []);
 
-  useEffect(() => send(geo), [geo]);
+  useEffect(() => send(message), [message]);
 
-  useEffect(() => history.replaceState(null, "", formatPinHash(pin)), [pin]);
+  useEffect(() => history.replaceState(null, "", formatScenarioHash({ pin, time })), [pin, time]);
   useEffect(() => {
     const onHashChange = () => {
-      const parsed = parsePinHash(location.hash);
-      if (parsed) setPin(parsed);
+      const parsed = parseScenarioHash(location.hash);
+      if (!parsed) return;
+      setPin(parsed.pin);
+      setTime(parsed.time);
     };
     addEventListener("hashchange", onHashChange);
     return () => removeEventListener("hashchange", onHashChange);
@@ -121,6 +140,7 @@ export function Jig() {
               ))}
             </select>
           </label>
+          <TimeControl time={time} onChange={setTime} />
           <fieldset className="jig__field jig__overlays">
             <legend>Map</legend>
             <label>
@@ -156,6 +176,68 @@ export function Jig() {
         </form>
       </div>
     </div>
+  );
+}
+
+interface TimeControlProps {
+  time: string | null;
+  onChange(time: string | null): void;
+}
+
+/**
+ * Real time, or a set moment to see what the app says then. Times are in this computer's
+ * time zone, which is also the one the app reads tariff hours in.
+ */
+function TimeControl({ time, onChange }: TimeControlProps) {
+  // Ticks while following the real clock, so the disabled input shows the time the app is
+  // answering for.
+  const [clock, setClock] = useState(() => toLocalTime(new Date()));
+  useEffect(() => {
+    if (time !== null) return;
+    const timer = setInterval(() => setClock(toLocalTime(new Date())), 10_000);
+    return () => clearInterval(timer);
+  }, [time]);
+
+  const shown = time ?? clock;
+  const weekday = new Date(shown).toLocaleDateString("en-GB", { weekday: "long" });
+
+  return (
+    <fieldset className="jig__field jig__time">
+      <legend>Time</legend>
+      <div className="jig__time-modes">
+        <label>
+          <input type="radio" checked={time === null} onChange={() => onChange(null)} />
+          Now
+        </label>
+        <label>
+          <input type="radio" checked={time !== null} onChange={() => onChange(clock)} />
+          Custom
+        </label>
+      </div>
+      <div className="jig__time-row">
+        <input
+          type="datetime-local"
+          value={shown}
+          disabled={time === null}
+          onInput={(e) => {
+            // An input cleared with its own reset button has no value to answer for.
+            if (e.currentTarget.value) onChange(e.currentTarget.value);
+          }}
+        />
+        <span>{weekday}</span>
+      </div>
+      <div className="jig__time-steps">
+        {TIME_STEPS.map((step) => (
+          <button
+            key={step.label}
+            type="button"
+            onClick={() => onChange(shiftLocalTime(shown, step.minutes))}
+          >
+            {step.label}
+          </button>
+        ))}
+      </div>
+    </fieldset>
   );
 }
 

@@ -11,7 +11,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import { useEffect, useRef } from "preact/hooks";
 import { accuracyCircle } from "./circle";
-import type { Pin } from "./pinState";
+import type { Pin } from "./scenario";
 import { addZoneLayers, type Overlays, setOverlayVisibility } from "./zoneLayers";
 
 // OpenFreeMap: OpenStreetMap vector tiles with no API key, no registration and no usage
