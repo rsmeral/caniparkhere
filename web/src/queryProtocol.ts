@@ -12,6 +12,8 @@ export interface QueryRequest {
   lon: number;
   lat: number;
   accuracyMeters: number | null;
+  /** The moment to answer for, in epoch milliseconds, or null for the time it's answered. */
+  at: number | null;
 }
 
 /** Worker -> main thread: the answer to request `id`, or why it couldn't be produced. */

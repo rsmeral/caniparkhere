@@ -15,11 +15,17 @@ const neutral = (icon: string, sentence: string): Display => ({
   detail: null,
 });
 
+interface Props {
+  geo: GeoState;
+  /** The moment to answer for. Left out, each answer is for the time it's worked out. */
+  now?: Date;
+}
+
 /**
- * The whole screen, for whatever location it's given. Where that location comes from is up
- * to the caller: the browser's GPS in the real app, or a pin on a map in the jig.
+ * The whole screen, for whatever location and time it's given. Where those come from is up
+ * to the caller: the browser's GPS and clock in the real app, or the controls in the jig.
  */
-export function App({ geo }: { geo: GeoState }) {
+export function App({ geo, now }: Props) {
   // Spinning the worker up on first render starts its data load immediately, alongside the
   // browser's search for a GPS fix.
   const client = useMemo(() => createQueryClient(), []);
@@ -29,13 +35,17 @@ export function App({ geo }: { geo: GeoState }) {
 
   useEffect(() => () => client.terminate(), [client]);
 
+  // The effect below depends on the timestamp, not the Date, so a new Date for the same
+  // moment doesn't ask again.
+  const nowMs = now?.getTime();
+
   // Each fix is resolved by the worker. `live` drops an answer whose location has already
   // been superseded, since replies can land in a different order than they were asked for.
   useEffect(() => {
     if (geo.status !== "ready") return;
     let live = true;
     client
-      .query(geo.lon, geo.lat, geo.accuracyMeters)
+      .query(geo.lon, geo.lat, geo.accuracyMeters, now)
       .then((r) => {
         if (live) setResult(r);
       })
@@ -45,7 +55,7 @@ export function App({ geo }: { geo: GeoState }) {
     return () => {
       live = false;
     };
-  }, [client, geo]);
+  }, [client, geo, nowMs]);
 
   const display: Display = useMemo(() => {
     if (dataError) return neutral("1f635", `Couldn't load zone data: ${dataError}`); // 😵

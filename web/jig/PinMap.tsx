@@ -11,7 +11,8 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import { useEffect, useRef } from "preact/hooks";
 import { accuracyCircle } from "./circle";
-import type { Pin } from "./pinState";
+import type { Pin } from "./scenario";
+import { addZoneLayers, type Overlays, setOverlayVisibility } from "./zoneLayers";
 
 // OpenFreeMap: OpenStreetMap vector tiles with no API key, no registration and no usage
 // limits. Positron is its quietest style, so anything drawn over it stands out.
@@ -23,17 +24,21 @@ setWorkerUrl(workerUrl);
 
 interface Props {
   pin: Pin;
+  overlays: Overlays;
   onMove(lon: number, lat: number): void;
 }
 
-/** A map with one draggable pin and its accuracy circle. Clicking the map moves the pin. */
-export function PinMap({ pin, onMove }: Props) {
+/**
+ * A map with one draggable pin and its accuracy circle, over the app's zone data. Clicking
+ * the map moves the pin.
+ */
+export function PinMap({ pin, overlays, onMove }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<MapLibreMap | null>(null);
   const marker = useRef<Marker | null>(null);
   // MapLibre's handlers are bound once, so they read the latest props through refs.
-  const latest = useRef({ pin, onMove });
-  latest.current = { pin, onMove };
+  const latest = useRef({ pin, overlays, onMove });
+  latest.current = { pin, overlays, onMove };
 
   useEffect(() => {
     const m = new MapLibreMap({
@@ -45,7 +50,9 @@ export function PinMap({ pin, onMove }: Props) {
     m.addControl(new NavigationControl({ showCompass: false }));
     m.addControl(new ScaleControl({ maxWidth: 120 }), "bottom-left");
 
-    const mk = new Marker({ draggable: true }).setLngLat([pin.lon, pin.lat]).addTo(m);
+    const mk = new Marker({ draggable: true, color: "#111827" })
+      .setLngLat([pin.lon, pin.lat])
+      .addTo(m);
     mk.on("drag", () => {
       const { lng, lat } = mk.getLngLat();
       latest.current.onMove(lng, lat);
@@ -53,6 +60,7 @@ export function PinMap({ pin, onMove }: Props) {
     m.on("click", (e) => latest.current.onMove(e.lngLat.lng, e.lngLat.lat));
 
     m.on("load", () => {
+      addZoneLayers(m, latest.current.overlays);
       const p = latest.current.pin;
       m.addSource("accuracy", {
         type: "geojson",
@@ -62,13 +70,13 @@ export function PinMap({ pin, onMove }: Props) {
         id: "accuracy-fill",
         type: "fill",
         source: "accuracy",
-        paint: { "fill-color": "#3b82f6", "fill-opacity": 0.15 },
+        paint: { "fill-color": "#111827", "fill-opacity": 0.12 },
       });
       m.addLayer({
         id: "accuracy-line",
         type: "line",
         source: "accuracy",
-        paint: { "line-color": "#2563eb", "line-width": 1.5 },
+        paint: { "line-color": "#111827", "line-width": 1.5 },
       });
     });
 
@@ -87,6 +95,10 @@ export function PinMap({ pin, onMove }: Props) {
     // A pin set from outside the map, such as an edited URL hash, can land off screen.
     if (!m.getBounds().contains([pin.lon, pin.lat])) m.jumpTo({ center: [pin.lon, pin.lat] });
   }, [pin]);
+
+  useEffect(() => {
+    if (map.current?.isStyleLoaded()) setOverlayVisibility(map.current, overlays);
+  }, [overlays]);
 
   return <div className="jig__map" ref={container} />;
 }

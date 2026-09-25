@@ -15,11 +15,11 @@ const ctx = self as unknown as {
 const ready = loadData().then((data) => ({ data, indexes: buildIndexes(data) }));
 
 ctx.addEventListener("message", async (event) => {
-  const { id, lon, lat, accuracyMeters } = event.data;
+  const { id, lon, lat, accuracyMeters, at } = event.data;
   try {
     const { data, indexes } = await ready;
     const result = isWithinBounds(data.bounds, lon, lat)
-      ? queryStatus(data, indexes, lon, lat, undefined, accuracyMeters)
+      ? queryStatus(data, indexes, lon, lat, at === null ? undefined : new Date(at), accuracyMeters)
       : { status: { kind: "outOfArea" as const }, upcomingClosure: null };
     ctx.postMessage({ id, ok: true, result });
   } catch (err) {

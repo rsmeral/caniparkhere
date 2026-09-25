@@ -60,7 +60,7 @@ export interface Display {
 
 // Prague's real curb/sign colors and friendly labels per zone category, independent of
 // `tone` - this is "what you'd see painted there", not the recommendation's urgency.
-const ZONE_CATEGORY: Record<ZoneInfo["category"], { label: string; colorName: string; colorHex: string }> = {
+export const ZONE_CATEGORY: Record<ZoneInfo["category"], { label: string; colorName: string; colorHex: string }> = {
   RES: { label: "Residents", colorName: "modrá", colorHex: "#2563eb" },
   MIX: { label: "Mixed", colorName: "fialová", colorHex: "#8b5cf6" },
   VIS: { label: "Visitors", colorName: "oranžová", colorHex: "#f97316" },
