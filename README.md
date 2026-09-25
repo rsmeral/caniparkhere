@@ -124,7 +124,11 @@ npm run jig       # opens http://localhost:5173/jig/
 - The Location menu switches to the other states the GPS can be in: still searching, gave
   up, permission denied, or no geolocation at all.
 - The map draws the app's own data under the pin: paid zones in their category colours
-  with their codes, and, when switched on, street-cleaning sections in red.
+  with their codes, and, when switched on, street-cleaning sections. These are coloured by
+  when they're next cleaned, counted from the jig's day: red on that day (the app says
+  not to park), amber within the app's warning window (it gives a heads-up), grey later.
+- "Street cleaning everywhere that day" makes the app treat every street-cleaning section
+  as cleaned on the chosen day, to see its closure screen anywhere with a section.
 - The Screen menu sets the frame to a few common phone sizes. The frame shrinks to fit a
   shorter window, but the app still lays out at the phone's real size.
 - The pin, accuracy and custom time are kept in the URL (`#lat,lon,accuracy[,time]`), so a
@@ -132,10 +136,10 @@ npm run jig       # opens http://localhost:5173/jig/
 
 How it works:
 
-- `App` takes the location, and optionally the time, as props. The real app passes it the
-  browser's GPS and leaves the time to the clock (`src/main.tsx`). The jig runs the same
-  `App` in an iframe (`jig/frame.tsx`) and sends it the pin's location and the chosen time
-  with `postMessage`.
+- `App` takes the location as a prop, and optionally the time and the street-cleaning
+  simulation. The real app passes it the browser's GPS and leaves the rest to their
+  defaults (`src/main.tsx`). The jig runs the same `App` in an iframe (`jig/frame.tsx`) and
+  sends it the jig's settings with `postMessage`.
 - The iframe gives the app its own viewport, so it lays out the same as on a phone.
 - The jig lives in `web/jig/` and is only served by the dev server. It is not part of
   `npm run build`, and its map library (MapLibre) is a dev dependency.

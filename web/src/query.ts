@@ -62,7 +62,7 @@ export interface Indexes {
 }
 
 // How far ahead to warn about an upcoming street-cleaning closure.
-const WARNING_WINDOW_DAYS = 5;
+export const WARNING_WINDOW_DAYS = 5;
 
 // How close a point needs to be to a RÚIAN street centerline to trust it as "this street" -
 // close enough to be curb-level, wide enough to absorb ordinary GPS jitter.
@@ -173,6 +173,9 @@ function statusForZoneFeature(
  * radius overlaps more than one zone, a plain containment check at the fix's exact
  * coordinates can't be trusted to pick the right one, so this reports every zone within
  * that radius as an "ambiguous" candidate list instead of guessing at a single answer.
+ *
+ * cleaningEverywhereToday treats every street-cleaning section as being cleaned today,
+ * whatever its dates. It exists for simulating a closure in the jig.
  */
 export function queryStatus(
   data: LoadedData,
@@ -181,6 +184,7 @@ export function queryStatus(
   lat: number,
   now = new Date(),
   accuracyMeters: number | null = null,
+  cleaningEverywhereToday = false,
 ): QueryResult {
   const today = toLocalISODate(now);
   const letniMatches = indexes.letni.findContaining(lon, lat);
@@ -188,7 +192,7 @@ export function queryStatus(
   for (const feature of letniMatches) {
     const dates =
       feature.properties.datesId !== null ? data.letni.dates[feature.properties.datesId] : [];
-    if (dates.includes(today)) {
+    if (cleaningEverywhereToday || dates.includes(today)) {
       return {
         status: { kind: "closure", streetName: feature.properties.name },
         upcomingClosure: null,

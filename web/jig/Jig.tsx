@@ -1,6 +1,7 @@
 import type { RefObject } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { ZONE_CATEGORY } from "../src/describe";
+import { WARNING_WINDOW_DAYS } from "../src/query";
 import type { GeoState } from "../src/useGeolocation";
 import { PinMap } from "./PinMap";
 import type { FrameMessage, JigMessage } from "./protocol";
@@ -12,7 +13,7 @@ import {
   shiftLocalTime,
   toLocalTime,
 } from "./scenario";
-import { CLEANING_COLOR, type Overlays } from "./zoneLayers";
+import { CLEANING_COLORS, type Overlays } from "./zoneLayers";
 
 /** "pin" is a fix at the pin; the others are the states the browser's GPS can be in. */
 type Source = "pin" | Exclude<GeoState["status"], "ready">;
@@ -49,6 +50,7 @@ export function Jig() {
   const [source, setSource] = useState<Source>("pin");
   const [deviceIndex, setDeviceIndex] = useState(0);
   const [overlays, setOverlays] = useState<Overlays>({ zones: true, cleaning: false });
+  const [cleaningEverywhereToday, setCleaningEverywhereToday] = useState(false);
   const frame = useRef<HTMLIFrameElement>(null);
 
   const geo: GeoState = useMemo(
@@ -60,8 +62,13 @@ export function Jig() {
   );
 
   const message: JigMessage = useMemo(
-    () => ({ type: "show", geo, at: time === null ? null : new Date(time).getTime() }),
-    [geo, time],
+    () => ({
+      type: "show",
+      geo,
+      at: time === null ? null : new Date(time).getTime(),
+      cleaningEverywhereToday,
+    }),
+    [geo, time, cleaningEverywhereToday],
   );
   const send = (m: JigMessage) => frame.current?.contentWindow?.postMessage(m, location.origin);
 
@@ -93,6 +100,8 @@ export function Jig() {
   }, []);
 
   const device = DEVICES[deviceIndex];
+  // The day the app is answering for, which is the one the map shows street cleaning for.
+  const day = (time ?? toLocalTime(new Date())).slice(0, 10);
 
   return (
     <div className="jig">
@@ -101,6 +110,7 @@ export function Jig() {
         <PinMap
           pin={pin}
           overlays={overlays}
+          cleaningDay={{ day, everywhere: cleaningEverywhereToday }}
           onMove={(lon, lat) => setPin((p) => ({ ...p, lon, lat }))}
         />
         <form className="jig__controls" onSubmit={(e) => e.preventDefault()}>
@@ -166,7 +176,33 @@ export function Jig() {
                 onChange={(e) => setOverlays((o) => ({ ...o, cleaning: e.currentTarget.checked }))}
               />
               Street cleaning
-              <span className="jig__swatch" style={{ background: CLEANING_COLOR }} />
+            </label>
+            {overlays.cleaning && (
+              <div className="jig__legend">
+                <span>
+                  <span className="jig__swatch" style={{ background: CLEANING_COLORS.today }} />
+                  that day
+                </span>
+                <span>
+                  <span className="jig__swatch" style={{ background: CLEANING_COLORS.soon }} />
+                  within {WARNING_WINDOW_DAYS} days
+                </span>
+                <span>
+                  <span className="jig__swatch" style={{ background: CLEANING_COLORS.later }} />
+                  later
+                </span>
+              </div>
+            )}
+          </fieldset>
+          <fieldset className="jig__field jig__overlays">
+            <legend>Simulate</legend>
+            <label>
+              <input
+                type="checkbox"
+                checked={cleaningEverywhereToday}
+                onChange={(e) => setCleaningEverywhereToday(e.currentTarget.checked)}
+              />
+              Street cleaning everywhere that day
             </label>
           </fieldset>
           <p className="jig__coords">

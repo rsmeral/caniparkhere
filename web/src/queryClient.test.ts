@@ -68,12 +68,22 @@ describe("createQueryClient", () => {
 
   it("sends the moment to answer for, or null for the time of answering", () => {
     const client = createQueryClient();
-    client.query(14.42, 50.08, 20, new Date("2026-09-25T10:00:00Z"));
+    client.query(14.42, 50.08, 20, { at: new Date("2026-09-25T10:00:00Z") });
     client.query(14.42, 50.08, 20);
 
     const [at, now] = FakeWorker.latest.sent;
     expect(at.at).toBe(Date.parse("2026-09-25T10:00:00Z"));
     expect(now.at).toBeNull();
+  });
+
+  it("leaves street cleaning to the data unless asked to clean everywhere today", () => {
+    const client = createQueryClient();
+    client.query(14.42, 50.08, 20);
+    client.query(14.42, 50.08, 20, { cleaningEverywhereToday: true });
+
+    const [real, simulated] = FakeWorker.latest.sent;
+    expect(real.cleaningEverywhereToday).toBe(false);
+    expect(simulated.cleaningEverywhereToday).toBe(true);
   });
 
   it("rejects only the request an error response names", async () => {

@@ -108,6 +108,22 @@ describe("queryStatus", () => {
     expect(result.upcomingClosure).toBeNull();
   });
 
+  it("reports a closure on any day when told every section is cleaned today", () => {
+    const now = new Date(2026, 0, 1, 10, 0); // not one of Foo St's dates
+    const data = buildFixture(now);
+    const indexes = buildIndexes(data);
+    const result = queryStatus(data, indexes, 5, 5, now, null, true);
+    expect(result.status).toEqual({ kind: "closure", streetName: "Foo St" });
+  });
+
+  it("still needs a street-cleaning section at the point to report a closure", () => {
+    const now = new Date(2026, 0, 1, 10, 0);
+    const data = buildFixture(now);
+    const indexes = buildIndexes(data);
+    const result = queryStatus(data, indexes, 45, 45, now, null, true);
+    expect(result.status.kind).toBe("residentZone");
+  });
+
   it("reports an active paid tariff when inside an always-on zone", () => {
     const now = new Date(2026, 0, 1, 10, 0); // no closure dates match this day
     const data = buildFixture(now);

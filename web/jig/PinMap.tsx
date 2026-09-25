@@ -12,7 +12,13 @@ import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import { useEffect, useRef } from "preact/hooks";
 import { accuracyCircle } from "./circle";
 import type { Pin } from "./scenario";
-import { addZoneLayers, type Overlays, setOverlayVisibility } from "./zoneLayers";
+import {
+  addZoneLayers,
+  type CleaningDay,
+  type Overlays,
+  setCleaningDay,
+  setOverlayVisibility,
+} from "./zoneLayers";
 
 // OpenFreeMap: OpenStreetMap vector tiles with no API key, no registration and no usage
 // limits. Positron is its quietest style, so anything drawn over it stands out.
@@ -25,6 +31,7 @@ setWorkerUrl(workerUrl);
 interface Props {
   pin: Pin;
   overlays: Overlays;
+  cleaningDay: CleaningDay;
   onMove(lon: number, lat: number): void;
 }
 
@@ -32,13 +39,13 @@ interface Props {
  * A map with one draggable pin and its accuracy circle, over the app's zone data. Clicking
  * the map moves the pin.
  */
-export function PinMap({ pin, overlays, onMove }: Props) {
+export function PinMap({ pin, overlays, cleaningDay, onMove }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<MapLibreMap | null>(null);
   const marker = useRef<Marker | null>(null);
   // MapLibre's handlers are bound once, so they read the latest props through refs.
-  const latest = useRef({ pin, overlays, onMove });
-  latest.current = { pin, overlays, onMove };
+  const latest = useRef({ pin, overlays, cleaningDay, onMove });
+  latest.current = { pin, overlays, cleaningDay, onMove };
 
   useEffect(() => {
     const m = new MapLibreMap({
@@ -60,7 +67,7 @@ export function PinMap({ pin, overlays, onMove }: Props) {
     m.on("click", (e) => latest.current.onMove(e.lngLat.lng, e.lngLat.lat));
 
     m.on("load", () => {
-      addZoneLayers(m, latest.current.overlays);
+      addZoneLayers(m, latest.current.overlays, latest.current.cleaningDay);
       const p = latest.current.pin;
       m.addSource("accuracy", {
         type: "geojson",
@@ -99,6 +106,10 @@ export function PinMap({ pin, overlays, onMove }: Props) {
   useEffect(() => {
     if (map.current?.isStyleLoaded()) setOverlayVisibility(map.current, overlays);
   }, [overlays]);
+
+  useEffect(() => {
+    if (map.current) setCleaningDay(map.current, cleaningDay);
+  }, [cleaningDay.day, cleaningDay.everywhere]);
 
   return <div className="jig__map" ref={container} />;
 }
