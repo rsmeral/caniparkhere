@@ -121,6 +121,61 @@ suite("describe", () => {
     ]);
   });
 
+  it("describes a resident zone's tariff hours as a short paid stay, with a max-stay row", () => {
+    const status: Status = {
+      kind: "paidZone",
+      pricePerHour: 60,
+      dailyCapCzk: null,
+      from: "08:00",
+      until: "05:59",
+      streetName: "Slezská",
+      ...resZone,
+    };
+    const display = describe(status);
+    expect(display.tone).toBe("warn");
+    expect(display.sentence).toBe("Visitors can park here for a short time, but it's paid.");
+    expect(display.detail?.zone).toEqual({
+      code: "P8-0012",
+      categoryLabel: "Residents",
+      colorHex: "#2563eb",
+      colorName: "modrá",
+      payment: { url: "https://platba.parkujvpraze.cz/pz/P8-0012", priceLabel: "60 Kč/hod" },
+      expanded: [
+        { label: "Price", value: "60 Kč/hod" },
+        { label: "Max stay", value: "1–3 h, see sign" },
+        { label: "Hours", value: "08:00–05:59" },
+      ],
+    });
+  });
+
+  it("describes a resident zone outside its tariff hours as free, like any other zone", () => {
+    const display = describe({ kind: "freeZoneRightNow", streetName: null, ...resZone });
+    expect(display.tone).toBe("good");
+    expect(display.sentence).toBe("You're in a paid zone, but right now it's free to park.");
+  });
+
+  it("gives a resident candidate in its tariff hours the short-stay advice", () => {
+    const [candidate] = describe({
+      kind: "ambiguous",
+      streetName: null,
+      candidates: [
+        {
+          kind: "paidZone",
+          pricePerHour: 60,
+          dailyCapCzk: null,
+          from: "08:00",
+          until: "05:59",
+          streetName: null,
+          ...resZone,
+        },
+      ],
+    }).detail!.candidateZones!;
+    expect(candidate).toMatchObject({
+      tone: "warn",
+      sentence: "Visitors can park here for a short time, but it's paid.",
+    });
+  });
+
   it("describes a resident zone with a non-payable, non-expandable detail card", () => {
     const display = describe({ kind: "residentZone", streetName: null, ...resZone });
     expect(display.tone).toBe("caution");

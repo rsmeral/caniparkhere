@@ -134,7 +134,12 @@ function findUpcomingClosure(
   return soonest;
 }
 
-/** Resolves a single zps feature to its status, as if it were the only zone in play. */
+/**
+ * Resolves a single zps feature to its status, as if it were the only zone in play. Every
+ * category is paid while its tariff is running and free for anyone outside those hours -
+ * a resident (blue) zone's tariff is what a visitor pays for a short stay. A resident zone
+ * with no tariff has no visitor parking to report.
+ */
 function statusForZoneFeature(
   data: LoadedData,
   feature: LoadedData["zps"]["features"][number],
@@ -142,7 +147,7 @@ function statusForZoneFeature(
   now: Date,
 ): ZoneStatus {
   const zone: ZoneInfo = { code: feature.properties.code, category: feature.properties.category };
-  if (feature.properties.category === "RES") {
+  if (feature.properties.category === "RES" && feature.properties.tariffId === null) {
     return { kind: "residentZone", streetName, ...zone };
   }
   if (feature.properties.tariffId !== null) {
@@ -165,7 +170,7 @@ function statusForZoneFeature(
 
 /**
  * Determines parking status at a point: street-cleaning closure today takes priority,
- * then any paid-zone tariff active right now, then resident-only zones, else clear.
+ * then a zone whose tariff is active right now, then any other zone here, else clear.
  * Also reports the soonest upcoming closure within the next week, if any (independent
  * of the primary status, since it's a heads-up rather than a current restriction).
  *
@@ -222,9 +227,6 @@ export function queryStatus(
 
   const zpsMatches = indexes.zps.findContaining(lon, lat);
   for (const feature of zpsMatches) {
-    if (feature.properties.category === "RES") {
-      return { status: statusForZoneFeature(data, feature, streetName, now), upcomingClosure };
-    }
     if (feature.properties.tariffId !== null) {
       const tariff = data.zps.tariffs[feature.properties.tariffId];
       const rule = activeRuleNow(tariff, now);

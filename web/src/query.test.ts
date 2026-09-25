@@ -70,6 +70,7 @@ function buildFixture(now: Date): LoadedData {
         zpsFeature(square(0, 0, 10, 10), { code: "A", category: "MIX", tariffId: 0 }),
         zpsFeature(square(20, 20, 30, 30), { code: "B", category: "MIX", tariffId: 1 }),
         zpsFeature(square(40, 40, 50, 50), { code: "C", category: "RES", tariffId: null }),
+        zpsFeature(square(80, 80, 90, 90), { code: "D", category: "RES", tariffId: 1 }),
         // Real-world-scale coordinates (unlike the abstract-unit squares above), so
         // findNearby's meters-based distance math gives realistic separations: P1 and P2
         // sit ~14m apart, P3 sits far enough away that even a generous accuracy radius
@@ -171,7 +172,37 @@ describe("queryStatus", () => {
     });
   });
 
-  it("reports residentZone (with the zone's code/category) regardless of time", () => {
+  it("reports a resident zone as paid while its tariff runs", () => {
+    const now = new Date(2026, 3, 6, 10, 0);
+    const data = buildFixture(now);
+    const indexes = buildIndexes(data);
+    const result = queryStatus(data, indexes, 85, 85, now);
+    expect(result.status).toEqual({
+      kind: "paidZone",
+      pricePerHour: 40,
+      dailyCapCzk: 90,
+      from: "08:00",
+      until: "17:59",
+      streetName: null,
+      code: "D",
+      category: "RES",
+    });
+  });
+
+  it("reports a resident zone as free for anyone outside its tariff hours", () => {
+    const now = new Date(2026, 3, 6, 20, 0);
+    const data = buildFixture(now);
+    const indexes = buildIndexes(data);
+    const result = queryStatus(data, indexes, 85, 85, now);
+    expect(result.status).toEqual({
+      kind: "freeZoneRightNow",
+      streetName: null,
+      code: "D",
+      category: "RES",
+    });
+  });
+
+  it("reports residentZone for a resident zone with no tariff, regardless of time", () => {
     const now = new Date(2026, 3, 6, 3, 0);
     const data = buildFixture(now);
     const indexes = buildIndexes(data);
