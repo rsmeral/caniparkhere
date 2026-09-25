@@ -19,13 +19,15 @@ interface Props {
   geo: GeoState;
   /** The moment to answer for. Left out, each answer is for the time it's worked out. */
   now?: Date;
+  /** Treat every street-cleaning section as cleaned today. For simulating in the jig. */
+  cleaningEverywhereToday?: boolean;
 }
 
 /**
  * The whole screen, for whatever location and time it's given. Where those come from is up
  * to the caller: the browser's GPS and clock in the real app, or the controls in the jig.
  */
-export function App({ geo, now }: Props) {
+export function App({ geo, now, cleaningEverywhereToday = false }: Props) {
   // Spinning the worker up on first render starts its data load immediately, alongside the
   // browser's search for a GPS fix.
   const client = useMemo(() => createQueryClient(), []);
@@ -45,7 +47,7 @@ export function App({ geo, now }: Props) {
     if (geo.status !== "ready") return;
     let live = true;
     client
-      .query(geo.lon, geo.lat, geo.accuracyMeters, now)
+      .query(geo.lon, geo.lat, geo.accuracyMeters, { at: now, cleaningEverywhereToday })
       .then((r) => {
         if (live) setResult(r);
       })
@@ -55,7 +57,7 @@ export function App({ geo, now }: Props) {
     return () => {
       live = false;
     };
-  }, [client, geo, nowMs]);
+  }, [client, geo, nowMs, cleaningEverywhereToday]);
 
   const display: Display = useMemo(() => {
     if (dataError) return neutral("1f635", `Couldn't load zone data: ${dataError}`); // 😵

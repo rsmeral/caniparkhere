@@ -14,6 +14,8 @@ export interface QueryRequest {
   accuracyMeters: number | null;
   /** The moment to answer for, in epoch milliseconds, or null for the time it's answered. */
   at: number | null;
+  /** Treat every street-cleaning section as cleaned today. For simulating in the jig. */
+  cleaningEverywhereToday: boolean;
 }
 
 /** Worker -> main thread: the answer to request `id`, or why it couldn't be produced. */

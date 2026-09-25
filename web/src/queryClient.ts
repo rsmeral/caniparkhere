@@ -1,8 +1,20 @@
 import type { QueryResult } from "./query";
 import type { QueryRequest, QueryResponse } from "./queryProtocol";
 
+export interface QueryOptions {
+  /** The moment to answer for. Left out, the answer is for the time it's worked out. */
+  at?: Date;
+  /** Treat every street-cleaning section as cleaned today. For simulating in the jig. */
+  cleaningEverywhereToday?: boolean;
+}
+
 export interface QueryClient {
-  query(lon: number, lat: number, accuracyMeters: number | null, at?: Date): Promise<QueryResult>;
+  query(
+    lon: number,
+    lat: number,
+    accuracyMeters: number | null,
+    options?: QueryOptions,
+  ): Promise<QueryResult>;
   terminate(): void;
 }
 
@@ -35,9 +47,16 @@ export function createQueryClient(): QueryClient {
   worker.addEventListener("error", (event) => failAll(event.message || "Zone data worker failed"));
 
   return {
-    query(lon, lat, accuracyMeters, at) {
+    query(lon, lat, accuracyMeters, { at, cleaningEverywhereToday = false } = {}) {
       const id = nextId++;
-      const request: QueryRequest = { id, lon, lat, accuracyMeters, at: at?.getTime() ?? null };
+      const request: QueryRequest = {
+        id,
+        lon,
+        lat,
+        accuracyMeters,
+        at: at?.getTime() ?? null,
+        cleaningEverywhereToday,
+      };
       return new Promise<QueryResult>((resolve, reject) => {
         pending.set(id, { resolve, reject });
         worker.postMessage(request);

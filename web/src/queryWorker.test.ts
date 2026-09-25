@@ -13,6 +13,11 @@ const emptyData = {
   bounds,
 };
 
+/** A request with the defaults the app sends: the real time, and street cleaning as dated. */
+const request = (
+  fields: Pick<QueryRequest, "id" | "lon" | "lat" | "accuracyMeters"> & Partial<QueryRequest>,
+): QueryRequest => ({ at: null, cleaningEverywhereToday: false, ...fields });
+
 /**
  * Loads the worker module against a stubbed worker global, and hands back a way to post it
  * a request and await the reply. The module is re-imported per test because it kicks off
@@ -56,7 +61,7 @@ describe("queryWorker", () => {
     vi.mocked(loadData).mockResolvedValue(emptyData);
     const ask = await startWorker();
 
-    const response = await ask({ id: 7, lon: 14.42, lat: 50.08, accuracyMeters: 20, at: null });
+    const response = await ask(request({ id: 7, lon: 14.42, lat: 50.08, accuracyMeters: 20 }));
 
     expect(response).toEqual({
       id: 7,
@@ -103,8 +108,12 @@ describe("queryWorker", () => {
     const ask = await startWorker();
     const at = (hour: number) => new Date(2026, 8, 25, hour).getTime();
 
-    const day = await ask({ id: 1, lon: 14.42, lat: 50.08, accuracyMeters: null, at: at(10) });
-    const night = await ask({ id: 2, lon: 14.42, lat: 50.08, accuracyMeters: null, at: at(22) });
+    const day = await ask(
+      request({ id: 1, lon: 14.42, lat: 50.08, accuracyMeters: null, at: at(10) }),
+    );
+    const night = await ask(
+      request({ id: 2, lon: 14.42, lat: 50.08, accuracyMeters: null, at: at(22) }),
+    );
 
     expect(day.ok && day.result.status.kind).toBe("paidZone");
     expect(night.ok && night.result.status.kind).toBe("freeZoneRightNow");
@@ -114,7 +123,7 @@ describe("queryWorker", () => {
     vi.mocked(loadData).mockResolvedValue(emptyData);
     const ask = await startWorker();
 
-    const response = await ask({ id: 8, lon: 2.35, lat: 48.86, accuracyMeters: 20, at: null });
+    const response = await ask(request({ id: 8, lon: 2.35, lat: 48.86, accuracyMeters: 20 }));
 
     expect(response).toEqual({
       id: 8,
@@ -127,7 +136,7 @@ describe("queryWorker", () => {
     vi.mocked(loadData).mockRejectedValue(new Error("Failed to fetch zps.json: 404"));
     const ask = await startWorker();
 
-    const response = await ask({ id: 9, lon: 14.42, lat: 50.08, accuracyMeters: 20, at: null });
+    const response = await ask(request({ id: 9, lon: 14.42, lat: 50.08, accuracyMeters: 20 }));
 
     expect(response).toEqual({ id: 9, ok: false, message: "Failed to fetch zps.json: 404" });
   });
@@ -136,8 +145,8 @@ describe("queryWorker", () => {
     vi.mocked(loadData).mockResolvedValue(emptyData);
     const ask = await startWorker();
 
-    await ask({ id: 1, lon: 14.42, lat: 50.08, accuracyMeters: 20, at: null });
-    await ask({ id: 2, lon: 14.43, lat: 50.09, accuracyMeters: 20, at: null });
+    await ask(request({ id: 1, lon: 14.42, lat: 50.08, accuracyMeters: 20 }));
+    await ask(request({ id: 2, lon: 14.43, lat: 50.09, accuracyMeters: 20 }));
 
     expect(vi.mocked(loadData)).toHaveBeenCalledTimes(1);
   });
