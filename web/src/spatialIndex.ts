@@ -85,9 +85,9 @@ export class PolygonIndex<P> {
 // query point), which is plenty accurate at the scale of a single zone or street lookup.
 // Shared by both PolygonIndex.findNearby (zone-boundary distance) and LineIndex (street
 // centerline distance) below.
-const METERS_PER_DEG_LAT = 111_320;
+export const METERS_PER_DEG_LAT = 111_320;
 
-function metersPerDegLon(lat: number): number {
+export function metersPerDegLon(lat: number): number {
   return METERS_PER_DEG_LAT * Math.cos((lat * Math.PI) / 180);
 }
 

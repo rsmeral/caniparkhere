@@ -6,6 +6,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
+    "jig": "vite --open /jig/",
     "test": "vitest run"
   },
   "dependencies": {
@@ -18,6 +19,7 @@
     "@preact/preset-vite": "^2.9.0",
     "@types/node": "^24.0.0",
     "@types/rbush": "^3.0.4",
+    "maplibre-gl": "^6.11.2",
     "typescript": "^5.7.0",
     "vite": "^6.0.0",
     "vite-plugin-pwa": "^0.21.0",
