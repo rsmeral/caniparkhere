@@ -56,7 +56,7 @@ describe("queryWorker", () => {
     vi.mocked(loadData).mockResolvedValue(emptyData);
     const ask = await startWorker();
 
-    const response = await ask({ id: 7, lon: 14.42, lat: 50.08, accuracyMeters: 20 });
+    const response = await ask({ id: 7, lon: 14.42, lat: 50.08, accuracyMeters: 20, at: null });
 
     expect(response).toEqual({
       id: 7,
@@ -65,11 +65,56 @@ describe("queryWorker", () => {
     });
   });
 
+  it("answers for the moment it's asked about", async () => {
+    const square: [number, number][] = [
+      [14.41, 50.07],
+      [14.43, 50.07],
+      [14.43, 50.09],
+      [14.41, 50.09],
+      [14.41, 50.07],
+    ];
+    vi.mocked(loadData).mockResolvedValue({
+      ...emptyData,
+      zps: {
+        tariffs: [
+          {
+            id: 0,
+            raw: "Po-Ne 08:00-19:59 60Kč/hod",
+            rules: [
+              {
+                days: [0, 1, 2, 3, 4, 5, 6],
+                start: "08:00",
+                end: "19:59",
+                pricePerHour: 60,
+                dailyCapCzk: null,
+              },
+            ],
+          },
+        ],
+        features: [
+          {
+            type: "Feature",
+            properties: { code: "P1-0001", category: "VIS", tariffId: 0 },
+            geometry: { type: "MultiPolygon", coordinates: [[square]] },
+          },
+        ],
+      },
+    });
+    const ask = await startWorker();
+    const at = (hour: number) => new Date(2026, 8, 25, hour).getTime();
+
+    const day = await ask({ id: 1, lon: 14.42, lat: 50.08, accuracyMeters: null, at: at(10) });
+    const night = await ask({ id: 2, lon: 14.42, lat: 50.08, accuracyMeters: null, at: at(22) });
+
+    expect(day.ok && day.result.status.kind).toBe("paidZone");
+    expect(night.ok && night.result.status.kind).toBe("freeZoneRightNow");
+  });
+
   it("reports a point outside the covered area without consulting the indexes", async () => {
     vi.mocked(loadData).mockResolvedValue(emptyData);
     const ask = await startWorker();
 
-    const response = await ask({ id: 8, lon: 2.35, lat: 48.86, accuracyMeters: 20 });
+    const response = await ask({ id: 8, lon: 2.35, lat: 48.86, accuracyMeters: 20, at: null });
 
     expect(response).toEqual({
       id: 8,
@@ -82,7 +127,7 @@ describe("queryWorker", () => {
     vi.mocked(loadData).mockRejectedValue(new Error("Failed to fetch zps.json: 404"));
     const ask = await startWorker();
 
-    const response = await ask({ id: 9, lon: 14.42, lat: 50.08, accuracyMeters: 20 });
+    const response = await ask({ id: 9, lon: 14.42, lat: 50.08, accuracyMeters: 20, at: null });
 
     expect(response).toEqual({ id: 9, ok: false, message: "Failed to fetch zps.json: 404" });
   });
@@ -91,8 +136,8 @@ describe("queryWorker", () => {
     vi.mocked(loadData).mockResolvedValue(emptyData);
     const ask = await startWorker();
 
-    await ask({ id: 1, lon: 14.42, lat: 50.08, accuracyMeters: 20 });
-    await ask({ id: 2, lon: 14.43, lat: 50.09, accuracyMeters: 20 });
+    await ask({ id: 1, lon: 14.42, lat: 50.08, accuracyMeters: 20, at: null });
+    await ask({ id: 2, lon: 14.43, lat: 50.09, accuracyMeters: 20, at: null });
 
     expect(vi.mocked(loadData)).toHaveBeenCalledTimes(1);
   });

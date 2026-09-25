@@ -2,7 +2,7 @@ import type { QueryResult } from "./query";
 import type { QueryRequest, QueryResponse } from "./queryProtocol";
 
 export interface QueryClient {
-  query(lon: number, lat: number, accuracyMeters: number | null): Promise<QueryResult>;
+  query(lon: number, lat: number, accuracyMeters: number | null, at?: Date): Promise<QueryResult>;
   terminate(): void;
 }
 
@@ -35,9 +35,9 @@ export function createQueryClient(): QueryClient {
   worker.addEventListener("error", (event) => failAll(event.message || "Zone data worker failed"));
 
   return {
-    query(lon, lat, accuracyMeters) {
+    query(lon, lat, accuracyMeters, at) {
       const id = nextId++;
-      const request: QueryRequest = { id, lon, lat, accuracyMeters };
+      const request: QueryRequest = { id, lon, lat, accuracyMeters, at: at?.getTime() ?? null };
       return new Promise<QueryResult>((resolve, reject) => {
         pending.set(id, { resolve, reject });
         worker.postMessage(request);
