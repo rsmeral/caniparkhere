@@ -4,7 +4,6 @@ import { PayLink } from "./PayLink";
 import { ZoneSummary } from "./ZoneSummary";
 
 interface CandidateBoxProps {
-  streetName: string | null;
   candidate: CandidateZone;
   expanded: boolean;
   onToggle: () => void;
@@ -20,12 +19,12 @@ interface CandidateBoxProps {
  * width and keeps Pay a normal button inside it instead of a slice stretched to the height
  * of the opened card.
  */
-export function CandidateBox({ streetName, candidate, expanded, onToggle }: CandidateBoxProps) {
+export function CandidateBox({ candidate, expanded, onToggle }: CandidateBoxProps) {
   return (
     <div className="app__detail app__detail--resolvable">
       <div className="app__detail-summary">
         <ZoneSummary
-          streetName={streetName}
+          streetName={candidate.streetName}
           zone={candidate}
           canExpand
           expanded={expanded}

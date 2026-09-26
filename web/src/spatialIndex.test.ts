@@ -86,6 +86,7 @@ describe("PolygonIndex", () => {
       const [match] = index.findNearby(14.45, PRAGUE_LAT + 0.5, 10);
       expect(match.feature.properties.id).toBe("a");
       expect(match.distanceMeters).toBe(0);
+      expect(match.point).toEqual([14.45, PRAGUE_LAT + 0.5]);
     });
 
     it("reports the distance to the nearest edge for a point just outside", () => {
@@ -97,6 +98,8 @@ describe("PolygonIndex", () => {
       expect(match.feature.properties.id).toBe("a");
       expect(match.distanceMeters).toBeGreaterThan(0);
       expect(match.distanceMeters).toBeLessThan(20);
+      expect(match.point[0]).toBeCloseTo(14.4, 9);
+      expect(match.point[1]).toBeCloseTo(PRAGUE_LAT + 0.5, 9);
     });
 
     it("excludes features further than the search radius", () => {
