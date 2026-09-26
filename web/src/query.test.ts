@@ -114,8 +114,12 @@ function buildFixture(now: Date): LoadedData {
       ],
     },
     streets: {
-      names: ["Foo St"],
-      features: [streetFeature([[0, 5], [10, 5]], { nameId: 0 })],
+      names: ["Foo St", "Near St"],
+      features: [
+        streetFeature([[0, 5], [10, 5]], { nameId: 0 }),
+        // Runs along P1's north side, ~45m from the point the accuracy tests below use.
+        streetFeature([[14.4, 50.0009], [14.401, 50.0009]], { nameId: 1 }),
+      ],
     },
     bounds: { minLon: -100, minLat: -100, maxLon: 100, maxLat: 100 },
   };
@@ -333,6 +337,22 @@ describe("queryStatus", () => {
     expect(result.status.candidates.map((c) => c.code)).toEqual(["P1", "P2"]);
     expect(result.status.candidates[0]).toMatchObject({ kind: "paidZone", code: "P1" });
     expect(result.status.candidates[1]).toMatchObject({ kind: "residentZone", code: "P2" });
+  });
+
+  it("finds no street for a precise fix when the nearest centerline is out of reach", () => {
+    const now = new Date(2026, 0, 1, 10, 0);
+    const data = buildFixture(now);
+    const indexes = buildIndexes(data);
+    const result = queryStatus(data, indexes, 14.4005, 50.0005, now, 5);
+    expect(result.status).toMatchObject({ kind: "paidZone", code: "P1", streetName: null });
+  });
+
+  it("finds the street when the accuracy circle reaches its centerline", () => {
+    const now = new Date(2026, 0, 1, 10, 0);
+    const data = buildFixture(now);
+    const indexes = buildIndexes(data);
+    const result = queryStatus(data, indexes, 14.4005, 50.0005, now, 48);
+    expect(result.status).toMatchObject({ kind: "paidZone", code: "P1", streetName: "Near St" });
   });
 
   it("caps the ambiguity radius so a very inaccurate fix doesn't pull in a far-away zone", () => {

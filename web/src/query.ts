@@ -67,8 +67,9 @@ export interface Indexes {
 // How far ahead to warn about an upcoming street-cleaning closure.
 export const WARNING_WINDOW_DAYS = 5;
 
-// How close a point needs to be to a RÚIAN street centerline to trust it as "this street" -
-// close enough to be curb-level, wide enough to absorb ordinary GPS jitter.
+// The least distance at which a RÚIAN street centerline still counts as "this street". A
+// centerline has no width, so a car at the curb of a wide street sits well off it even with
+// a precise fix.
 const STREET_MATCH_RADIUS_METERS = 25;
 
 // A GPS accuracy radius bigger than this isn't worth treating as "somewhere in here" - past
@@ -105,12 +106,23 @@ function daysBetween(fromISO: string, toISO: string): number {
 }
 
 /**
- * Picks the RÚIAN street centerline nearest the point, if one falls within
- * STREET_MATCH_RADIUS_METERS - zone (zps) and street-cleaning (letni) polygons don't carry
+ * Picks the RÚIAN street centerline nearest the point among those the fix's accuracy circle
+ * reaches, the same circle that finds candidate zones. The circle is never smaller than
+ * STREET_MATCH_RADIUS_METERS. Zone (zps) and street-cleaning (letni) polygons don't carry
  * street names of their own, so this is the app's one source for "what street is this".
  */
-function findStreetName(data: LoadedData, streets: Indexes["streets"], lon: number, lat: number): string | null {
-  const feature = streets.findNearest(lon, lat, STREET_MATCH_RADIUS_METERS);
+function findStreetName(
+  data: LoadedData,
+  streets: Indexes["streets"],
+  lon: number,
+  lat: number,
+  accuracyMeters: number | null,
+): string | null {
+  const radius = Math.max(
+    STREET_MATCH_RADIUS_METERS,
+    Math.min(accuracyMeters ?? 0, MAX_AMBIGUITY_RADIUS_METERS),
+  );
+  const feature = streets.findNearest(lon, lat, radius);
   if (!feature || feature.properties.nameId === null) return null;
   return data.streets.names[feature.properties.nameId];
 }
@@ -216,7 +228,7 @@ export function queryStatus(
   }
 
   const upcomingClosure = findUpcomingClosure(data, letniMatches, today);
-  const streetName = findStreetName(data, indexes.streets, lon, lat);
+  const streetName = findStreetName(data, indexes.streets, lon, lat, accuracyMeters);
 
   if (accuracyMeters !== null && accuracyMeters > 0) {
     const radius = Math.min(accuracyMeters, MAX_AMBIGUITY_RADIUS_METERS);
