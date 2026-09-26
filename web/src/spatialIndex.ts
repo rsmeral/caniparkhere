@@ -29,6 +29,13 @@ function bboxOfMultiPolygon(geometry: MultiPolygon): [number, number, number, nu
   return [minX, minY, maxX, maxY];
 }
 
+export interface NearbyFeature<P> {
+  feature: Feature<MultiPolygon, P>;
+  distanceMeters: number;
+  /** The feature's point nearest the query point, [lon, lat]. */
+  point: [number, number];
+}
+
 /** An R-tree over a set of MultiPolygon features, for fast "which polygons contain this point" queries. */
 export class PolygonIndex<P> {
   private tree = new RBush<IndexItem<P>>();
@@ -55,12 +62,11 @@ export class PolygonIndex<P> {
    * inside, otherwise the distance to its nearest edge. For a GPS fix too coarse to trust
    * a single containment check: passing the fix's own accuracy radius here surfaces every
    * zone the point could plausibly actually be in. Sorted nearest-first.
+   *
+   * Each result also carries the feature's point nearest the query point, [lon, lat]: the
+   * query point itself when it's inside, otherwise the closest point on the nearest edge.
    */
-  findNearby(
-    lon: number,
-    lat: number,
-    maxDistanceMeters: number,
-  ): { feature: Feature<MultiPolygon, P>; distanceMeters: number }[] {
+  findNearby(lon: number, lat: number, maxDistanceMeters: number): NearbyFeature<P>[] {
     const lonPad = maxDistanceMeters / metersPerDegLon(lat);
     const latPad = maxDistanceMeters / METERS_PER_DEG_LAT;
     const candidates = this.tree.search({
@@ -71,11 +77,15 @@ export class PolygonIndex<P> {
     });
     const point: [number, number] = [lon, lat];
 
-    const results: { feature: Feature<MultiPolygon, P>; distanceMeters: number }[] = [];
+    const results: NearbyFeature<P>[] = [];
     for (const c of candidates) {
       const inside = booleanPointInPolygon(point, c.feature as Feature<MultiPolygon>);
-      const distanceMeters = inside ? 0 : pointToPolygonMeters(lon, lat, c.feature.geometry);
-      if (distanceMeters <= maxDistanceMeters) results.push({ feature: c.feature, distanceMeters });
+      const nearest = inside
+        ? { distanceMeters: 0, point }
+        : closestPointOnPolygon(lon, lat, c.feature.geometry);
+      if (nearest.distanceMeters <= maxDistanceMeters) {
+        results.push({ feature: c.feature, ...nearest });
+      }
     }
     return results.sort((a, b) => a.distanceMeters - b.distanceMeters);
   }
@@ -91,13 +101,14 @@ export function metersPerDegLon(lat: number): number {
   return METERS_PER_DEG_LAT * Math.cos((lat * Math.PI) / 180);
 }
 
-/** Shortest distance in meters from (lon, lat) to the segment [a, b], via a local planar projection. */
-function pointToSegmentMeters(
+/** The point on the segment [a, b] closest to (lon, lat), and its distance in meters, via a
+ * local planar projection. */
+function closestPointOnSegment(
   lon: number,
   lat: number,
   a: [number, number],
   b: [number, number],
-): number {
+): { distanceMeters: number; point: [number, number] } {
   const mPerLon = metersPerDegLon(lat);
   const ax = (a[0] - lon) * mPerLon;
   const ay = (a[1] - lat) * METERS_PER_DEG_LAT;
@@ -106,28 +117,44 @@ function pointToSegmentMeters(
   const dx = bx - ax;
   const dy = by - ay;
   const lengthSq = dx * dx + dy * dy;
-  if (lengthSq === 0) return Math.hypot(ax, ay);
-  const t = Math.max(0, Math.min(1, (-ax * dx - ay * dy) / lengthSq));
-  return Math.hypot(ax + t * dx, ay + t * dy);
+  const t = lengthSq === 0 ? 0 : Math.max(0, Math.min(1, (-ax * dx - ay * dy) / lengthSq));
+  return {
+    distanceMeters: Math.hypot(ax + t * dx, ay + t * dy),
+    point: [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])],
+  };
 }
 
-/** Shortest distance in meters from (lon, lat) to a MultiPolygon's boundary (all rings, all parts). */
-function pointToPolygonMeters(lon: number, lat: number, geometry: MultiPolygon): number {
-  let min = Infinity;
+/** Shortest distance in meters from (lon, lat) to the segment [a, b]. */
+function pointToSegmentMeters(
+  lon: number,
+  lat: number,
+  a: [number, number],
+  b: [number, number],
+): number {
+  return closestPointOnSegment(lon, lat, a, b).distanceMeters;
+}
+
+/** The point on a MultiPolygon's boundary (all rings, all parts) closest to (lon, lat). */
+function closestPointOnPolygon(
+  lon: number,
+  lat: number,
+  geometry: MultiPolygon,
+): { distanceMeters: number; point: [number, number] } {
+  let best = { distanceMeters: Infinity, point: [lon, lat] as [number, number] };
   for (const polygon of geometry.coordinates) {
     for (const ring of polygon) {
       for (let i = 0; i < ring.length - 1; i++) {
-        const distance = pointToSegmentMeters(
+        const candidate = closestPointOnSegment(
           lon,
           lat,
           ring[i] as [number, number],
           ring[i + 1] as [number, number],
         );
-        if (distance < min) min = distance;
+        if (candidate.distanceMeters < best.distanceMeters) best = candidate;
       }
     }
   }
-  return min;
+  return best;
 }
 
 interface LineSegmentItem<P> {

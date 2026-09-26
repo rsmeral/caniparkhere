@@ -94,7 +94,6 @@ export function App({ geo, now, cleaningEverywhereToday = false }: Props) {
 
   const zone = display.detail?.zone ?? null;
   const candidates = display.detail?.candidateZones ?? null;
-  const candidatesStreetName = display.detail?.streetName ?? null;
   const candidatesKey = candidates?.map((c) => c.code).join(",") ?? null;
 
   // Collapse back down whenever the underlying spot (or its set of candidate zones)
@@ -126,7 +125,6 @@ export function App({ geo, now, cleaningEverywhereToday = false }: Props) {
           {candidates.map((candidate) => (
             <CandidateBox
               key={candidate.code}
-              streetName={candidatesStreetName}
               candidate={candidate}
               expanded={expandedCode === candidate.code}
               onToggle={() => toggleExpanded(candidate.code)}

@@ -34,8 +34,9 @@ export type Status =
   | ZoneStatus
   | { kind: "clear"; streetName: string | null }
   /** The GPS fix's own accuracy radius overlaps more than one zone, so a single
-   * containment check can't be trusted - each plausible zone is resolved independently. */
-  | { kind: "ambiguous"; streetName: string | null; candidates: ZoneStatus[] };
+   * containment check can't be trusted - each plausible zone is resolved independently,
+   * with the street that zone is on. */
+  | { kind: "ambiguous"; candidates: ZoneStatus[] };
 
 /**
  * Checks a point against the data's coverage envelope (see the pipeline's padBbox) - a
@@ -72,6 +73,11 @@ export const WARNING_WINDOW_DAYS = 5;
 // a precise fix.
 const STREET_MATCH_RADIUS_METERS = 25;
 
+// How far from a zone a street centerline can be and still name the street that zone is on.
+// Some zones are whole parking areas set back inside a block; every zone in the data has a
+// centerline within 75m.
+const ZONE_STREET_RADIUS_METERS = 100;
+
 // A GPS accuracy radius bigger than this isn't worth treating as "somewhere in here" - past
 // this range, city blocks and unrelated streets fall inside the circle too, so a candidate
 // list would just be noise rather than a genuinely narrowed-down set of possibilities.
@@ -106,23 +112,17 @@ function daysBetween(fromISO: string, toISO: string): number {
 }
 
 /**
- * Picks the RÚIAN street centerline nearest the point among those the fix's accuracy circle
- * reaches, the same circle that finds candidate zones. The circle is never smaller than
- * STREET_MATCH_RADIUS_METERS. Zone (zps) and street-cleaning (letni) polygons don't carry
- * street names of their own, so this is the app's one source for "what street is this".
+ * Names the RÚIAN street centerline nearest the point, within radiusMeters. Zone (zps) and
+ * street-cleaning (letni) polygons don't carry street names of their own, so this is the
+ * app's one source for "what street is this".
  */
-function findStreetName(
+function streetNameNear(
   data: LoadedData,
   streets: Indexes["streets"],
-  lon: number,
-  lat: number,
-  accuracyMeters: number | null,
+  [lon, lat]: [number, number],
+  radiusMeters: number,
 ): string | null {
-  const radius = Math.max(
-    STREET_MATCH_RADIUS_METERS,
-    Math.min(accuracyMeters ?? 0, MAX_AMBIGUITY_RADIUS_METERS),
-  );
-  const feature = streets.findNearest(lon, lat, radius);
+  const feature = streets.findNearest(lon, lat, radiusMeters);
   if (!feature || feature.properties.nameId === null) return null;
   return data.streets.names[feature.properties.nameId];
 }
@@ -153,6 +153,36 @@ function findUpcomingClosure(
 function capAt(tariff: Tariff, rule: TariffRule, now: Date): number | null {
   if (tariff.holidayCapCzk === null || !isPublicHoliday(now)) return rule.dailyCapCzk;
   return Math.min(rule.dailyCapCzk ?? Infinity, tariff.holidayCapCzk);
+}
+
+/**
+ * The street nearest to where the fix could be, with no zone to go by: within the accuracy
+ * circle, never smaller than STREET_MATCH_RADIUS_METERS.
+ */
+function streetNameAtFix(
+  data: LoadedData,
+  streets: Indexes["streets"],
+  point: [number, number],
+  accuracyMeters: number | null,
+): string | null {
+  const radius = Math.max(
+    STREET_MATCH_RADIUS_METERS,
+    Math.min(accuracyMeters ?? 0, MAX_AMBIGUITY_RADIUS_METERS),
+  );
+  return streetNameNear(data, streets, point, radius);
+}
+
+/**
+ * The street a zone is on, as seen from the fix: the street nearest the zone's point closest
+ * to the fix, which is the fix itself when it's inside the zone. A zone code often spans
+ * several streets, so the street depends on which part of the zone is in play.
+ */
+function streetNameOfZone(
+  data: LoadedData,
+  streets: Indexes["streets"],
+  zonePoint: [number, number],
+): string | null {
+  return streetNameNear(data, streets, zonePoint, ZONE_STREET_RADIUS_METERS);
 }
 
 /**
@@ -228,7 +258,7 @@ export function queryStatus(
   }
 
   const upcomingClosure = findUpcomingClosure(data, letniMatches, today);
-  const streetName = findStreetName(data, indexes.streets, lon, lat, accuracyMeters);
+  const fix: [number, number] = [lon, lat];
 
   if (accuracyMeters !== null && accuracyMeters > 0) {
     const radius = Math.min(accuracyMeters, MAX_AMBIGUITY_RADIUS_METERS);
@@ -242,12 +272,23 @@ export function queryStatus(
     if (nearestByCode.size > 1) {
       const candidates = [...nearestByCode.values()]
         .sort((a, b) => a.distanceMeters - b.distanceMeters)
-        .map((match) => statusForZoneFeature(data, match.feature, streetName, now));
-      return { status: { kind: "ambiguous", streetName, candidates }, upcomingClosure };
+        .map((match) =>
+          statusForZoneFeature(
+            data,
+            match.feature,
+            streetNameOfZone(data, indexes.streets, match.point),
+            now,
+          ),
+        );
+      return { status: { kind: "ambiguous", candidates }, upcomingClosure };
     }
   }
 
   const zpsMatches = indexes.zps.findContaining(lon, lat);
+  const streetName =
+    zpsMatches.length > 0
+      ? streetNameOfZone(data, indexes.streets, fix)
+      : streetNameAtFix(data, indexes.streets, fix, accuracyMeters);
   for (const feature of zpsMatches) {
     if (feature.properties.tariffId !== null) {
       const tariff = data.zps.tariffs[feature.properties.tariffId];

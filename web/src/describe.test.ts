@@ -51,7 +51,7 @@ suite("describe", () => {
       { kind: "residentZone", streetName: null, ...resZone },
       { kind: "freeZoneRightNow", streetName: null, ...mixZone },
       { kind: "clear", streetName: null },
-      { kind: "ambiguous", streetName: null, candidates: [] },
+      { kind: "ambiguous", candidates: [] },
     ];
     for (const status of statuses) {
       expect(describe(status).icon).toMatch(/^[0-9a-f]+$/);
@@ -197,7 +197,6 @@ suite("describe", () => {
   it("gives a resident candidate in its tariff hours the short-stay advice", () => {
     const [candidate] = describe({
       kind: "ambiguous",
-      streetName: null,
       candidates: [
         {
           kind: "paidZone",
@@ -331,9 +330,9 @@ suite("describe", () => {
     );
   });
 
-  it("describes an ambiguous location with a candidate chip per zone, sorted as given, no single zone", () => {
+  it("describes an ambiguous location with a candidate chip and street per zone, sorted as given, no single zone", () => {
     const candidates: ZoneStatus[] = [
-      { kind: "freeZoneRightNow", streetName: "Nerudova", ...mixZone },
+      { kind: "freeZoneRightNow", streetName: "Úvoz", ...mixZone },
       {
         kind: "paidZone",
         pricePerHour: 40,
@@ -345,14 +344,16 @@ suite("describe", () => {
         ...visZone,
       },
     ];
-    const display = describe({ kind: "ambiguous", streetName: "Nerudova", candidates });
+    const display = describe({ kind: "ambiguous", candidates });
     expect(display.tone).toBe("caution");
     expect(display.sentence).toBe(
       "Your location isn't precise enough to tell exactly which zone you're in — could be any of these.",
     );
     expect(display.detail?.zone).toBeNull();
+    expect(display.detail?.streetName).toBeNull();
     expect(display.detail?.candidateZones).toEqual([
       {
+        streetName: "Úvoz",
         code: "P2-0237",
         categoryLabel: "Mixed",
         colorHex: "#8b5cf6",
@@ -364,6 +365,7 @@ suite("describe", () => {
         sentence: "You're in a paid zone, but right now it's free to park.",
       },
       {
+        streetName: "Nerudova",
         code: "BUS-0001",
         categoryLabel: "Visitors",
         colorHex: "#f97316",
@@ -386,7 +388,7 @@ suite("describe", () => {
       maxStayMinutes: null, from: "08:00", until: "17:59", streetName: "Nerudova", ...visZone };
     const alone = describe(status);
     const [candidate] = describe({
-      kind: "ambiguous", streetName: "Nerudova", candidates: [status],
+      kind: "ambiguous", candidates: [status],
     }).detail!.candidateZones!;
 
     expect(candidate.tone).toBe(alone.tone);
@@ -397,7 +399,6 @@ suite("describe", () => {
   it("gives a resident candidate its advice even though it has no price rows to show", () => {
     const [candidate] = describe({
       kind: "ambiguous",
-      streetName: "Tovačovského",
       candidates: [{ kind: "residentZone", streetName: "Tovačovského", ...resZone }],
     }).detail!.candidateZones!;
 
@@ -414,7 +415,6 @@ suite("describe", () => {
     const display = describe(
       {
         kind: "ambiguous",
-        streetName: "Nerudova",
         candidates: [{ kind: "residentZone", streetName: "Nerudova", ...resZone }],
       },
       upcomingTomorrow,
@@ -426,7 +426,7 @@ suite("describe", () => {
 
   it("appends the upcoming-closure clause to the ambiguous sentence too", () => {
     const display = describe(
-      { kind: "ambiguous", streetName: null, candidates: [] },
+      { kind: "ambiguous", candidates: [] },
       upcomingTomorrow,
     );
     expect(display.sentence).toBe(
@@ -502,7 +502,7 @@ suite("describe", () => {
 
     it("gives each ambiguous candidate its shared-car advice", () => {
       const display = describe(
-        { kind: "ambiguous", streetName: null, candidates: [paidRes, paidVis] },
+        { kind: "ambiguous", candidates: [paidRes, paidVis] },
         null,
         "shared",
       );

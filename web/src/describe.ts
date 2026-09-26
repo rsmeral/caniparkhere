@@ -25,12 +25,14 @@ export interface ZoneChip {
 }
 
 /**
- * A candidate for an ambiguous location: the zone's chip, plus the advice that zone carries
- * on its own. The card reveals that advice when tapped, so each candidate can be read the
- * way the main screen reads a confident answer. The upcoming-closure clause stays out of
- * these sentences - it belongs once, in the headline above them.
+ * A candidate for an ambiguous location: the zone's chip and the street it's on, plus the
+ * advice that zone carries on its own. The card reveals that advice when tapped, so each
+ * candidate can be read the way the main screen reads a confident answer. The
+ * upcoming-closure clause stays out of these sentences - it belongs once, in the headline
+ * above them.
  */
 export interface CandidateZone extends ZoneChip {
+  streetName: string | null;
   tone: Tone;
   icon: string;
   sentence: string;
@@ -39,8 +41,9 @@ export interface CandidateZone extends ZoneChip {
 export interface Detail {
   streetName: string | null;
   zone: ZoneChip | null;
-  /** Set only when the location is ambiguous between multiple zones (zone is null in that
-   * case) - every zone the GPS fix's accuracy radius could plausibly place you in. */
+  /** Set only when the location is ambiguous between multiple zones (zone and streetName are
+   * null in that case) - every zone the GPS fix's accuracy radius could plausibly place you
+   * in, each with its own street. */
   candidateZones: CandidateZone[] | null;
 }
 
@@ -197,7 +200,11 @@ function chipForZoneStatus(status: ZoneStatus, vehicle: Vehicle): ZoneChip {
 
 /** Builds one entry of an ambiguous location's candidate list. */
 function candidateFor(status: ZoneStatus, vehicle: Vehicle): CandidateZone {
-  return { ...chipForZoneStatus(status, vehicle), ...adviceFor(status, vehicle) };
+  return {
+    ...chipForZoneStatus(status, vehicle),
+    ...adviceFor(status, vehicle),
+    streetName: status.streetName,
+  };
 }
 
 /** @example upcomingClause({date:"2026-04-10", daysUntil:1, streetName:"Foo"}) -> " And watch out, street cleaning tomorrow." */
@@ -265,7 +272,7 @@ export function describe(
         icon: "1f9d0", // 🧐
         sentence: `Your location isn't precise enough to tell exactly which zone you're in — could be any of these.${clause}`,
         detail: {
-          streetName: status.streetName,
+          streetName: null,
           zone: null,
           candidateZones: status.candidates.map((c) => candidateFor(c, vehicle)),
         },
