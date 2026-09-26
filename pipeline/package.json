@@ -8,10 +8,10 @@
   },
   "devDependencies": {
     "@types/geojson": "^7946.0.14",
-    "@types/node": "^24.0.0",
+    "@types/node": "^24.19.0",
     "tsx": "^4.19.0",
-    "typescript": "^5.7.0",
-    "vitest": "^5.0.1"
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2"
   },
   "dependencies": {
     "@turf/simplify": "^7.2.0"
