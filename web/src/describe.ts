@@ -1,4 +1,5 @@
 import type { Status, UpcomingClosure, ZoneInfo, ZoneStatus } from "./query";
+import type { Vehicle } from "./vehicle";
 
 export type Tone = "neutral" | "good" | "warn" | "caution" | "danger" | "outside";
 
@@ -94,12 +95,15 @@ function formatStay(minutes: number): string {
   return hours === 1 ? "1 hour" : `${hours} hours`;
 }
 
+type Advice = { tone: Tone; icon: string; sentence: string };
+
 /**
  * The advice for a zone status, as the headline or as a candidate card. A resident (blue)
  * zone while its tariff runs lets a visitor pay to stay, but only briefly: 1 to 3 hours,
  * set per district. The data usually says which; when it doesn't, the sign does.
  */
-function adviceFor(status: ZoneStatus): { tone: Tone; icon: string; sentence: string } {
+function adviceFor(status: ZoneStatus, vehicle: Vehicle): Advice {
+  if (vehicle === "shared") return sharedAdviceFor(status);
   if (status.kind === "paidZone" && status.category === "RES") {
     const stay =
       status.maxStayMinutes === null ? "a short time" : `up to ${formatStay(status.maxStayMinutes)}`;
@@ -110,6 +114,29 @@ function adviceFor(status: ZoneStatus): { tone: Tone; icon: string; sentence: st
     };
   }
   return ZONE_ADVICE[status.kind];
+}
+
+/**
+ * The advice for a zone status in a shared car. The carsharing permit covers blue and
+ * purple zones at any hour, so a rental can end there. It doesn't cover orange zones: a
+ * shared car can only stop there during the rental, and pays like any visitor.
+ */
+function sharedAdviceFor(status: ZoneStatus): Advice {
+  if (status.category !== "VIS") {
+    return {
+      tone: "good",
+      icon: "1f60a", // 😊
+      sentence: "You can end your rental here, for free and with no time limit.",
+    };
+  }
+  return {
+    tone: "caution",
+    icon: "1f914", // 🤔
+    sentence:
+      status.kind === "paidZone"
+        ? "You can't end your rental here. You can stop here during the rental, but it's paid."
+        : "You can't end your rental here. You can stop here during the rental, and right now it's free.",
+  };
 }
 
 interface ZoneChipOptions {
@@ -142,8 +169,10 @@ function detailOf(streetName: string | null, zone: ZoneChip | null): Detail | nu
 }
 
 /** Builds the ZoneChip for a single resolved zone status - shared by the main switch below
- * and by each entry in an ambiguous location's candidate list. */
-function chipForZoneStatus(status: ZoneStatus): ZoneChip {
+ * and by each entry in an ambiguous location's candidate list. A shared car has nothing to
+ * pay where its rental can end, so those zones show no price. */
+function chipForZoneStatus(status: ZoneStatus, vehicle: Vehicle): ZoneChip {
+  if (vehicle === "shared" && status.category !== "VIS") return zoneChip(status);
   if (status.kind === "paidZone") {
     const price = { label: "Price", value: `${status.pricePerHour} Kč/hod` };
     const hours = { label: "Hours", value: `${status.from}–${status.until}` };
@@ -167,8 +196,8 @@ function chipForZoneStatus(status: ZoneStatus): ZoneChip {
 }
 
 /** Builds one entry of an ambiguous location's candidate list. */
-function candidateFor(status: ZoneStatus): CandidateZone {
-  return { ...chipForZoneStatus(status), ...adviceFor(status) };
+function candidateFor(status: ZoneStatus, vehicle: Vehicle): CandidateZone {
+  return { ...chipForZoneStatus(status, vehicle), ...adviceFor(status, vehicle) };
 }
 
 /** @example upcomingClause({date:"2026-04-10", daysUntil:1, streetName:"Foo"}) -> " And watch out, street cleaning tomorrow." */
@@ -182,8 +211,13 @@ function upcomingClause(upcoming: UpcomingClosure): string {
  * coverage area entirely, both suppress the upcoming-closure note (redundant either way).
  * Sentences read as plain, spoken advice; specifics belong in the detail card, with one
  * exception - an upcoming closure is time-sensitive enough to earn a spot in the headline.
+ * For a shared car, zone advice is about where the rental can end.
  */
-export function describe(status: Status, upcoming: UpcomingClosure | null = null): Display {
+export function describe(
+  status: Status,
+  upcoming: UpcomingClosure | null = null,
+  vehicle: Vehicle = "own",
+): Display {
   const suppressUpcoming = status.kind === "closure" || status.kind === "outOfArea";
   const clause = !suppressUpcoming && upcoming ? upcomingClause(upcoming) : "";
 
@@ -205,20 +239,26 @@ export function describe(status: Status, upcoming: UpcomingClosure | null = null
     case "paidZone":
     case "residentZone":
     case "freeZoneRightNow": {
-      const advice = adviceFor(status);
+      const advice = adviceFor(status, vehicle);
       return {
         ...advice,
         sentence: `${advice.sentence}${clause}`,
-        detail: detailOf(status.streetName, chipForZoneStatus(status)),
+        detail: detailOf(status.streetName, chipForZoneStatus(status, vehicle)),
       };
     }
-    case "clear":
+    case "clear": {
+      // Outside the zones, where a rental can end is up to the carsharing operator.
+      const sentence =
+        vehicle === "shared"
+          ? "I don't have parking info for this spot — check your carsharing app before you end the rental here."
+          : "I don't have parking info for this spot — better check the signs around you.";
       return {
         tone: "neutral",
         icon: "1f440", // 👀
-        sentence: `I don't have parking info for this spot — better check the signs around you.${clause}`,
+        sentence: `${sentence}${clause}`,
         detail: detailOf(status.streetName, null),
       };
+    }
     case "ambiguous":
       return {
         tone: "caution",
@@ -227,7 +267,7 @@ export function describe(status: Status, upcoming: UpcomingClosure | null = null
         detail: {
           streetName: status.streetName,
           zone: null,
-          candidateZones: status.candidates.map(candidateFor),
+          candidateZones: status.candidates.map((c) => candidateFor(c, vehicle)),
         },
       };
   }

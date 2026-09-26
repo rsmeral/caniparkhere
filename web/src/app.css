@@ -37,6 +37,7 @@ body {
   user-select: none;
   -webkit-user-select: none;
   overflow-y: auto;
+  position: relative;
 }
 
 .app--neutral {
@@ -57,6 +58,43 @@ body {
 }
 .app--outside {
   background: var(--tone-outside);
+}
+
+.app__vehicle {
+  /* A small dark chip in the top right corner, like the detail card, so it reads on every
+     tone. The native select is laid invisibly over the chip: tapping anywhere on it opens
+     the platform's own picker. */
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 0.75rem);
+  right: calc(env(safe-area-inset-right, 0px) + 0.75rem);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.6rem;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 999px;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.app__vehicle-chevron {
+  font-size: 0.5rem;
+  opacity: 0.7;
+}
+
+.app__vehicle-select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  font-size: 1rem; /* iOS zooms into a focused select smaller than 16px */
+  cursor: pointer;
+}
+
+.app__vehicle:focus-within {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
 }
 
 .app__emoji-halo {

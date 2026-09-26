@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "preact/hooks";
 import "./app.css";
 import { CandidateBox } from "./components/CandidateBox";
+import { VehiclePicker } from "./components/VehiclePicker";
 import { ZoneBox } from "./components/ZoneBox";
 import { describe, type Display } from "./describe";
 import type { QueryResult } from "./query";
 import { createQueryClient } from "./queryClient";
 import type { GeoState } from "./useGeolocation";
 import { useThemeColor } from "./useThemeColor";
+import { loadVehicle, saveVehicle, type Vehicle } from "./vehicle";
 
 const neutral = (icon: string, sentence: string): Display => ({
   tone: "neutral",
@@ -34,6 +36,12 @@ export function App({ geo, now, cleaningEverywhereToday = false }: Props) {
   const [result, setResult] = useState<QueryResult | null>(null);
   const [dataError, setDataError] = useState<string | null>(null);
   const [expandedCode, setExpandedCode] = useState<string | null>(null);
+  const [vehicle, setVehicle] = useState<Vehicle>(loadVehicle);
+
+  const pickVehicle = (picked: Vehicle) => {
+    setVehicle(picked);
+    saveVehicle(picked);
+  };
 
   useEffect(() => () => client.terminate(), [client]);
 
@@ -79,8 +87,8 @@ export function App({ geo, now, cleaningEverywhereToday = false }: Props) {
     if (geo.status === "searching" || !result) {
       return neutral("23f3", "Figuring out where you are..."); // ⏳
     }
-    return describe(result.status, result.upcomingClosure);
-  }, [result, geo, dataError]);
+    return describe(result.status, result.upcomingClosure, vehicle);
+  }, [result, geo, dataError, vehicle]);
 
   useThemeColor(display.tone);
 
@@ -100,6 +108,7 @@ export function App({ geo, now, cleaningEverywhereToday = false }: Props) {
 
   return (
     <div className={`app app--${display.tone}`}>
+      <VehiclePicker vehicle={vehicle} onChange={pickVehicle} />
       <div className="app__emoji-halo">
         <img className="app__emoji" src={`/emoji/${display.icon}.svg`} alt="" />
       </div>

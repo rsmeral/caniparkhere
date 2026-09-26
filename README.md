@@ -14,6 +14,10 @@ For the spot you're standing on, the app shows:
 - whether the street is closed for street cleaning today or soon
 - the street name and zone code, so you can check them against the signs
 
+In a shared car (pick "Shared car" in the top right corner), it tells you whether you can
+end the rental there instead. Cars from carsharing services registered with the city can
+be left in any blue or purple zone for free, with no time limit, but not in orange zones.
+
 ## Data sources
 
 From Prague's open data catalog, [LKOD](https://lkod.cz/):
