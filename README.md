@@ -20,6 +20,10 @@ they all have the same rules (price, hours, time limit, cleaning), the app answe
 When they differ, it says it can't tell which one you're in, and each card shows what
 applies there.
 
+"Live" in the top left corner shows that the answer follows your location, with bars for how
+accurate it is. Tap it to pause: the answer stays with the spot you paused at, for example
+the car's, while you walk away.
+
 In a shared car (pick "Shared car" in the top right corner), it tells you whether you can
 end the rental there instead. Cars from carsharing services registered with the city can
 be left in any blue or purple zone for free, with no time limit, but not in orange zones.

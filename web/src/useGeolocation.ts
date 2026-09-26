@@ -12,12 +12,17 @@ export type GeoState =
 // wrong. The watch keeps running throughout, so a late fix still recovers the UI.
 const GIVE_UP_MS = 20_000;
 
-export function useGeolocation(): GeoState {
+/**
+ * Follows the device's position. While `paused`, the watch is stopped and the last state
+ * stays as it was; resuming starts a new watch.
+ */
+export function useGeolocation(paused = false): GeoState {
   const [state, setState] = useState<GeoState>({ status: "searching" });
   const hasFix = useRef(false);
   const giveUpTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
+    if (paused) return;
     if (!navigator.geolocation) {
       setState({ status: "unsupported" });
       return;
@@ -68,7 +73,7 @@ export function useGeolocation(): GeoState {
       clearGiveUp();
       navigator.geolocation.clearWatch(watchId);
     };
-  }, []);
+  }, [paused]);
 
   return state;
 }
