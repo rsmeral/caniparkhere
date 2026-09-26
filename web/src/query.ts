@@ -230,6 +230,7 @@ function statusForZoneFeature(
  * radius overlaps more than one zone, a plain containment check at the fix's exact
  * coordinates can't be trusted to pick the right one, so this reports every zone within
  * that radius as an "ambiguous" candidate list instead of guessing at a single answer.
+ * When it reaches exactly one zone, that zone is the answer even if the fix is just outside.
  *
  * cleaningEverywhereToday treats every street-cleaning section as being cleaned today,
  * whatever its dates. It exists for simulating a closure in the jig.
@@ -281,6 +282,14 @@ export function queryStatus(
           ),
         );
       return { status: { kind: "ambiguous", candidates }, upcomingClosure };
+    }
+    // One zone within reach that the fix itself isn't in: the fix is most likely off by a
+    // little, so that zone is the answer. A fix inside a zone goes on to the containment
+    // check below, which picks between overlapping sections of the same zone.
+    const [only] = nearestByCode.values();
+    if (nearestByCode.size === 1 && only.distanceMeters > 0) {
+      const streetName = streetNameOfZone(data, indexes.streets, only.point);
+      return { status: statusForZoneFeature(data, only.feature, streetName, now), upcomingClosure };
     }
   }
 

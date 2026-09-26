@@ -114,13 +114,15 @@ function buildFixture(now: Date): LoadedData {
       ],
     },
     streets: {
-      names: ["Foo St", "Near St", "Gap St"],
+      names: ["Foo St", "Near St", "Gap St", "Lone St"],
       features: [
         streetFeature([[0, 5], [10, 5]], { nameId: 0 }),
         // Runs through P1's north part, ~45m from the point inside P1 the tests below use.
         streetFeature([[14.4, 50.0009], [14.401, 50.0009]], { nameId: 1 }),
         // Runs down the gap between P1 and P2, near P2's west edge.
         streetFeature([[14.4011, 50], [14.4011, 50.0003]], { nameId: 2 }),
+        // Far from every zone.
+        streetFeature([[14.5, 50], [14.501, 50]], { nameId: 3 }),
       ],
     },
     bounds: { minLon: -100, minLat: -100, maxLon: 100, maxLat: 100 },
@@ -361,12 +363,29 @@ describe("queryStatus", () => {
     ]);
   });
 
+  it("answers for the one zone the accuracy circle reaches, even with the fix just outside it", () => {
+    const now = new Date(2026, 0, 1, 10, 0);
+    const data = buildFixture(now);
+    const indexes = buildIndexes(data);
+    // ~14m west of P1, and ~100m from P2.
+    const result = queryStatus(data, indexes, 14.3998, 50.0005, now, 20);
+    expect(result.status).toMatchObject({ kind: "paidZone", code: "P1", streetName: "Near St" });
+  });
+
+  it("reports clear when the fix is outside every zone and its circle reaches none", () => {
+    const now = new Date(2026, 0, 1, 10, 0);
+    const data = buildFixture(now);
+    const indexes = buildIndexes(data);
+    const result = queryStatus(data, indexes, 14.3998, 50.0005, now, 5);
+    expect(result.status).toEqual({ kind: "clear", streetName: null });
+  });
+
   it("outside any zone, finds no street for a precise fix when the centerline is out of reach", () => {
     const now = new Date(2026, 0, 1, 10, 0);
     const data = buildFixture(now);
     const indexes = buildIndexes(data);
-    // North of P1, ~45m from Near St.
-    const result = queryStatus(data, indexes, 14.4005, 50.0013, now, 5);
+    // ~45m north of Lone St.
+    const result = queryStatus(data, indexes, 14.5005, 50.0004, now, 5);
     expect(result.status).toEqual({ kind: "clear", streetName: null });
   });
 
@@ -374,8 +393,8 @@ describe("queryStatus", () => {
     const now = new Date(2026, 0, 1, 10, 0);
     const data = buildFixture(now);
     const indexes = buildIndexes(data);
-    const result = queryStatus(data, indexes, 14.4005, 50.0013, now, 48);
-    expect(result.status).toEqual({ kind: "clear", streetName: "Near St" });
+    const result = queryStatus(data, indexes, 14.5005, 50.0004, now, 48);
+    expect(result.status).toEqual({ kind: "clear", streetName: "Lone St" });
   });
 
   it("caps the ambiguity radius so a very inaccurate fix doesn't pull in a far-away zone", () => {
