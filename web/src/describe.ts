@@ -26,8 +26,7 @@ export interface ZoneChip {
 
 export interface Advice {
   tone: Tone;
-  /** Twemoji codepoint (see web/public/emoji/), e.g. "1f60a" for 😊. Rendered as an <img>,
-   * not the literal character - native emoji fonts render blurry at this size on most platforms. */
+  /** The emoji itself, e.g. "😊". Shown as its Twemoji image, via emojiUrl. */
   icon: string;
   sentence: string;
 }
@@ -72,17 +71,17 @@ export const ZONE_CATEGORY: Record<ZoneInfo["category"], { label: string; colorN
 const ZONE_ADVICE: Record<ZoneStatus["kind"], { tone: Tone; icon: string; sentence: string }> = {
   paidZone: {
     tone: "warn",
-    icon: "1f911", // 🤑
+    icon: "🤑",
     sentence: "You can park here, but it's paid.",
   },
   residentZone: {
     tone: "caution",
-    icon: "1f914", // 🤔
+    icon: "🤔",
     sentence: "This is a resident-only zone, so you might need a permit to park here.",
   },
   freeZoneRightNow: {
     tone: "good",
-    icon: "1f60a", // 😊
+    icon: "😊",
     sentence: "You're in a paid zone, but right now it's free to park.",
   },
 };
@@ -106,7 +105,7 @@ function adviceFor(status: ZoneStatus, vehicle: Vehicle): Advice {
       status.maxStayMinutes === null ? "a short time" : `up to ${formatStay(status.maxStayMinutes)}`;
     return {
       tone: "warn",
-      icon: "1f911", // 🤑
+      icon: "🤑",
       sentence: `You can park here for ${stay}, but it's paid.`,
     };
   }
@@ -122,13 +121,13 @@ function sharedAdviceFor(status: ZoneStatus): Advice {
   if (status.category !== "VIS") {
     return {
       tone: "good",
-      icon: "1f60a", // 😊
+      icon: "😊",
       sentence: "You can end your rental here, for free and with no time limit.",
     };
   }
   return {
     tone: "caution",
-    icon: "1f914", // 🤔
+    icon: "🤔",
     sentence:
       status.kind === "paidZone"
         ? "You can't end your rental here. You can stop here during the rental, but it's paid."
@@ -188,7 +187,7 @@ function chipForZoneStatus(status: ZoneStatus, vehicle: Vehicle): ZoneChip {
 
 const CLEANING_TODAY: Advice = {
   tone: "danger",
-  icon: "1f61f", // 😟
+  icon: "😟",
   sentence: "There's street cleaning here today — don't park here.",
 };
 
@@ -197,7 +196,7 @@ const CLEANING_TODAY: Advice = {
 function noInfoAdvice(vehicle: Vehicle): Advice {
   return {
     tone: "neutral",
-    icon: "1f440", // 👀
+    icon: "👀",
     sentence:
       vehicle === "shared"
         ? "I don't have parking info for this spot — check your carsharing app before you end the rental here."
@@ -344,7 +343,7 @@ export function describe(result: QueryResult, vehicle: Vehicle = "own"): Display
   if (result.kind === "outOfArea") {
     return {
       tone: "outside",
-      icon: "1f9ed", // 🧭
+      icon: "🧭",
       sentence: "This app only covers Prague — looks like you're somewhere else.",
       cards: [],
       agree: true,
@@ -364,12 +363,12 @@ export function describe(result: QueryResult, vehicle: Vehicle = "own"): Display
     : cleaningToday
       ? {
           tone: "danger",
-          icon: "1f61f", // 😟
+          icon: "😟",
           sentence: "Where are you exactly? Some of these have street cleaning today.",
         }
       : {
           tone: "caution",
-          icon: "1f9d0", // 🧐
+          icon: "🧐",
           sentence: "Where are you exactly? Seems like one of these.",
         };
   const clause = agree && cleaningToday ? "" : upcomingClause(result.places);

@@ -4,6 +4,7 @@ import { CandidateBox } from "./components/CandidateBox";
 import { VehiclePicker } from "./components/VehiclePicker";
 import { ZoneBox } from "./components/ZoneBox";
 import { describe, type Display } from "./describe";
+import { emojiUrl } from "./emoji";
 import type { QueryResult } from "./query";
 import { createQueryClient } from "./queryClient";
 import type { GeoState } from "./useGeolocation";
@@ -69,24 +70,24 @@ export function App({ geo, now, cleaningEverywhereToday = false }: Props) {
   }, [client, geo, nowMs, cleaningEverywhereToday]);
 
   const display: Display = useMemo(() => {
-    if (dataError) return neutral("1f635", `Couldn't load zone data: ${dataError}`); // 😵
+    if (dataError) return neutral("😵", `Couldn't load zone data: ${dataError}`);
     if (geo.status === "unsupported") {
-      return neutral("1f937", "This device can't share its location."); // 🤷
+      return neutral("🤷", "This device can't share its location.");
     }
     if (geo.status === "denied") {
       return neutral(
-        "1f512",
+        "🔒",
         "Location is turned off. Allow it for this site to see what applies here.",
-      ); // 🔒
+      );
     }
     if (geo.status === "unavailable") {
       return neutral(
-        "1f6f0",
+        "🛰",
         "Still can't get a location fix. Try moving somewhere with a clearer view of the sky.",
-      ); // 🛰
+      );
     }
     if (geo.status === "searching" || !result) {
-      return neutral("23f3", "Figuring out where you are..."); // ⏳
+      return neutral("⏳", "Figuring out where you are...");
     }
     return describe(result, vehicle);
   }, [result, geo, dataError, vehicle]);
@@ -108,7 +109,7 @@ export function App({ geo, now, cleaningEverywhereToday = false }: Props) {
     <div className={`app app--${display.tone}`}>
       <VehiclePicker vehicle={vehicle} onChange={pickVehicle} />
       <div className="app__emoji-halo">
-        <img className="app__emoji" src={`/emoji/${display.icon}.svg`} alt="" />
+        <img className="app__emoji" src={emojiUrl(display.icon)} alt="" />
       </div>
       <p className="app__sentence">{display.sentence}</p>
       {display.cards.length > 0 && (
