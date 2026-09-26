@@ -165,12 +165,18 @@ body {
 }
 
 .app__detail-info {
+  /* At least as tall as the Pay slice, with the rows centred, so a one-row card has the
+     same height and even space around its row with or without Pay. The spacing between
+     rows sits on the rows themselves rather than in a flex gap, because the collapsed
+     price rows are still a flex item and would take a gap below the visible ones. */
   flex: 1;
   min-width: 0;
+  box-sizing: border-box;
+  min-height: 2.5rem;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   align-items: flex-start;
-  gap: 0.3rem;
   padding: 0.55rem 0.85rem;
   text-align: left;
 }
@@ -181,6 +187,10 @@ body {
 
 .app__detail-row {
   margin: 0;
+}
+
+.app__detail-row + .app__detail-row {
+  margin-top: 0.3rem;
 }
 
 .app__detail-street {
@@ -232,7 +242,7 @@ body {
 .app__detail-expanded {
   min-height: 0;
   overflow: hidden;
-  margin: 0.15rem 0 0;
+  margin: 0.45rem 0 0;
   padding-top: 0.4rem;
   border-top: 1px solid var(--hairline);
   display: flex;
