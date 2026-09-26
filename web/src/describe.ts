@@ -72,7 +72,7 @@ export const ZONE_CATEGORY: Record<ZoneInfo["category"], { label: string; colorN
 const ZONE_ADVICE: Record<ZoneStatus["kind"], { tone: Tone; icon: string; sentence: string }> = {
   paidZone: {
     tone: "warn",
-    icon: "1f642", // 🙂
+    icon: "1f911", // 🤑
     sentence: "You can park here, but it's paid.",
   },
   residentZone: {
@@ -106,7 +106,7 @@ function adviceFor(status: ZoneStatus, vehicle: Vehicle): Advice {
       status.maxStayMinutes === null ? "a short time" : `up to ${formatStay(status.maxStayMinutes)}`;
     return {
       tone: "warn",
-      icon: "1f642", // 🙂
+      icon: "1f911", // 🤑
       sentence: `You can park here for ${stay}, but it's paid.`,
     };
   }
