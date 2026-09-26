@@ -28,6 +28,11 @@ From ČÚZK, the Czech land survey office:
 - [RÚIAN – Ulice](https://ags.cuzk.gov.cz/arcgis/rest/services/RUIAN/MapServer/4) – street
   centre lines and names from RÚIAN, the national address register
 
+From [Golemio](https://api.golemio.cz/docs/public-openapi/), Prague's data platform:
+
+- Parking tariffs from TSK (`/v3/parking` and `/v3/parking-tariffs`, source `tsk_v2`) –
+  how long a visitor may stay in each resident (blue) zone
+
 ## How it works
 
 1. Once a day, a script downloads the data, keeps only what the app needs, makes it
@@ -52,9 +57,17 @@ npm install
 npm run build   # downloads the sources and writes web/public/data/*.json
 ```
 
+Golemio needs an API key. The build reads it from `GOLEMIO_API_KEY`, which it takes from
+the environment or from a `.env` file at the repo root (git ignores it):
+
+```
+GOLEMIO_API_KEY=...
+```
+
 What `npm run build` does:
 
-1. Downloads each source as GeoJSON.
+1. Downloads each source: the LKOD and RÚIAN layers as GeoJSON, and TSK's zones and tariffs
+   from Golemio.
 2. Rounds and simplifies the shapes, and keeps only the fields the app uses.
 3. Stores repeated values (tariffs, cleaning dates, street names) once, in a shared table,
    and points to them from each shape.
@@ -73,6 +86,9 @@ The datasets:
   `tariftext` field.
   - The source cuts `tariftext` off at a fixed length, so a few long tariffs lose their
     daily cap. The build logs a warning for each one and keeps the rest of the tariff.
+  - Resident zones also get `maxStayMinutes`, the longest a visitor may stay, from Golemio,
+    matched by zone code. It's `null` for a section Golemio doesn't have, and the build logs
+    how many those are.
 - **`letni`** – summer street cleaning. One shape per street section, with its list of
   cleaning days. The source only covers the current year, so this needs a refresh at least
   once a year.
@@ -81,7 +97,8 @@ The datasets:
 
 ### Daily refresh
 
-`.forgejo/workflows/refresh-data.yaml` runs the pipeline every night on the Forgejo runner:
+`.forgejo/workflows/refresh-data.yaml` runs the pipeline every night on the Forgejo runner,
+with the Golemio key from the repo's `GOLEMIO_API_KEY` secret:
 
 1. Runs `npm run build`.
 2. Compares the new `manifest.json` version with the old one.

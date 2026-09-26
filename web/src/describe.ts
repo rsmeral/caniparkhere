@@ -87,6 +87,31 @@ const ZONE_ADVICE: Record<ZoneStatus["kind"], { tone: Tone; icon: string; senten
   },
 };
 
+/** @example formatStay(60) -> "1 hour"; formatStay(180) -> "3 hours"; formatStay(90) -> "90 minutes" */
+function formatStay(minutes: number): string {
+  if (minutes % 60 !== 0) return `${minutes} minutes`;
+  const hours = minutes / 60;
+  return hours === 1 ? "1 hour" : `${hours} hours`;
+}
+
+/**
+ * The advice for a zone status, as the headline or as a candidate card. A resident (blue)
+ * zone while its tariff runs lets a visitor pay to stay, but only briefly: 1 to 3 hours,
+ * set per district. The data usually says which; when it doesn't, the sign does.
+ */
+function adviceFor(status: ZoneStatus): { tone: Tone; icon: string; sentence: string } {
+  if (status.kind === "paidZone" && status.category === "RES") {
+    const stay =
+      status.maxStayMinutes === null ? "a short time" : `up to ${formatStay(status.maxStayMinutes)}`;
+    return {
+      tone: "warn",
+      icon: "1f642", // 🙂
+      sentence: `You can park here for ${stay}, but it's paid.`,
+    };
+  }
+  return ZONE_ADVICE[status.kind];
+}
+
 interface ZoneChipOptions {
   /** Present only for an actively-paid zone: drives both the Pay button and its price label. */
   payment?: { pricePerHour: number } | null;
@@ -120,13 +145,22 @@ function detailOf(streetName: string | null, zone: ZoneChip | null): Detail | nu
  * and by each entry in an ambiguous location's candidate list. */
 function chipForZoneStatus(status: ZoneStatus): ZoneChip {
   if (status.kind === "paidZone") {
+    const price = { label: "Price", value: `${status.pricePerHour} Kč/hod` };
+    const hours = { label: "Hours", value: `${status.from}–${status.until}` };
+    // A visitor's stay in a resident zone is capped by time rather than by a daily price.
+    const limit =
+      status.category === "RES"
+        ? {
+            label: "Max stay",
+            value:
+              status.maxStayMinutes === null
+                ? "1–3 h, see sign"
+                : formatStay(status.maxStayMinutes),
+          }
+        : { label: "Daily cap", value: status.dailyCapCzk ? `${status.dailyCapCzk} Kč` : "No cap" };
     return zoneChip(status, {
       payment: { pricePerHour: status.pricePerHour },
-      expanded: [
-        { label: "Price", value: `${status.pricePerHour} Kč/hod` },
-        { label: "Daily cap", value: status.dailyCapCzk ? `${status.dailyCapCzk} Kč` : "No cap" },
-        { label: "Hours", value: `${status.from}–${status.until}` },
-      ],
+      expanded: [price, limit, hours],
     });
   }
   return zoneChip(status);
@@ -134,7 +168,7 @@ function chipForZoneStatus(status: ZoneStatus): ZoneChip {
 
 /** Builds one entry of an ambiguous location's candidate list. */
 function candidateFor(status: ZoneStatus): CandidateZone {
-  return { ...chipForZoneStatus(status), ...ZONE_ADVICE[status.kind] };
+  return { ...chipForZoneStatus(status), ...adviceFor(status) };
 }
 
 /** @example upcomingClause({date:"2026-04-10", daysUntil:1, streetName:"Foo"}) -> " And watch out, street cleaning tomorrow." */
@@ -171,7 +205,7 @@ export function describe(status: Status, upcoming: UpcomingClosure | null = null
     case "paidZone":
     case "residentZone":
     case "freeZoneRightNow": {
-      const advice = ZONE_ADVICE[status.kind];
+      const advice = adviceFor(status);
       return {
         ...advice,
         sentence: `${advice.sentence}${clause}`,
