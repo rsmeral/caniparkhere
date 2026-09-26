@@ -297,7 +297,11 @@ body {
 
 .app__resolve-wrap {
   /* Same JS-free height animation as .app__detail-expand-wrap. The ceiling clears the
-     tallest panel: emoji, a three-line sentence, three rows and a Pay button. */
+     tallest panel: emoji, a sentence of a few lines, three rows and a Pay button. A width of
+     0 stretched to the card's own width keeps the panel's text from setting how wide the
+     card is, so every card is as wide as its summary row. */
+  width: 0;
+  min-width: 100%;
   max-height: 0;
   overflow: hidden;
   transition: max-height 0.28s ease;

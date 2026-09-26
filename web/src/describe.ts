@@ -253,7 +253,7 @@ function cardOf(
 
 /**
  * The upcoming-cleaning clause for the headline, from the soonest date across the places. It
- * says "maybe" when only some of the places have it.
+ * says "possible" when only some of the places have it.
  *
  * @example upcomingClause([{...cleaning: {today:false, upcoming:{date:"2026-04-08", daysUntil:1}}}]) -> " And watch out, street cleaning tomorrow."
  */
@@ -267,7 +267,7 @@ function upcomingClause(places: Place[]): string {
   const when = soonest.daysUntil === 1 ? "tomorrow" : `in ${soonest.daysUntil} days`;
   return upcoming.every(Boolean)
     ? ` And watch out, street cleaning ${when}.`
-    : ` And watch out, there may be street cleaning ${when}.`;
+    : ` And watch out, possible street cleaning ${when}.`;
 }
 
 /**
@@ -300,14 +300,12 @@ export function describe(result: QueryResult, vehicle: Vehicle = "own"): Display
       ? {
           tone: "danger",
           icon: "1f61f", // 😟
-          sentence:
-            "There might be street cleaning here today — your location isn't precise enough to tell which of these you're on.",
+          sentence: "Where are you exactly? Some of these have street cleaning today.",
         }
       : {
           tone: "caution",
           icon: "1f9d0", // 🧐
-          sentence:
-            "Your location isn't precise enough to tell exactly which zone you're in — could be any of these.",
+          sentence: "Where are you exactly? Seems like one of these.",
         };
   const clause = agree && cleaningToday ? "" : upcomingClause(result.places);
 

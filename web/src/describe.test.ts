@@ -55,8 +55,7 @@ const place = (zone: ZoneStatus | null, extra: Partial<Place> = {}): Place => ({
 const at = (places: Place[], vehicle?: Vehicle) => describe({ kind: "places", places }, vehicle);
 
 const NO_INFO = "I don't have parking info for this spot — better check the signs around you.";
-const COULD_BE =
-  "Your location isn't precise enough to tell exactly which zone you're in — could be any of these.";
+const COULD_BE = "Where are you exactly? Seems like one of these.";
 
 suite("describe", () => {
   it("describes being outside Prague with no cards", () => {
@@ -247,8 +246,7 @@ suite("describe", () => {
       ]);
       expect(display).toMatchObject({
         tone: "danger",
-        sentence:
-          "There might be street cleaning here today — your location isn't precise enough to tell which of these you're on.",
+        sentence: "Where are you exactly? Some of these have street cleaning today.",
         agree: false,
       });
       expect(display.cards.map((c) => c.cleaning?.today ?? false)).toEqual([true, false]);
@@ -265,13 +263,13 @@ suite("describe", () => {
       });
     });
 
-    it("says upcoming cleaning 'may' come when only some of them have it", () => {
+    it("calls upcoming cleaning 'possible' when only some of them have it", () => {
       const display = at([
         place(paid(mixZone), { cleaning: cleaningIn(1) }),
         place(paid(mixZone, { code: "X" })),
       ]);
       expect(display.sentence).toBe(
-        "You can park here, but it's paid. And watch out, there may be street cleaning tomorrow.",
+        "You can park here, but it's paid. And watch out, possible street cleaning tomorrow.",
       );
     });
 
@@ -281,7 +279,7 @@ suite("describe", () => {
         place(paid(visZone, { pricePerHour: 60 })),
       ]);
       expect(display.sentence).toBe(
-        `${COULD_BE} And watch out, there may be street cleaning tomorrow.`,
+        `${COULD_BE} And watch out, possible street cleaning tomorrow.`,
       );
       expect(display.cards[0].advice.sentence).toBe("You can park here, but it's paid.");
     });

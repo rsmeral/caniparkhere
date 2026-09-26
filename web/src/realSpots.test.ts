@@ -94,7 +94,7 @@ describe("real spots", () => {
       "There's street cleaning here today — don't park here.",
     );
     expect(headlineAt(lat, lon, 30, cleaningDay)).toBe(
-      "There might be street cleaning here today — your location isn't precise enough to tell which of these you're on.",
+      "Where are you exactly? Some of these have street cleaning today.",
     );
     expect(headlineAt(lat, lon, 5, new Date(2026, 9, 2, 10, 0))).toBe(
       "You can park here, but it's paid. And watch out, street cleaning tomorrow.",
