@@ -6,21 +6,12 @@ function toMinutes(hhmm: string): number {
   return h * 60 + m;
 }
 
-/**
- * Checks whether a rule's time window covers the given moment. Windows can wrap past
- * midnight (e.g. "08:00-05:59"), where `days` names the day the window *starts* on.
- */
+/** Checks whether a rule's window covers the given moment. */
 function ruleActiveAt(rule: TariffRule, dayOfWeek: number, minutes: number): boolean {
-  const start = toMinutes(rule.start);
-  const end = toMinutes(rule.end);
-  const yesterday = (dayOfWeek + 6) % 7;
-
-  if (start <= end) {
-    return rule.days.includes(dayOfWeek) && minutes >= start && minutes <= end;
-  }
   return (
-    (rule.days.includes(dayOfWeek) && minutes >= start) ||
-    (rule.days.includes(yesterday) && minutes <= end)
+    rule.days.includes(dayOfWeek) &&
+    minutes >= toMinutes(rule.start) &&
+    minutes <= toMinutes(rule.end)
   );
 }
 

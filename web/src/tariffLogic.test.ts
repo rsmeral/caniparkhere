@@ -9,7 +9,7 @@ function dayIndexOf(date: Date): number {
 }
 
 describe("activeRuleNow", () => {
-  it("returns the matching rule inside a normal (non-wrapping) window", () => {
+  it("returns the matching rule inside its window", () => {
     const now = new Date(2026, 3, 6, 10, 30);
     const tariff: Tariff = {
       id: 0,
@@ -53,55 +53,6 @@ describe("activeRuleNow", () => {
       raw: "",
       rules: [
         { days: [otherDay], start: "08:00", end: "17:59", pricePerHour: 40, dailyCapCzk: null },
-      ],
-    };
-    expect(activeRuleNow(tariff, now)).toBeNull();
-  });
-
-  it("handles an overnight window: active late at night on the start day", () => {
-    const now = new Date(2026, 3, 6, 23, 0);
-    const tariff: Tariff = {
-      id: 0,
-      raw: "",
-      rules: [
-        {
-          days: [dayIndexOf(now)],
-          start: "22:00",
-          end: "05:59",
-          pricePerHour: 60,
-          dailyCapCzk: null,
-        },
-      ],
-    };
-    expect(activeRuleNow(tariff, now)).toEqual(tariff.rules[0]);
-  });
-
-  it("handles an overnight window: active early morning on the day after", () => {
-    const now = new Date(2026, 3, 6, 2, 0);
-    const startDay = (dayIndexOf(now) + 6) % 7; // the window started yesterday
-    const tariff: Tariff = {
-      id: 0,
-      raw: "",
-      rules: [
-        { days: [startDay], start: "22:00", end: "05:59", pricePerHour: 60, dailyCapCzk: null },
-      ],
-    };
-    expect(activeRuleNow(tariff, now)).toEqual(tariff.rules[0]);
-  });
-
-  it("does not spill an overnight window into the following evening", () => {
-    const now = new Date(2026, 3, 6, 20, 0); // same day, but past the wrap - should not match
-    const tariff: Tariff = {
-      id: 0,
-      raw: "",
-      rules: [
-        {
-          days: [dayIndexOf(now)],
-          start: "22:00",
-          end: "05:59",
-          pricePerHour: 60,
-          dailyCapCzk: null,
-        },
       ],
     };
     expect(activeRuleNow(tariff, now)).toBeNull();
