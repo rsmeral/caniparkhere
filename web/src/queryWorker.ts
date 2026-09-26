@@ -1,5 +1,5 @@
 import { loadData } from "./dataStore";
-import { buildIndexes, isWithinBounds, queryStatus } from "./query";
+import { buildIndexes, isWithinBounds, queryPlaces, type QueryResult } from "./query";
 import type { QueryRequest, QueryResponse } from "./queryProtocol";
 
 // The worker global. `lib.dom` types `self` as a Window, so the two calls this worker makes
@@ -18,17 +18,20 @@ ctx.addEventListener("message", async (event) => {
   const { id, lon, lat, accuracyMeters, at, cleaningEverywhereToday } = event.data;
   try {
     const { data, indexes } = await ready;
-    const result = isWithinBounds(data.bounds, lon, lat)
-      ? queryStatus(
-          data,
-          indexes,
-          lon,
-          lat,
-          at === null ? undefined : new Date(at),
-          accuracyMeters,
-          cleaningEverywhereToday,
-        )
-      : { status: { kind: "outOfArea" as const }, upcomingClosure: null };
+    const result: QueryResult = isWithinBounds(data.bounds, lon, lat)
+      ? {
+          kind: "places",
+          places: queryPlaces(
+            data,
+            indexes,
+            lon,
+            lat,
+            at === null ? undefined : new Date(at),
+            accuracyMeters,
+            cleaningEverywhereToday,
+          ),
+        }
+      : { kind: "outOfArea" };
     ctx.postMessage({ id, ok: true, result });
   } catch (err) {
     ctx.postMessage({ id, ok: false, message: (err as Error).message });

@@ -37,8 +37,10 @@ class FakeWorker {
 }
 
 const resultFor = (streetName: string): QueryResult => ({
-  status: { kind: "clear", streetName },
-  upcomingClosure: null,
+  kind: "places",
+  places: [
+    { zone: null, streetName, cleaning: { today: false, upcoming: null }, distanceMeters: 0 },
+  ],
 });
 
 describe("createQueryClient", () => {

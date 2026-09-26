@@ -1,31 +1,33 @@
-import type { CandidateZone } from "../describe";
+import type { Card } from "../describe";
 import { ExpandedRows } from "./ExpandedRows";
 import { PayLink } from "./PayLink";
 import { ZoneSummary } from "./ZoneSummary";
 
 interface CandidateBoxProps {
-  candidate: CandidateZone;
+  card: Card;
   expanded: boolean;
   onToggle: () => void;
 }
 
 /**
- * One candidate for an ambiguous location. Tapping it opens that zone's own answer - the
- * tone, emoji and recommendation the main screen would show had the fix landed on it - so
- * an ambiguous result stays somewhere the user can act from. Every candidate opens,
- * including a permit-only zone with no price rows to show.
+ * A card whose place differs from the others. Tapping it opens that place's own answer - the
+ * tone, emoji and recommendation the main screen would show had it been the only place - so
+ * an uncertain result stays somewhere the user can act from. Every card opens, including a
+ * permit-only zone with no price rows to show.
  *
  * The parts stack rather than sharing a row, which lets the panel span the card's full
  * width and keeps Pay a normal button inside it instead of a slice stretched to the height
  * of the opened card.
  */
-export function CandidateBox({ candidate, expanded, onToggle }: CandidateBoxProps) {
+export function CandidateBox({ card, expanded, onToggle }: CandidateBoxProps) {
+  const { zone, advice } = card;
   return (
     <div className="app__detail app__detail--resolvable">
       <div className="app__detail-summary">
         <ZoneSummary
-          streetName={candidate.streetName}
-          zone={candidate}
+          streetName={card.streetName}
+          zone={zone}
+          cleaning={card.cleaning}
           canExpand
           expanded={expanded}
           onToggle={onToggle}
@@ -36,11 +38,11 @@ export function CandidateBox({ candidate, expanded, onToggle }: CandidateBoxProp
             tone colour reads as a distinct card however closely it matches the page behind
             it - resident-zone orange on the ambiguous screen's orange, for instance. */}
         <div className="app__resolve-inset">
-          <div className={`app__resolve app__resolve--${candidate.tone}`}>
-            <img className="app__resolve-emoji" src={`/emoji/${candidate.icon}.svg`} alt="" />
-            <p className="app__resolve-sentence">{candidate.sentence}</p>
-            {candidate.expanded && <ExpandedRows rows={candidate.expanded} />}
-            {candidate.payment && <PayLink payment={candidate.payment} block />}
+          <div className={`app__resolve app__resolve--${advice.tone}`}>
+            <img className="app__resolve-emoji" src={`/emoji/${advice.icon}.svg`} alt="" />
+            <p className="app__resolve-sentence">{advice.sentence}</p>
+            {zone?.expanded && <ExpandedRows rows={zone.expanded} />}
+            {zone?.payment && <PayLink payment={zone.payment} block />}
           </div>
         </div>
       </div>

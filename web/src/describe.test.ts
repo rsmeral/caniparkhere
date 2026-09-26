@@ -1,9 +1,10 @@
 import { existsSync } from "node:fs";
 import { describe as suite, expect, it } from "vitest";
 import { describe } from "./describe";
-import type { Status, UpcomingClosure, ZoneInfo, ZoneStatus } from "./query";
+import type { Cleaning, Place, ZoneInfo, ZoneStatus } from "./query";
+import type { Vehicle } from "./vehicle";
 
-// Codepoints referenced anywhere in the app - describe()'s statuses plus app.tsx's
+// Codepoints referenced anywhere in the app - describe()'s advice plus app.tsx's
 // hardcoded neutral (loading/error) states, which don't go through describe() at all.
 const ALL_ICON_CODEPOINTS = [
   "23f3",
@@ -20,500 +21,341 @@ const ALL_ICON_CODEPOINTS = [
   "1f9d0",
 ];
 
-const upcomingIn3Days: UpcomingClosure = { date: "2026-04-10", daysUntil: 3, streetName: "Bar St" };
-const upcomingTomorrow: UpcomingClosure = { date: "2026-04-08", daysUntil: 1, streetName: "Foo St" };
 const mixZone: ZoneInfo = { code: "P2-0237", category: "MIX" };
 const resZone: ZoneInfo = { code: "P8-0012", category: "RES" };
 const visZone: ZoneInfo = { code: "BUS-0001", category: "VIS" };
 
+const NO_CLEANING: Cleaning = { today: false, upcoming: null };
+const CLEANING_TODAY: Cleaning = { today: true, upcoming: null };
+const cleaningIn = (daysUntil: number): Cleaning => ({
+  today: false,
+  upcoming: { date: "2026-04-10", daysUntil },
+});
+
+const paid = (zone: ZoneInfo, rules: Partial<ZoneStatus> = {}): ZoneStatus =>
+  ({
+    kind: "paidZone",
+    pricePerHour: 40,
+    dailyCapCzk: 90,
+    maxStayMinutes: null,
+    from: "08:00",
+    until: "17:59",
+    ...zone,
+    ...rules,
+  }) as ZoneStatus;
+
+const place = (zone: ZoneStatus | null, extra: Partial<Place> = {}): Place => ({
+  zone,
+  streetName: null,
+  cleaning: NO_CLEANING,
+  distanceMeters: 0,
+  ...extra,
+});
+
+const at = (places: Place[], vehicle?: Vehicle) => describe({ kind: "places", places }, vehicle);
+
+const NO_INFO = "I don't have parking info for this spot — better check the signs around you.";
+const COULD_BE =
+  "Your location isn't precise enough to tell exactly which zone you're in — could be any of these.";
+
 suite("describe", () => {
-  it("describes outOfArea with no detail, even when an upcoming closure was passed in", () => {
-    const display = describe({ kind: "outOfArea" }, upcomingIn3Days);
-    expect(display.tone).toBe("outside");
-    expect(display.icon).toBe("1f9ed");
-    expect(display.detail).toBeNull();
+  it("describes being outside Prague with no cards", () => {
+    const display = describe({ kind: "outOfArea" });
+    expect(display).toMatchObject({ tone: "outside", icon: "1f9ed", cards: [] });
   });
 
-  it("returns a lowercase-hex icon codepoint for every status kind", () => {
-    const statuses: Status[] = [
-      { kind: "outOfArea" },
-      { kind: "closure", streetName: null },
-      {
-        kind: "paidZone",
-        pricePerHour: 1,
-        dailyCapCzk: null,
-        maxStayMinutes: null,
-        from: "00:00",
-        until: "00:00",
-        streetName: null,
-        ...visZone,
-      },
-      { kind: "residentZone", streetName: null, ...resZone },
-      { kind: "freeZoneRightNow", streetName: null, ...mixZone },
-      { kind: "clear", streetName: null },
-      { kind: "ambiguous", candidates: [] },
-    ];
-    for (const status of statuses) {
-      expect(describe(status).icon).toMatch(/^[0-9a-f]+$/);
-    }
-  });
-
-  it("describes a closure with the street name in the detail card, not the sentence, and ignores any upcoming closure", () => {
-    const status: Status = { kind: "closure", streetName: "Foo St" };
-    const display = describe(status, upcomingIn3Days);
-    expect(display.tone).toBe("danger");
-    expect(display.sentence).toBe("There's street cleaning here today — don't park here.");
-    expect(display.detail).toEqual({ streetName: "Foo St", zone: null, candidateZones: null });
-  });
-
-  it("describes a closure with no street name and no detail card", () => {
-    const display = describe({ kind: "closure", streetName: null });
-    expect(display.sentence).toBe("There's street cleaning here today — don't park here.");
-    expect(display.detail).toBeNull();
-  });
-
-  it("describes a paid zone with a cap, a payable+expandable detail card, and a plain sentence with no price/time", () => {
-    const status: Status = {
-      kind: "paidZone",
-      pricePerHour: 40,
-      dailyCapCzk: 90,
-      maxStayMinutes: null,
-      from: "08:00",
-      until: "17:59",
-      streetName: "Nerudova",
-      ...visZone,
-    };
-    const display = describe(status);
-    expect(display.tone).toBe("warn");
-    expect(display.sentence).toBe("You can park here, but it's paid.");
-    expect(display.detail).toEqual({
-      streetName: "Nerudova",
-      zone: {
-        code: "BUS-0001",
-        categoryLabel: "Visitors",
-        colorHex: "#f97316",
-        colorName: "oranžová",
-        payment: { url: "https://platba.parkujvpraze.cz/pz/BUS-0001", priceLabel: "40 Kč/hod" },
-        expanded: [
-          { label: "Price", value: "40 Kč/hod" },
-          { label: "Daily cap", value: "90 Kč" },
-          { label: "Hours", value: "08:00–17:59" },
-        ],
-      },
-      candidateZones: null,
-    });
-  });
-
-  it("describes a paid zone without a cap - same plain sentence, 'No cap' in the expanded rows", () => {
-    const status: Status = {
-      kind: "paidZone",
-      pricePerHour: 20,
-      dailyCapCzk: null,
-      maxStayMinutes: null,
-      from: "00:00",
-      until: "23:59",
-      streetName: null,
-      ...mixZone,
-    };
-    const display = describe(status);
-    expect(display.sentence).toBe("You can park here, but it's paid.");
-    expect(display.detail?.zone?.expanded).toEqual([
-      { label: "Price", value: "20 Kč/hod" },
-      { label: "Daily cap", value: "No cap" },
-      { label: "Hours", value: "00:00–23:59" },
-    ]);
-  });
-
-  it("names a resident zone's max stay in the sentence and the card when it's known", () => {
-    const status: Status = {
-      kind: "paidZone",
-      pricePerHour: 80,
-      dailyCapCzk: null,
-      maxStayMinutes: 60,
-      from: "08:00",
-      until: "19:59",
-      streetName: null,
-      ...resZone,
-    };
-    const display = describe(status);
-    expect(display.sentence).toBe("You can park here for up to 1 hour, but it's paid.");
-    expect(display.detail?.zone?.expanded).toEqual([
-      { label: "Price", value: "80 Kč/hod" },
-      { label: "Max stay", value: "1 hour" },
-      { label: "Hours", value: "08:00–19:59" },
-    ]);
-  });
-
-  it("says hours in the plural for a longer max stay", () => {
-    const status: Status = {
-      kind: "paidZone",
-      pricePerHour: 40,
-      dailyCapCzk: null,
-      maxStayMinutes: 180,
-      from: "08:00",
-      until: "19:59",
-      streetName: null,
-      ...resZone,
-    };
-    expect(describe(status).sentence).toBe(
-      "You can park here for up to 3 hours, but it's paid.",
-    );
-  });
-
-  it("describes a resident zone's tariff hours as a short paid stay when its max stay isn't known", () => {
-    const status: Status = {
-      kind: "paidZone",
-      pricePerHour: 60,
-      dailyCapCzk: null,
-      maxStayMinutes: null,
-      from: "08:00",
-      until: "05:59",
-      streetName: "Slezská",
-      ...resZone,
-    };
-    const display = describe(status);
-    expect(display.tone).toBe("warn");
-    expect(display.sentence).toBe("You can park here for a short time, but it's paid.");
-    expect(display.detail?.zone).toEqual({
-      code: "P8-0012",
-      categoryLabel: "Residents",
-      colorHex: "#2563eb",
-      colorName: "modrá",
-      payment: { url: "https://platba.parkujvpraze.cz/pz/P8-0012", priceLabel: "60 Kč/hod" },
-      expanded: [
-        { label: "Price", value: "60 Kč/hod" },
-        { label: "Max stay", value: "1–3 h, see sign" },
-        { label: "Hours", value: "08:00–05:59" },
-      ],
-    });
-  });
-
-  it("describes a resident zone outside its tariff hours as free, like any other zone", () => {
-    const display = describe({ kind: "freeZoneRightNow", streetName: null, ...resZone });
-    expect(display.tone).toBe("good");
-    expect(display.sentence).toBe("You're in a paid zone, but right now it's free to park.");
-  });
-
-  it("gives a resident candidate in its tariff hours the short-stay advice", () => {
-    const [candidate] = describe({
-      kind: "ambiguous",
-      candidates: [
-        {
-          kind: "paidZone",
-          pricePerHour: 60,
-          dailyCapCzk: null,
-          maxStayMinutes: null,
-          from: "08:00",
-          until: "05:59",
-          streetName: null,
-          ...resZone,
-        },
-      ],
-    }).detail!.candidateZones!;
-    expect(candidate).toMatchObject({
-      tone: "warn",
-      sentence: "You can park here for a short time, but it's paid.",
-    });
-  });
-
-  it("describes a resident zone with a non-payable, non-expandable detail card", () => {
-    const display = describe({ kind: "residentZone", streetName: null, ...resZone });
-    expect(display.tone).toBe("caution");
-    expect(display.sentence).toBe(
-      "This is a resident-only zone, so you might need a permit to park here.",
-    );
-    expect(display.detail).toEqual({
-      streetName: null,
-      zone: {
-        code: "P8-0012",
-        categoryLabel: "Residents",
-        colorHex: "#2563eb",
-        colorName: "modrá",
-        payment: null,
-        expanded: null,
-      },
-      candidateZones: null,
-    });
-  });
-
-  it("describes freeZoneRightNow with a non-payable, non-expandable detail card", () => {
-    const display = describe({ kind: "freeZoneRightNow", streetName: null, ...mixZone });
-    expect(display.tone).toBe("good");
-    expect(display.detail?.zone?.payment).toBeNull();
-    expect(display.detail).toEqual({
-      streetName: null,
-      zone: {
-        code: "P2-0237",
-        categoryLabel: "Mixed",
-        colorHex: "#8b5cf6",
-        colorName: "fialová",
-        payment: null,
-        expanded: null,
-      },
-      candidateZones: null,
-    });
-  });
-
-  it("describes clear with a friendly, non-committal sentence and no detail card when nothing is known", () => {
-    const display = describe({ kind: "clear", streetName: null });
-    expect(display.tone).toBe("neutral");
-    expect(display.sentence).toBe(
-      "I don't have parking info for this spot — better check the signs around you.",
-    );
-    expect(display.detail).toBeNull();
-  });
-
-  it("shows the street name in clear's detail card when one is known", () => {
-    const display = describe({ kind: "clear", streetName: "Nerudova" });
-    expect(display.detail).toEqual({ streetName: "Nerudova", zone: null, candidateZones: null });
-  });
-
-  it("folds an upcoming closure into the sentence, never the detail card, with no street name", () => {
-    const tomorrow = describe({ kind: "clear", streetName: null }, upcomingTomorrow);
-    expect(tomorrow.sentence).toBe(
-      "I don't have parking info for this spot — better check the signs around you." +
-        " And watch out, street cleaning tomorrow.",
-    );
-    expect(tomorrow.detail).toBeNull();
-
-    const in3Days = describe({ kind: "clear", streetName: null }, upcomingIn3Days);
-    expect(in3Days.sentence).toBe(
-      "I don't have parking info for this spot — better check the signs around you." +
-        " And watch out, street cleaning in 3 days.",
-    );
-  });
-
-  it("appends the upcoming-closure clause to the plain paid-zone sentence", () => {
-    const status: Status = {
-      kind: "paidZone",
-      pricePerHour: 40,
-      dailyCapCzk: 90,
-      maxStayMinutes: null,
-      from: "08:00",
-      until: "17:59",
-      streetName: null,
-      ...visZone,
-    };
-    const display = describe(status, upcomingTomorrow);
-    expect(display.sentence).toBe(
-      "You can park here, but it's paid. And watch out, street cleaning tomorrow.",
-    );
-  });
-
-  it("appends the upcoming-closure clause after any other content in the detail card", () => {
-    const status: Status = { kind: "residentZone", streetName: "Nerudova", ...resZone };
-    const display = describe(status, upcomingTomorrow);
-    expect(display.sentence).toBe(
-      "This is a resident-only zone, so you might need a permit to park here." +
-        " And watch out, street cleaning tomorrow.",
-    );
-    expect(display.detail).toEqual({
-      streetName: "Nerudova",
-      zone: {
-        code: "P8-0012",
-        categoryLabel: "Residents",
-        colorHex: "#2563eb",
-        colorName: "modrá",
-        payment: null,
-        expanded: null,
-      },
-      candidateZones: null,
-    });
-  });
-
-  it("suppresses the upcoming-closure clause for closure and outOfArea, since it's redundant", () => {
-    expect(describe({ kind: "closure", streetName: null }, upcomingTomorrow).sentence).toBe(
-      "There's street cleaning here today — don't park here.",
-    );
-    expect(describe({ kind: "outOfArea" }, upcomingTomorrow).sentence).toBe(
-      "This app only covers Prague — looks like you're somewhere else.",
-    );
-  });
-
-  it("describes an ambiguous location with a candidate chip and street per zone, sorted as given, no single zone", () => {
-    const candidates: ZoneStatus[] = [
-      { kind: "freeZoneRightNow", streetName: "Úvoz", ...mixZone },
-      {
-        kind: "paidZone",
-        pricePerHour: 40,
-        dailyCapCzk: null,
-        maxStayMinutes: null,
-        from: "08:00",
-        until: "17:59",
-        streetName: "Nerudova",
-        ...visZone,
-      },
-    ];
-    const display = describe({ kind: "ambiguous", candidates });
-    expect(display.tone).toBe("caution");
-    expect(display.sentence).toBe(
-      "Your location isn't precise enough to tell exactly which zone you're in — could be any of these.",
-    );
-    expect(display.detail?.zone).toBeNull();
-    expect(display.detail?.streetName).toBeNull();
-    expect(display.detail?.candidateZones).toEqual([
-      {
-        streetName: "Úvoz",
-        code: "P2-0237",
-        categoryLabel: "Mixed",
-        colorHex: "#8b5cf6",
-        colorName: "fialová",
-        payment: null,
-        expanded: null,
-        tone: "good",
-        icon: "1f60a",
-        sentence: "You're in a paid zone, but right now it's free to park.",
-      },
-      {
-        streetName: "Nerudova",
-        code: "BUS-0001",
-        categoryLabel: "Visitors",
-        colorHex: "#f97316",
-        colorName: "oranžová",
-        payment: { url: "https://platba.parkujvpraze.cz/pz/BUS-0001", priceLabel: "40 Kč/hod" },
-        expanded: [
-          { label: "Price", value: "40 Kč/hod" },
-          { label: "Daily cap", value: "No cap" },
-          { label: "Hours", value: "08:00–17:59" },
-        ],
+  suite("one place", () => {
+    it("describes a paid zone plainly, with its price, cap and hours on the card", () => {
+      const display = at([place(paid(visZone), { streetName: "Nerudova" })]);
+      expect(display).toMatchObject({
         tone: "warn",
-        icon: "1f642",
         sentence: "You can park here, but it's paid.",
-      },
-    ]);
-  });
+        agree: true,
+      });
+      expect(display.cards).toEqual([
+        {
+          key: "BUS-0001",
+          streetName: "Nerudova",
+          zone: {
+            code: "BUS-0001",
+            categoryLabel: "Visitors",
+            colorHex: "#f97316",
+            colorName: "oranžová",
+            payment: { url: "https://platba.parkujvpraze.cz/pz/BUS-0001", priceLabel: "40 Kč/hod" },
+            expanded: [
+              { label: "Price", value: "40 Kč/hod" },
+              { label: "Daily cap", value: "90 Kč" },
+              { label: "Hours", value: "08:00–17:59" },
+            ],
+          },
+          cleaning: null,
+          advice: { tone: "warn", icon: "1f642", sentence: "You can park here, but it's paid." },
+        },
+      ]);
+    });
 
-  it("gives a candidate the same advice that zone would get as a confident answer", () => {
-    const status: ZoneStatus = { kind: "paidZone", pricePerHour: 40, dailyCapCzk: null,
-      maxStayMinutes: null, from: "08:00", until: "17:59", streetName: "Nerudova", ...visZone };
-    const alone = describe(status);
-    const [candidate] = describe({
-      kind: "ambiguous", candidates: [status],
-    }).detail!.candidateZones!;
+    it("says 'No cap' for a paid zone without one", () => {
+      const [card] = at([place(paid(mixZone, { dailyCapCzk: null }))]).cards;
+      expect(card.zone?.expanded?.[1]).toEqual({ label: "Daily cap", value: "No cap" });
+    });
 
-    expect(candidate.tone).toBe(alone.tone);
-    expect(candidate.icon).toBe(alone.icon);
-    expect(candidate.sentence).toBe(alone.sentence);
-  });
+    it("names a resident zone's max stay in the sentence and on the card", () => {
+      const display = at([place(paid(resZone, { maxStayMinutes: 60 }))]);
+      expect(display.sentence).toBe("You can park here for up to 1 hour, but it's paid.");
+      expect(display.cards[0].zone?.expanded?.[1]).toEqual({ label: "Max stay", value: "1 hour" });
+      expect(at([place(paid(resZone, { maxStayMinutes: 180 }))]).sentence).toBe(
+        "You can park here for up to 3 hours, but it's paid.",
+      );
+    });
 
-  it("gives a resident candidate its advice even though it has no price rows to show", () => {
-    const [candidate] = describe({
-      kind: "ambiguous",
-      candidates: [{ kind: "residentZone", streetName: "Tovačovského", ...resZone }],
-    }).detail!.candidateZones!;
+    it("describes a resident zone's unknown max stay as a short time, and points to the sign", () => {
+      const display = at([place(paid(resZone))]);
+      expect(display.sentence).toBe("You can park here for a short time, but it's paid.");
+      expect(display.cards[0].zone?.expanded?.[1]).toEqual({
+        label: "Max stay",
+        value: "1–3 h, see sign",
+      });
+    });
 
-    expect(candidate).toMatchObject({
-      tone: "caution",
-      icon: "1f914",
-      sentence: "This is a resident-only zone, so you might need a permit to park here.",
-      payment: null,
-      expanded: null,
+    it("describes a zone outside its paid hours as free, with nothing to pay or open", () => {
+      const display = at([place({ kind: "freeZoneRightNow", ...resZone })]);
+      expect(display).toMatchObject({
+        tone: "good",
+        sentence: "You're in a paid zone, but right now it's free to park.",
+      });
+      expect(display.cards[0].zone).toMatchObject({ payment: null, expanded: null });
+    });
+
+    it("describes a resident-only zone", () => {
+      const display = at([place({ kind: "residentZone", ...resZone })]);
+      expect(display).toMatchObject({
+        tone: "caution",
+        sentence: "This is a resident-only zone, so you might need a permit to park here.",
+      });
+      expect(display.cards[0].zone).toMatchObject({ payment: null, expanded: null });
+    });
+
+    it("says there's no info where there's no zone, with the street on a card", () => {
+      const display = at([place(null, { streetName: "Nerudova" })]);
+      expect(display).toMatchObject({ tone: "neutral", icon: "1f440", sentence: NO_INFO });
+      expect(display.cards).toMatchObject([
+        { key: "street:Nerudova", streetName: "Nerudova", zone: null },
+      ]);
+    });
+
+    it("shows no card for a place with nothing to show", () => {
+      expect(at([place(null)]).cards).toEqual([]);
+    });
+
+    it("warns against parking on cleaning day, and marks the card", () => {
+      const display = at([
+        place(paid(mixZone), { streetName: "Foo St", cleaning: CLEANING_TODAY }),
+      ]);
+      expect(display).toMatchObject({
+        tone: "danger",
+        icon: "1f61f",
+        sentence: "There's street cleaning here today — don't park here.",
+      });
+      expect(display.cards[0].cleaning).toEqual({ label: "Street cleaning today", today: true });
+      expect(display.cards[0].zone).toMatchObject({
+        payment: null,
+        expanded: [{ label: "Price" }, {}, {}],
+      });
+    });
+
+    it("folds upcoming cleaning into the sentence, and marks the card", () => {
+      const tomorrow = at([place(paid(mixZone), { cleaning: cleaningIn(1) })]);
+      expect(tomorrow.sentence).toBe(
+        "You can park here, but it's paid. And watch out, street cleaning tomorrow.",
+      );
+      expect(tomorrow.cards[0].cleaning).toEqual({
+        label: "Street cleaning tomorrow",
+        today: false,
+      });
+      expect(at([place(null, { cleaning: cleaningIn(3) })]).sentence).toBe(
+        `${NO_INFO} And watch out, street cleaning in 3 days.`,
+      );
     });
   });
 
-  it("keeps the upcoming-closure clause out of candidate sentences, leaving it in the headline", () => {
-    const display = describe(
-      {
-        kind: "ambiguous",
-        candidates: [{ kind: "residentZone", streetName: "Nerudova", ...resZone }],
-      },
-      upcomingTomorrow,
-    );
+  suite("several places", () => {
+    it("answers confidently when they have the same consequences, whatever their colour", () => {
+      const display = at([
+        place(paid(mixZone), { streetName: "Úvoz" }),
+        place(paid(visZone), { streetName: "Nerudova", distanceMeters: 12 }),
+      ]);
+      expect(display).toMatchObject({
+        tone: "warn",
+        sentence: "You can park here, but it's paid.",
+        agree: true,
+      });
+      expect(display.cards.map((c) => c.key)).toEqual(["P2-0237", "BUS-0001"]);
+    });
 
-    expect(display.sentence).toContain("street cleaning tomorrow");
-    expect(display.detail!.candidateZones![0].sentence).not.toContain("street cleaning");
-  });
+    it("says it could be any of them when their price differs", () => {
+      const display = at([place(paid(mixZone)), place(paid(visZone, { pricePerHour: 60 }))]);
+      expect(display).toMatchObject({
+        tone: "caution",
+        icon: "1f9d0",
+        sentence: COULD_BE,
+        agree: false,
+      });
+    });
 
-  it("appends the upcoming-closure clause to the ambiguous sentence too", () => {
-    const display = describe(
-      { kind: "ambiguous", candidates: [] },
-      upcomingTomorrow,
-    );
-    expect(display.sentence).toBe(
-      "Your location isn't precise enough to tell exactly which zone you're in — could be any of these." +
-        " And watch out, street cleaning tomorrow.",
-    );
+    it("counts a time limit as a different consequence from a daily cap", () => {
+      expect(at([place(paid(mixZone)), place(paid(resZone, { dailyCapCzk: 90 }))]).agree).toBe(
+        false,
+      );
+    });
+
+    it("gives each card the advice its place would get alone", () => {
+      const display = at([
+        place({ kind: "freeZoneRightNow", ...mixZone }),
+        place({ kind: "residentZone", ...resZone }),
+      ]);
+      expect(display.cards.map((c) => c.advice)).toEqual([
+        at([place({ kind: "freeZoneRightNow", ...mixZone })]).cards[0].advice,
+        {
+          tone: "caution",
+          icon: "1f914",
+          sentence: "This is a resident-only zone, so you might need a permit to park here.",
+        },
+      ]);
+    });
+
+    it("doesn't let a place with no known rules contradict one that has them", () => {
+      const display = at([
+        place(paid(mixZone)),
+        place(null, { streetName: "Úvoz", distanceMeters: 20 }),
+      ]);
+      expect(display).toMatchObject({ sentence: "You can park here, but it's paid.", agree: true });
+      expect(display.cards).toHaveLength(2);
+    });
+
+    it("answers from the nearest place with known rules", () => {
+      const display = at([
+        place(null, { streetName: "Úvoz" }),
+        place(paid(mixZone), { distanceMeters: 5 }),
+      ]);
+      expect(display.sentence).toBe("You can park here, but it's paid.");
+    });
+
+    it("says there might be cleaning today when only some of them are cleaned", () => {
+      const display = at([
+        place(paid(mixZone), { cleaning: CLEANING_TODAY }),
+        place(paid(mixZone, { code: "P2-0238" })),
+      ]);
+      expect(display).toMatchObject({
+        tone: "danger",
+        sentence:
+          "There might be street cleaning here today — your location isn't precise enough to tell which of these you're on.",
+        agree: false,
+      });
+      expect(display.cards.map((c) => c.cleaning?.today ?? false)).toEqual([true, false]);
+    });
+
+    it("warns plainly when every one of them is cleaned today", () => {
+      const display = at([
+        place(paid(mixZone), { cleaning: CLEANING_TODAY }),
+        place(null, { streetName: "Úvoz", cleaning: CLEANING_TODAY }),
+      ]);
+      expect(display).toMatchObject({
+        sentence: "There's street cleaning here today — don't park here.",
+        agree: true,
+      });
+    });
+
+    it("says upcoming cleaning 'may' come when only some of them have it", () => {
+      const display = at([
+        place(paid(mixZone), { cleaning: cleaningIn(1) }),
+        place(paid(mixZone, { code: "X" })),
+      ]);
+      expect(display.sentence).toBe(
+        "You can park here, but it's paid. And watch out, there may be street cleaning tomorrow.",
+      );
+    });
+
+    it("keeps upcoming cleaning out of the cards' own advice", () => {
+      const display = at([
+        place(paid(mixZone), { cleaning: cleaningIn(1) }),
+        place(paid(visZone, { pricePerHour: 60 })),
+      ]);
+      expect(display.sentence).toBe(
+        `${COULD_BE} And watch out, there may be street cleaning tomorrow.`,
+      );
+      expect(display.cards[0].advice.sentence).toBe("You can park here, but it's paid.");
+    });
   });
 
   suite("in a shared car", () => {
-    const paidMix: ZoneStatus = {
-      kind: "paidZone",
-      pricePerHour: 40,
-      dailyCapCzk: 400,
-      maxStayMinutes: null,
-      from: "08:00",
-      until: "20:00",
-      streetName: "Nerudova",
-      ...mixZone,
-    };
-    const paidRes: ZoneStatus = { ...paidMix, ...resZone, maxStayMinutes: 60 };
-    const paidVis: ZoneStatus = { ...paidMix, ...visZone };
+    const paidMix = paid(mixZone, { dailyCapCzk: 400 });
+    const paidRes = paid(resZone, { maxStayMinutes: 60 });
+    const paidVis = paid(visZone);
 
     it("lets the rental end in a blue or purple zone at any hour, with no price shown", () => {
-      const statuses: ZoneStatus[] = [
+      const zones: ZoneStatus[] = [
         paidMix,
         paidRes,
-        { kind: "residentZone", streetName: null, ...resZone },
-        { kind: "freeZoneRightNow", streetName: null, ...mixZone },
+        { kind: "residentZone", ...resZone },
+        { kind: "freeZoneRightNow", ...mixZone },
       ];
-      for (const status of statuses) {
-        const display = describe(status, null, "shared");
-        expect(display.tone).toBe("good");
-        expect(display.sentence).toBe(
-          "You can end your rental here, for free and with no time limit.",
-        );
-        expect(display.detail?.zone).toMatchObject({ payment: null, expanded: null });
+      for (const zone of zones) {
+        const display = at([place(zone)], "shared");
+        expect(display).toMatchObject({
+          tone: "good",
+          sentence: "You can end your rental here, for free and with no time limit.",
+        });
+        expect(display.cards[0].zone).toMatchObject({ payment: null, expanded: null });
       }
     });
 
+    it("agrees across blue and purple zones, since the rental can end in either", () => {
+      expect(at([place(paidMix), place(paidRes)], "shared").agree).toBe(true);
+    });
+
     it("keeps an orange zone's price and Pay button for a stop during the rental", () => {
-      const display = describe(paidVis, null, "shared");
-      expect(display.tone).toBe("caution");
-      expect(display.sentence).toBe(
-        "You can't end your rental here. You can stop here during the rental, but it's paid.",
-      );
-      expect(display.detail?.zone?.payment?.priceLabel).toBe("40 Kč/hod");
+      const display = at([place(paidVis)], "shared");
+      expect(display).toMatchObject({
+        tone: "caution",
+        sentence:
+          "You can't end your rental here. You can stop here during the rental, but it's paid.",
+      });
+      expect(display.cards[0].zone?.payment?.priceLabel).toBe("40 Kč/hod");
     });
 
     it("says an orange zone outside its paid hours still isn't somewhere to end the rental", () => {
-      const display = describe(
-        { kind: "freeZoneRightNow", streetName: null, ...visZone },
-        null,
-        "shared",
-      );
-      expect(display.tone).toBe("caution");
-      expect(display.sentence).toBe(
+      expect(at([place({ kind: "freeZoneRightNow", ...visZone })], "shared").sentence).toBe(
         "You can't end your rental here. You can stop here during the rental, and right now it's free.",
       );
     });
 
-    it("points to the carsharing app where there's no zone data, keeping the upcoming closure", () => {
-      const display = describe({ kind: "clear", streetName: null }, upcomingTomorrow, "shared");
-      expect(display.sentence).toBe(
+    it("points to the carsharing app where there's no zone data", () => {
+      expect(at([place(null, { cleaning: cleaningIn(1) })], "shared").sentence).toBe(
         "I don't have parking info for this spot — check your carsharing app before you end the rental here." +
           " And watch out, street cleaning tomorrow.",
       );
     });
 
     it("warns about street cleaning today just as for an own car", () => {
-      const status: Status = { kind: "closure", streetName: "Foo St" };
-      expect(describe(status, null, "shared")).toEqual(describe(status));
-    });
-
-    it("gives each ambiguous candidate its shared-car advice", () => {
-      const display = describe(
-        { kind: "ambiguous", candidates: [paidRes, paidVis] },
-        null,
-        "shared",
-      );
-      expect(display.detail!.candidateZones!.map((c) => [c.tone, c.payment])).toEqual([
-        ["good", null],
-        ["caution", { url: "https://platba.parkujvpraze.cz/pz/BUS-0001", priceLabel: "40 Kč/hod" }],
-      ]);
+      const places = [place(paidMix, { cleaning: CLEANING_TODAY })];
+      expect(at(places, "shared").sentence).toBe(at(places).sentence);
     });
   });
 
-  it("has a downloaded SVG for every icon codepoint used in the app", () => {
+  it("uses a lowercase-hex icon codepoint for every answer, each with a downloaded SVG", () => {
+    const displays = [
+      describe({ kind: "outOfArea" }),
+      at([place(null)]),
+      at([place(paid(mixZone))]),
+      at([place({ kind: "residentZone", ...resZone })]),
+      at([place({ kind: "freeZoneRightNow", ...mixZone })]),
+      at([place(null, { cleaning: CLEANING_TODAY })]),
+      at([place(paid(mixZone)), place(paid(visZone, { pricePerHour: 60 }))]),
+    ];
+    for (const display of displays) {
+      expect(display.icon).toMatch(/^[0-9a-f]+$/);
+      expect(ALL_ICON_CODEPOINTS).toContain(display.icon);
+    }
     for (const codepoint of ALL_ICON_CODEPOINTS) {
       expect(existsSync(new URL(`../public/emoji/${codepoint}.svg`, import.meta.url))).toBe(true);
     }

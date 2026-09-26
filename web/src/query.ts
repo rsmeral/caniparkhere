@@ -11,9 +11,7 @@ export interface ZoneInfo {
   category: ZpsProps["category"];
 }
 
-/** The status kinds that describe being in a specific zone - reused both as the resolved
- * result for a single confident match, and per-candidate when a coarse GPS fix leaves more
- * than one zone plausible. */
+/** A zone's rules at the moment asked about. */
 export type ZoneStatus =
   | ({
       kind: "paidZone";
@@ -23,20 +21,29 @@ export type ZoneStatus =
       maxStayMinutes: number | null;
       from: string;
       until: string;
-      streetName: string | null;
     } & ZoneInfo)
-  | ({ kind: "residentZone"; streetName: string | null } & ZoneInfo)
-  | ({ kind: "freeZoneRightNow"; streetName: string | null } & ZoneInfo);
+  | ({ kind: "residentZone" } & ZoneInfo)
+  | ({ kind: "freeZoneRightNow" } & ZoneInfo);
 
-export type Status =
-  | { kind: "outOfArea" }
-  | { kind: "closure"; streetName: string | null }
-  | ZoneStatus
-  | { kind: "clear"; streetName: string | null }
-  /** The GPS fix's own accuracy radius overlaps more than one zone, so a single
-   * containment check can't be trusted - each plausible zone is resolved independently,
-   * with the street that zone is on. */
-  | { kind: "ambiguous"; candidates: ZoneStatus[] };
+/** Street cleaning on a place: today, and the soonest date within the warning window. */
+export interface Cleaning {
+  today: boolean;
+  upcoming: { date: string; daysUntil: number } | null;
+}
+
+/**
+ * One place the fix could be: a zone the accuracy circle reaches, or a street it reaches with
+ * no zone to go by. Each carries the street it's on and any street cleaning there.
+ */
+export interface Place {
+  zone: ZoneStatus | null;
+  streetName: string | null;
+  cleaning: Cleaning;
+  /** From the fix to the place, 0 when the fix is inside it. */
+  distanceMeters: number;
+}
+
+export type QueryResult = { kind: "outOfArea" } | { kind: "places"; places: Place[] };
 
 /**
  * Checks a point against the data's coverage envelope (see the pipeline's padBbox) - a
@@ -48,40 +55,32 @@ export function isWithinBounds(bounds: Bounds, lon: number, lat: number): boolea
   );
 }
 
-export interface UpcomingClosure {
-  date: string; // ISO date
-  daysUntil: number;
-  streetName: string | null;
-}
-
-export interface QueryResult {
-  status: Status;
-  upcomingClosure: UpcomingClosure | null;
-}
-
 export interface Indexes {
   zps: PolygonIndex<LoadedData["zps"]["features"][number]["properties"]>;
   letni: PolygonIndex<LoadedData["letni"]["features"][number]["properties"]>;
   streets: LineIndex<LoadedData["streets"]["features"][number]["properties"]>;
+  /** RÚIAN's own spelling of each street name, by its lowercase form. */
+  streetNames: Map<string, string>;
 }
 
-// How far ahead to warn about an upcoming street-cleaning closure.
+// How far ahead to warn about upcoming street cleaning.
 export const WARNING_WINDOW_DAYS = 5;
+
+// The accuracy circle's radius is kept within these. Below the minimum, a precise fix in the
+// roadway would miss the zones along the curb; past the maximum, city blocks and unrelated
+// streets fall inside the circle too.
+const MIN_RADIUS_METERS = 10;
+const MAX_RADIUS_METERS = 100;
 
 // The least distance at which a RÚIAN street centerline still counts as "this street". A
 // centerline has no width, so a car at the curb of a wide street sits well off it even with
 // a precise fix.
 const STREET_MATCH_RADIUS_METERS = 25;
 
-// How far from a zone a street centerline can be and still name the street that zone is on.
-// Some zones are whole parking areas set back inside a block; every zone in the data has a
+// How far from a place a street centerline can be and still name the street it's on. Some
+// zones are whole parking areas set back inside a block; every zone in the data has a
 // centerline within 75m.
-const ZONE_STREET_RADIUS_METERS = 100;
-
-// A GPS accuracy radius bigger than this isn't worth treating as "somewhere in here" - past
-// this range, city blocks and unrelated streets fall inside the circle too, so a candidate
-// list would just be noise rather than a genuinely narrowed-down set of possibilities.
-const MAX_AMBIGUITY_RADIUS_METERS = 100;
+const PLACE_STREET_RADIUS_METERS = 100;
 
 /** Builds the R-tree indexes for a loaded dataset; do this once per data load, not per query. */
 export function buildIndexes(data: LoadedData): Indexes {
@@ -89,6 +88,7 @@ export function buildIndexes(data: LoadedData): Indexes {
     zps: new PolygonIndex(data.zps.features),
     letni: new PolygonIndex(data.letni.features),
     streets: new LineIndex(data.streets.features),
+    streetNames: new Map(data.streets.names.map((name) => [name.toLowerCase(), name])),
   };
 }
 
@@ -111,42 +111,16 @@ function daysBetween(fromISO: string, toISO: string): number {
   return Math.round((b - a) / 86_400_000);
 }
 
-/**
- * Names the RÚIAN street centerline nearest the point, within radiusMeters. Zone (zps) and
- * street-cleaning (letni) polygons don't carry street names of their own, so this is the
- * app's one source for "what street is this".
- */
+/** Names the RÚIAN street centerline nearest the point, within radiusMeters. */
 function streetNameNear(
   data: LoadedData,
-  streets: Indexes["streets"],
+  indexes: Indexes,
   [lon, lat]: [number, number],
   radiusMeters: number,
 ): string | null {
-  const feature = streets.findNearest(lon, lat, radiusMeters);
+  const feature = indexes.streets.findNearest(lon, lat, radiusMeters);
   if (!feature || feature.properties.nameId === null) return null;
   return data.streets.names[feature.properties.nameId];
-}
-
-/** Finds the soonest closure date within the warning window across a set of matched letni features. */
-function findUpcomingClosure(
-  data: LoadedData,
-  letniMatches: LoadedData["letni"]["features"],
-  today: string,
-): UpcomingClosure | null {
-  let soonest: UpcomingClosure | null = null;
-  for (const feature of letniMatches) {
-    const dates =
-      feature.properties.datesId !== null ? data.letni.dates[feature.properties.datesId] : [];
-    for (const date of dates) {
-      const daysUntil = daysBetween(today, date);
-      if (daysUntil > 0 && daysUntil <= WARNING_WINDOW_DAYS) {
-        if (!soonest || daysUntil < soonest.daysUntil) {
-          soonest = { date, daysUntil, streetName: feature.properties.name };
-        }
-      }
-    }
-  }
-  return soonest;
 }
 
 /** A rule's daily cap, lowered to the tariff's holiday cap on a public holiday. */
@@ -156,50 +130,18 @@ function capAt(tariff: Tariff, rule: TariffRule, now: Date): number | null {
 }
 
 /**
- * The street nearest to where the fix could be, with no zone to go by: within the accuracy
- * circle, never smaller than STREET_MATCH_RADIUS_METERS.
+ * A zps feature's rules at `now`. Every category is paid while its tariff is running and
+ * free for anyone outside those hours - a resident (blue) zone's tariff is what a visitor
+ * pays for a short stay. A resident zone with no tariff has no visitor parking to report.
  */
-function streetNameAtFix(
-  data: LoadedData,
-  streets: Indexes["streets"],
-  point: [number, number],
-  accuracyMeters: number | null,
-): string | null {
-  const radius = Math.max(
-    STREET_MATCH_RADIUS_METERS,
-    Math.min(accuracyMeters ?? 0, MAX_AMBIGUITY_RADIUS_METERS),
-  );
-  return streetNameNear(data, streets, point, radius);
-}
-
-/**
- * The street a zone is on, as seen from the fix: the street nearest the zone's point closest
- * to the fix, which is the fix itself when it's inside the zone. A zone code often spans
- * several streets, so the street depends on which part of the zone is in play.
- */
-function streetNameOfZone(
-  data: LoadedData,
-  streets: Indexes["streets"],
-  zonePoint: [number, number],
-): string | null {
-  return streetNameNear(data, streets, zonePoint, ZONE_STREET_RADIUS_METERS);
-}
-
-/**
- * Resolves a single zps feature to its status, as if it were the only zone in play. Every
- * category is paid while its tariff is running and free for anyone outside those hours -
- * a resident (blue) zone's tariff is what a visitor pays for a short stay. A resident zone
- * with no tariff has no visitor parking to report.
- */
-function statusForZoneFeature(
+function zoneStatusOf(
   data: LoadedData,
   feature: LoadedData["zps"]["features"][number],
-  streetName: string | null,
   now: Date,
 ): ZoneStatus {
   const zone: ZoneInfo = { code: feature.properties.code, category: feature.properties.category };
   if (feature.properties.category === "RES" && feature.properties.tariffId === null) {
-    return { kind: "residentZone", streetName, ...zone };
+    return { kind: "residentZone", ...zone };
   }
   if (feature.properties.tariffId !== null) {
     const tariff = data.zps.tariffs[feature.properties.tariffId];
@@ -212,30 +154,57 @@ function statusForZoneFeature(
         maxStayMinutes: feature.properties.maxStayMinutes ?? null,
         from: rule.start,
         until: rule.end,
-        streetName,
         ...zone,
       };
     }
   }
-  return { kind: "freeZoneRightNow", streetName, ...zone };
+  return { kind: "freeZoneRightNow", ...zone };
+}
+
+const NO_CLEANING: Cleaning = { today: false, upcoming: null };
+
+/** A cleaning section's cleaning today and within the warning window. */
+function cleaningOf(dates: string[], today: string, everywhereToday: boolean): Cleaning {
+  let upcoming: Cleaning["upcoming"] = null;
+  for (const date of dates) {
+    const daysUntil = daysBetween(today, date);
+    if (
+      daysUntil > 0 &&
+      daysUntil <= WARNING_WINDOW_DAYS &&
+      (!upcoming || daysUntil < upcoming.daysUntil)
+    ) {
+      upcoming = { date, daysUntil };
+    }
+  }
+  return { today: everywhereToday || dates.includes(today), upcoming };
+}
+
+/** Both kinds of cleaning a place has from more than one section: today if any is, and the
+ * soonest date ahead. */
+function mergeCleaning(a: Cleaning, b: Cleaning): Cleaning {
+  const upcoming =
+    !a.upcoming || (b.upcoming && b.upcoming.daysUntil < a.upcoming.daysUntil)
+      ? b.upcoming
+      : a.upcoming;
+  return { today: a.today || b.today, upcoming };
 }
 
 /**
- * Determines parking status at a point: street-cleaning closure today takes priority,
- * then a zone whose tariff is active right now, then any other zone here, else clear.
- * Also reports the soonest upcoming closure within the next week, if any (independent
- * of the primary status, since it's a heads-up rather than a current restriction).
+ * Every place the fix could be, nearest first. The fix is a circle: its accuracy radius, kept
+ * between MIN_RADIUS_METERS and MAX_RADIUS_METERS. Zones and street-cleaning sections count
+ * when the circle reaches them, and the fix being inside one is just the case of distance 0.
  *
- * accuracyMeters, when given, is the GPS fix's own reported accuracy radius. When that
- * radius overlaps more than one zone, a plain containment check at the fix's exact
- * coordinates can't be trusted to pick the right one, so this reports every zone within
- * that radius as an "ambiguous" candidate list instead of guessing at a single answer.
- * When it reaches exactly one zone, that zone is the answer even if the fix is just outside.
+ * - Each zone code the circle reaches is a place, named by the street nearest the zone's
+ *   point closest to the fix. A zone code often spans several streets, so which street
+ *   depends on the part of the zone in play.
+ * - Each cleaning section the circle reaches belongs to the places on its street. A section
+ *   on a street with no such place is a place of its own, so cleaning is never dropped.
+ * - With neither in reach, the one place is the street nearest the fix, if any.
  *
  * cleaningEverywhereToday treats every street-cleaning section as being cleaned today,
  * whatever its dates. It exists for simulating a closure in the jig.
  */
-export function queryStatus(
+export function queryPlaces(
   data: LoadedData,
   indexes: Indexes,
   lon: number,
@@ -243,76 +212,51 @@ export function queryStatus(
   now = new Date(),
   accuracyMeters: number | null = null,
   cleaningEverywhereToday = false,
-): QueryResult {
+): Place[] {
+  const radius = Math.min(Math.max(accuracyMeters ?? 0, MIN_RADIUS_METERS), MAX_RADIUS_METERS);
   const today = toLocalISODate(now);
-  const letniMatches = indexes.letni.findContaining(lon, lat);
 
-  for (const feature of letniMatches) {
-    const dates =
-      feature.properties.datesId !== null ? data.letni.dates[feature.properties.datesId] : [];
-    if (cleaningEverywhereToday || dates.includes(today)) {
-      return {
-        status: { kind: "closure", streetName: feature.properties.name },
-        upcomingClosure: null,
-      };
+  const places: Place[] = [];
+  const seenCodes = new Set<string>();
+  for (const match of indexes.zps.findNearby(lon, lat, radius)) {
+    if (seenCodes.has(match.feature.properties.code)) continue;
+    seenCodes.add(match.feature.properties.code);
+    places.push({
+      zone: zoneStatusOf(data, match.feature, now),
+      streetName: streetNameNear(data, indexes, match.point, PLACE_STREET_RADIUS_METERS),
+      cleaning: NO_CLEANING,
+      distanceMeters: match.distanceMeters,
+    });
+  }
+
+  for (const match of indexes.letni.findNearby(lon, lat, radius)) {
+    const { name, datesId } = match.feature.properties;
+    const cleaning = cleaningOf(
+      datesId !== null ? data.letni.dates[datesId] : [],
+      today,
+      cleaningEverywhereToday,
+    );
+    // The section's own name, in RÚIAN's spelling. Some sections carry a placeholder code
+    // rather than a name, and take the street they're on instead.
+    const streetName =
+      (name && indexes.streetNames.get(name.toLowerCase())) ??
+      streetNameNear(data, indexes, match.point, PLACE_STREET_RADIUS_METERS);
+    const onStreet = places.filter((p) => p.streetName !== null && p.streetName === streetName);
+    for (const place of onStreet) place.cleaning = mergeCleaning(place.cleaning, cleaning);
+    if (onStreet.length === 0) {
+      places.push({ zone: null, streetName, cleaning, distanceMeters: match.distanceMeters });
     }
   }
 
-  const upcomingClosure = findUpcomingClosure(data, letniMatches, today);
-  const fix: [number, number] = [lon, lat];
-
-  if (accuracyMeters !== null && accuracyMeters > 0) {
-    const radius = Math.min(accuracyMeters, MAX_AMBIGUITY_RADIUS_METERS);
-    const nearby = indexes.zps.findNearby(lon, lat, radius);
-    const nearestByCode = new Map<string, (typeof nearby)[number]>();
-    for (const match of nearby) {
-      if (!nearestByCode.has(match.feature.properties.code)) {
-        nearestByCode.set(match.feature.properties.code, match);
-      }
-    }
-    if (nearestByCode.size > 1) {
-      const candidates = [...nearestByCode.values()]
-        .sort((a, b) => a.distanceMeters - b.distanceMeters)
-        .map((match) =>
-          statusForZoneFeature(
-            data,
-            match.feature,
-            streetNameOfZone(data, indexes.streets, match.point),
-            now,
-          ),
-        );
-      return { status: { kind: "ambiguous", candidates }, upcomingClosure };
-    }
-    // One zone within reach that the fix itself isn't in: the fix is most likely off by a
-    // little, so that zone is the answer. A fix inside a zone goes on to the containment
-    // check below, which picks between overlapping sections of the same zone.
-    const [only] = nearestByCode.values();
-    if (nearestByCode.size === 1 && only.distanceMeters > 0) {
-      const streetName = streetNameOfZone(data, indexes.streets, only.point);
-      return { status: statusForZoneFeature(data, only.feature, streetName, now), upcomingClosure };
-    }
+  if (places.length === 0) {
+    const streetRadius = Math.max(radius, STREET_MATCH_RADIUS_METERS);
+    places.push({
+      zone: null,
+      streetName: streetNameNear(data, indexes, [lon, lat], streetRadius),
+      cleaning: NO_CLEANING,
+      distanceMeters: 0,
+    });
   }
 
-  const zpsMatches = indexes.zps.findContaining(lon, lat);
-  const streetName =
-    zpsMatches.length > 0
-      ? streetNameOfZone(data, indexes.streets, fix)
-      : streetNameAtFix(data, indexes.streets, fix, accuracyMeters);
-  for (const feature of zpsMatches) {
-    if (feature.properties.tariffId !== null) {
-      const tariff = data.zps.tariffs[feature.properties.tariffId];
-      const rule = activeRuleNow(tariff, now);
-      if (rule) {
-        return { status: statusForZoneFeature(data, feature, streetName, now), upcomingClosure };
-      }
-    }
-  }
-  if (zpsMatches.length > 0) {
-    return {
-      status: statusForZoneFeature(data, zpsMatches[0], streetName, now),
-      upcomingClosure,
-    };
-  }
-
-  return { status: { kind: "clear", streetName }, upcomingClosure };
+  return places.sort((a, b) => a.distanceMeters - b.distanceMeters);
 }

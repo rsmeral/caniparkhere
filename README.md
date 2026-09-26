@@ -14,6 +14,12 @@ For the spot you're standing on, the app shows:
 - whether the street is closed for street cleaning today or soon
 - the street name and zone code, so you can check them against the signs
 
+GPS is only accurate to a few metres, so the app looks at every zone and street-cleaning
+section within that distance of you. Each one gets a card with its street and zone. When
+they all have the same rules (price, hours, time limit, cleaning), the app answers plainly.
+When they differ, it says it can't tell which one you're in, and each card shows what
+applies there.
+
 In a shared car (pick "Shared car" in the top right corner), it tells you whether you can
 end the rental there instead. Cars from carsharing services registered with the city can
 be left in any blue or purple zone for free, with no time limit, but not in orange zones.

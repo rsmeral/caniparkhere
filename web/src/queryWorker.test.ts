@@ -66,7 +66,17 @@ describe("queryWorker", () => {
     expect(response).toEqual({
       id: 7,
       ok: true,
-      result: { status: { kind: "clear", streetName: null }, upcomingClosure: null },
+      result: {
+        kind: "places",
+        places: [
+          {
+            zone: null,
+            streetName: null,
+            cleaning: { today: false, upcoming: null },
+            distanceMeters: 0,
+          },
+        ],
+      },
     });
   });
 
@@ -116,8 +126,10 @@ describe("queryWorker", () => {
       request({ id: 2, lon: 14.42, lat: 50.08, accuracyMeters: null, at: at(22) }),
     );
 
-    expect(day.ok && day.result.status.kind).toBe("paidZone");
-    expect(night.ok && night.result.status.kind).toBe("freeZoneRightNow");
+    const zoneKind = (r: typeof day) =>
+      r.ok && r.result.kind === "places" ? r.result.places[0].zone?.kind : null;
+    expect(zoneKind(day)).toBe("paidZone");
+    expect(zoneKind(night)).toBe("freeZoneRightNow");
   });
 
   it("reports a point outside the covered area without consulting the indexes", async () => {
@@ -129,7 +141,7 @@ describe("queryWorker", () => {
     expect(response).toEqual({
       id: 8,
       ok: true,
-      result: { status: { kind: "outOfArea" }, upcomingClosure: null },
+      result: { kind: "outOfArea" },
     });
   });
 

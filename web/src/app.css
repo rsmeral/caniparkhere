@@ -138,7 +138,6 @@ body {
      color (including the light warn yellow). Pay is a full-height slice on the right, as
      if the rounded rect were cut with a knife - overflow:hidden lets it share the card's
      own corner radius on its outer edge without needing radius rules of its own. */
-  margin-top: 0.4rem;
   display: flex;
   align-items: stretch;
   flex-shrink: 0;
@@ -149,19 +148,14 @@ body {
   color: #fff;
 }
 
-.app__candidates {
-  /* Wraps multiple .app__detail cards for an ambiguous location - a tighter gap than the
-     sentence-to-card spacing above, since these read as one group of alternatives rather
-     than separate sections. */
+.app__cards {
+  /* The .app__detail cards under the answer, one or many - a tighter gap between them than
+     the sentence-to-card spacing above, since they read as one group. */
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.75rem;
   margin-top: 0.4rem;
-}
-
-.app__candidates .app__detail {
-  margin-top: 0;
 }
 
 .app__detail-info {
@@ -204,6 +198,29 @@ body {
   gap: 0.45rem;
   font-size: 0.8rem;
   opacity: 0.9;
+}
+
+.app__detail-cleaning {
+  /* Street cleaning on the card's street: amber when it's coming up, red when it's today. */
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #fcd34d;
+}
+
+.app__detail-cleaning::before {
+  content: "";
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 0.15rem;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.app__detail-cleaning--today {
+  color: #fca5a5;
 }
 
 .app__swatch {
@@ -316,6 +333,12 @@ body {
   background: var(--tone-warn);
   color: var(--tone-warn-text);
 }
+.app__resolve--neutral {
+  background: var(--tone-neutral);
+}
+.app__resolve--danger {
+  background: var(--tone-danger);
+}
 .app__resolve--caution {
   background: var(--tone-caution);
 }
@@ -344,7 +367,9 @@ body {
 }
 
 .app__resolve--caution .app__detail-expanded,
-.app__resolve--good .app__detail-expanded {
+.app__resolve--good .app__detail-expanded,
+.app__resolve--neutral .app__detail-expanded,
+.app__resolve--danger .app__detail-expanded {
   border-top-color: rgba(255, 255, 255, 0.35);
 }
 

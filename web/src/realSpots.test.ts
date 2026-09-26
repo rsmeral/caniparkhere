@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { LoadedData } from "./dataStore";
-import { buildIndexes, queryStatus, type Status } from "./query";
+import { describe as describeResult } from "./describe";
+import { buildIndexes, queryPlaces } from "./query";
 
 // Spots from real use of the jig, checked against the data committed in public/data. A data
 // refresh that changes one of these zones fails here, which is worth a look either way.
@@ -23,26 +24,17 @@ const WEDNESDAY_EVENING = new Date(2026, 8, 30, 19, 13);
 
 /** The cards a spot shows, as "zone street", nearest first, and whether there's any answer. */
 function cardsAt(lat: number, lon: number, accuracyMeters: number, at = WEDNESDAY_EVENING) {
-  const { status } = queryStatus(data, indexes, lon, lat, at, accuracyMeters);
-  return { answered: status.kind !== "clear", cards: cardsOf(status) };
+  const places = queryPlaces(data, indexes, lon, lat, at, accuracyMeters);
+  return {
+    answered: places.some((p) => p.zone || p.cleaning.today),
+    cards: places.map((p) => [p.zone?.code, p.streetName].filter(Boolean).join(" ")),
+  };
 }
 
-function cardsOf(status: Status): string[] {
-  const card = (code: string | null, street: string | null) =>
-    [code, street].filter(Boolean).join(" ");
-  switch (status.kind) {
-    case "ambiguous":
-      return status.candidates.map((c) => card(c.code, c.streetName));
-    case "paidZone":
-    case "residentZone":
-    case "freeZoneRightNow":
-      return [card(status.code, status.streetName)];
-    case "clear":
-    case "closure":
-      return status.streetName ? [status.streetName] : [];
-    case "outOfArea":
-      return [];
-  }
+/** The headline a spot gets. */
+function headlineAt(lat: number, lon: number, accuracyMeters: number, at = WEDNESDAY_EVENING) {
+  const places = queryPlaces(data, indexes, lon, lat, at, accuracyMeters);
+  return describeResult({ kind: "places", places }).sentence;
 }
 
 /** Points about `meters` away from (lat, lon) in eight directions. */
@@ -87,6 +79,26 @@ describe("real spots", () => {
       "P1-0397 Myslíkova",
       "P2-0108 Na zbořenci",
     ]);
+  });
+
+  it("answers confidently when two zones on a square have the same rules", () => {
+    const [lat, lon] = SPOTS.namestiMiru;
+    expect(cardsAt(lat, lon, 20).cards).toEqual(["P2-0420 náměstí Míru", "P2-0427 náměstí Míru"]);
+    expect(headlineAt(lat, lon, 20)).toBe("You can park here, but it's paid.");
+  });
+
+  it("warns about Myslíkova's cleaning day, plainly for a precise fix and as a maybe for a wide one", () => {
+    const [lat, lon] = SPOTS.myslikova;
+    const cleaningDay = new Date(2026, 9, 3, 10, 0);
+    expect(headlineAt(lat, lon, 5, cleaningDay)).toBe(
+      "There's street cleaning here today — don't park here.",
+    );
+    expect(headlineAt(lat, lon, 30, cleaningDay)).toBe(
+      "There might be street cleaning here today — your location isn't precise enough to tell which of these you're on.",
+    );
+    expect(headlineAt(lat, lon, 5, new Date(2026, 9, 2, 10, 0))).toBe(
+      "You can park here, but it's paid. And watch out, street cleaning tomorrow.",
+    );
   });
 
   it("doesn't lose its answer when the pin moves a metre", () => {
