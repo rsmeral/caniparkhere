@@ -10,7 +10,9 @@ export interface TariffRule {
 
 export interface Tariff {
   id: number;
-  raw: string;
+  /** Where the rules came from: `golemio:<tariff id>`, or the LKOD tariftext they were
+   * parsed from. For tracing an answer back to its data. */
+  source: string;
   rules: TariffRule[];
 }
 

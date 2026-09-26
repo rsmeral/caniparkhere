@@ -19,7 +19,7 @@ For the spot you're standing on, the app shows:
 From Prague's open data catalog, [LKOD](https://lkod.cz/):
 
 - [Zóny placeného stání vymezené tarifem](https://lkod.cz/catalog/praha/datasets/https%3A%2F%2Fapi.lkod.cz%2Flod%2F03bdf7d6-a255-4e22-83f9-4b17b6822602%2Fcatalog%2F1f8589e3-7cd1-4267-b3ba-292e375e708d)
-  – paid parking zones, with their prices and hours
+  – paid parking zones: their shapes and codes, and a text copy of their tariffs
 - [Letní údržba komunikací TSK](https://lkod.cz/catalog/praha/datasets/https%3A%2F%2Fapi.lkod.cz%2Flod%2F03bdf7d6-a255-4e22-83f9-4b17b6822602%2Fcatalog%2Fc6363a9e-9e46-4bec-ae26-b6149c1e8dd8)
   – summer street cleaning (blokové čištění), with the cleaning dates for each street
 
@@ -31,7 +31,9 @@ From ČÚZK, the Czech land survey office:
 From [Golemio](https://api.golemio.cz/docs/public-openapi/), Prague's data platform:
 
 - Parking tariffs from TSK (`/v3/parking` and `/v3/parking-tariffs`, source `tsk_v2`) –
-  how long a visitor may stay in each resident (blue) zone
+  each zone's prices, paid hours, caps, and how long a visitor may stay. TSK keeps these
+  up to date: they had Praha 5's new hours from August 2026 while the LKOD text still had
+  the old ones.
 
 ## How it works
 
@@ -81,11 +83,20 @@ deployed.
 
 The datasets:
 
-- **`zps`** – paid parking zones. One shape per zone, with its category (`RES`, `MIX` or
-  `VIS`) and a tariff. The price, hours and daily cap are read from the source's
-  `tariftext` field.
-  - The source cuts `tariftext` off at a fixed length, so a few long tariffs lose their
-    daily cap. The build logs a warning for each one and keeps the rest of the tariff.
+- **`zps`** – paid parking zones. One shape per zone from LKOD, with its category (`RES`,
+  `MIX` or `VIS`) and a tariff. The tariff comes from TSK's tariffs in Golemio, matched by
+  zone code:
+  - Each paid window becomes a rule with its days, hours and hourly price. Golemio charges
+    by the minute, so the price is the per-minute charge × 60.
+  - A Golemio "maximum" becomes the rule's daily cap only when it actually limits what a
+    stay would cost. Most maximums are just the price × the longest allowed stay.
+  - Public-holiday tariffs are left out, since the app doesn't know the holiday dates.
+  - Windows never run past midnight. "Po-Pá 08:00-05:59" means 00:00–05:59 and 08:00–23:59
+    on each of Monday to Friday, so a Friday night into Saturday is free.
+  - For a zone Golemio doesn't have, the tariff is parsed from the LKOD `tariftext` field.
+    That field is cut off at a fixed length, so a few long tariffs lose their daily cap;
+    the build logs a warning for each one and keeps the rest of the tariff.
+  - The build logs how many zones got their tariff from each place.
   - Resident zones also get `maxStayMinutes`, the longest a visitor may stay, from Golemio,
     matched by zone code. It's `null` for a section Golemio doesn't have, and the build logs
     how many those are.

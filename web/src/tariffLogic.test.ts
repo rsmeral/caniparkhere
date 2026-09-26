@@ -13,7 +13,7 @@ describe("activeRuleNow", () => {
     const now = new Date(2026, 3, 6, 10, 30);
     const tariff: Tariff = {
       id: 0,
-      raw: "",
+      source: "",
       rules: [
         {
           days: [dayIndexOf(now)],
@@ -31,7 +31,7 @@ describe("activeRuleNow", () => {
     const now = new Date(2026, 3, 6, 20, 0);
     const tariff: Tariff = {
       id: 0,
-      raw: "",
+      source: "",
       rules: [
         {
           days: [dayIndexOf(now)],
@@ -50,7 +50,7 @@ describe("activeRuleNow", () => {
     const otherDay = (dayIndexOf(now) + 1) % 7;
     const tariff: Tariff = {
       id: 0,
-      raw: "",
+      source: "",
       rules: [
         { days: [otherDay], start: "08:00", end: "17:59", pricePerHour: 40, dailyCapCzk: null },
       ],
@@ -63,7 +63,7 @@ describe("activeRuleNow", () => {
     const today = dayIndexOf(now);
     const tariff: Tariff = {
       id: 0,
-      raw: "",
+      source: "",
       rules: [
         {
           days: [(today + 1) % 7],
