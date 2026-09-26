@@ -1,20 +1,23 @@
 import type { ComponentChildren } from "preact";
-import type { ZoneChip } from "../describe";
+import type { Card, ZoneChip } from "../describe";
 
 interface ZoneSummaryProps {
   streetName?: string | null;
   zone?: ZoneChip | null;
+  cleaning?: Card["cleaning"];
   canExpand: boolean;
   expanded: boolean;
   onToggle: () => void;
   children?: ComponentChildren;
 }
 
-/** The dark "here's what we detected" row - the street name plus the zone's own code and
- * curb colour - and the control that opens whatever the card reveals. */
+/** The dark "here's what we detected" row - the street name, the zone's own code and curb
+ * colour, and any street cleaning there - and the control that opens whatever the card
+ * reveals. */
 export function ZoneSummary({
   streetName,
   zone,
+  cleaning,
   canExpand,
   expanded,
   onToggle,
@@ -50,6 +53,13 @@ export function ZoneSummary({
             {zone.code} · {zone.categoryLabel}
           </span>
           {canExpand && <span className="app__detail-chevron">{expanded ? "▲" : "▼"}</span>}
+        </p>
+      )}
+      {cleaning && (
+        <p
+          className={`app__detail-row app__detail-cleaning${cleaning.today ? " app__detail-cleaning--today" : ""}`}
+        >
+          {cleaning.label}
         </p>
       )}
       {children}

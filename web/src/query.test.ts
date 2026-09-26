@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Feature, MultiLineString, MultiPolygon } from "geojson";
 import type { LoadedData } from "./dataStore";
-import { buildIndexes, isWithinBounds, queryStatus } from "./query";
+import { buildIndexes, isWithinBounds, queryPlaces } from "./query";
 import type { LetniProps, StreetProps, ZpsProps } from "./types";
 
 function square(x0: number, y0: number, x1: number, y1: number) {
@@ -33,7 +33,11 @@ function streetFeature(
   coords: [number, number][],
   props: StreetProps,
 ): Feature<MultiLineString, StreetProps> {
-  return { type: "Feature", geometry: { type: "MultiLineString", coordinates: [coords] }, properties: props };
+  return {
+    type: "Feature",
+    geometry: { type: "MultiLineString", coordinates: [coords] },
+    properties: props,
+  };
 }
 
 function dayIndexOf(date: Date): number {
@@ -103,310 +107,279 @@ function buildFixture(now: Date): LoadedData {
           category: "RES",
           tariffId: null,
         }),
-        zpsFeature(square(14.6, 50, 14.601, 50.001), { code: "P3", category: "RES", tariffId: null }),
+        zpsFeature(square(14.6, 50, 14.601, 50.001), {
+          code: "P3",
+          category: "RES",
+          tariffId: null,
+        }),
       ],
     },
     letni: {
-      dates: [["2026-04-07", "2026-10-05"], ["2026-04-10"]],
+      dates: [["2026-04-07", "2026-10-05"], ["2026-04-10"], ["2026-01-02"]],
       features: [
         letniFeature(square(0, 0, 10, 10), { name: "Foo St", datesId: 0 }),
         letniFeature(square(60, 60, 70, 70), { name: "Bar St", datesId: 1 }),
+        // Real-scale sections: along Near St through P1's north part (~39m from the point
+        // inside P1 the tests use), along Lone St's west end, and one named only by a placeholder code,
+        // on Gap St between P1 and P2.
+        letniFeature(square(14.4, 50.00085, 14.401, 50.00095), { name: "near st", datesId: 2 }),
+        letniFeature(square(14.5, 49.99995, 14.5003, 50.00005), { name: "Lone St", datesId: 2 }),
+        letniFeature(square(14.40105, 50, 14.40115, 50.0003), { name: "NN9", datesId: 2 }),
       ],
     },
     streets: {
-      names: ["Foo St", "Near St", "Gap St", "Lone St"],
+      // Bar St has a cleaning section but no centerline.
+      names: ["Foo St", "Near St", "Gap St", "Lone St", "Bar St"],
       features: [
-        streetFeature([[0, 5], [10, 5]], { nameId: 0 }),
+        streetFeature(
+          [
+            [0, 5],
+            [10, 5],
+          ],
+          { nameId: 0 },
+        ),
         // Runs through P1's north part, ~45m from the point inside P1 the tests below use.
-        streetFeature([[14.4, 50.0009], [14.401, 50.0009]], { nameId: 1 }),
+        streetFeature(
+          [
+            [14.4, 50.0009],
+            [14.401, 50.0009],
+          ],
+          { nameId: 1 },
+        ),
         // Runs down the gap between P1 and P2, near P2's west edge.
-        streetFeature([[14.4011, 50], [14.4011, 50.0003]], { nameId: 2 }),
+        streetFeature(
+          [
+            [14.4011, 50],
+            [14.4011, 50.0003],
+          ],
+          { nameId: 2 },
+        ),
         // Far from every zone.
-        streetFeature([[14.5, 50], [14.501, 50]], { nameId: 3 }),
+        streetFeature(
+          [
+            [14.5, 50],
+            [14.501, 50],
+          ],
+          { nameId: 3 },
+        ),
       ],
     },
     bounds: { minLon: -100, minLat: -100, maxLon: 100, maxLat: 100 },
   };
 }
 
-describe("queryStatus", () => {
-  it("reports a closure and suppresses the upcoming-closure warning when today matches a closure date", () => {
-    const now = new Date(2026, 3, 7, 10, 0); // 2026-04-07, matches Foo St's dates
-    const data = buildFixture(now);
-    const indexes = buildIndexes(data);
-    const result = queryStatus(data, indexes, 5, 5, now);
-    expect(result.status).toEqual({ kind: "closure", streetName: "Foo St" });
-    expect(result.upcomingClosure).toBeNull();
-  });
+function placesAt(
+  now: Date,
+  lon: number,
+  lat: number,
+  accuracyMeters: number | null = null,
+  cleaningEverywhereToday = false,
+) {
+  const data = buildFixture(now);
+  return queryPlaces(
+    data,
+    buildIndexes(data),
+    lon,
+    lat,
+    now,
+    accuracyMeters,
+    cleaningEverywhereToday,
+  );
+}
 
-  it("reports a closure on any day when told every section is cleaned today", () => {
-    const now = new Date(2026, 0, 1, 10, 0); // not one of Foo St's dates
-    const data = buildFixture(now);
-    const indexes = buildIndexes(data);
-    const result = queryStatus(data, indexes, 5, 5, now, null, true);
-    expect(result.status).toEqual({ kind: "closure", streetName: "Foo St" });
-  });
+const NO_CLEANING = { today: false, upcoming: null };
 
-  it("still needs a street-cleaning section at the point to report a closure", () => {
-    const now = new Date(2026, 0, 1, 10, 0);
-    const data = buildFixture(now);
-    const indexes = buildIndexes(data);
-    const result = queryStatus(data, indexes, 45, 45, now, null, true);
-    expect(result.status.kind).toBe("residentZone");
-  });
+describe("queryPlaces", () => {
+  describe("a zone's rules", () => {
+    it("reports an always-on tariff as paid, with the street the zone is on", () => {
+      const now = new Date(2026, 0, 1, 10, 0);
+      expect(placesAt(now, 5, 5)).toEqual([
+        {
+          zone: {
+            kind: "paidZone",
+            pricePerHour: 20,
+            dailyCapCzk: null,
+            maxStayMinutes: null,
+            from: "00:00",
+            until: "23:59",
+            code: "A",
+            category: "MIX",
+          },
+          streetName: "Foo St",
+          cleaning: NO_CLEANING,
+          distanceMeters: 0,
+        },
+      ]);
+    });
 
-  it("reports an active paid tariff when inside an always-on zone", () => {
-    const now = new Date(2026, 0, 1, 10, 0); // no closure dates match this day
-    const data = buildFixture(now);
-    const indexes = buildIndexes(data);
-    const result = queryStatus(data, indexes, 5, 5, now);
-    expect(result.status).toEqual({
-      kind: "paidZone",
-      pricePerHour: 20,
-      dailyCapCzk: null,
-      maxStayMinutes: null,
-      from: "00:00",
-      until: "23:59",
-      streetName: "Foo St",
-      code: "A",
-      category: "MIX",
+    it("reports a bounded tariff as paid inside its window", () => {
+      const [place] = placesAt(new Date(2026, 3, 6, 10, 0), 25, 25);
+      expect(place.zone).toEqual({
+        kind: "paidZone",
+        pricePerHour: 40,
+        dailyCapCzk: 90,
+        maxStayMinutes: null,
+        from: "08:00",
+        until: "17:59",
+        code: "B",
+        category: "MIX",
+      });
+    });
+
+    it("reports a zone as free right now outside its tariff window", () => {
+      const [place] = placesAt(new Date(2026, 3, 6, 20, 0), 25, 25);
+      expect(place.zone).toEqual({ kind: "freeZoneRightNow", code: "B", category: "MIX" });
+    });
+
+    it("lowers the cap to the tariff's holiday cap on a public holiday", () => {
+      const [place] = placesAt(new Date(2026, 8, 28, 10, 0), -45, -45); // Den české státnosti
+      expect(place.zone).toMatchObject({ kind: "paidZone", pricePerHour: 30, dailyCapCzk: 40 });
+    });
+
+    it("keeps the ordinary cap on the day after a holiday", () => {
+      const [place] = placesAt(new Date(2026, 8, 29, 10, 0), -45, -45);
+      expect(place.zone).toMatchObject({ kind: "paidZone", pricePerHour: 30, dailyCapCzk: null });
+    });
+
+    it("keeps a lower ordinary cap on a holiday", () => {
+      const now = new Date(2026, 8, 28, 10, 0);
+      const data = buildFixture(now);
+      data.zps.tariffs[2].rules[0].dailyCapCzk = 25;
+      const [place] = queryPlaces(data, buildIndexes(data), -45, -45, now);
+      expect(place.zone).toMatchObject({ dailyCapCzk: 25 });
+    });
+
+    it("leaves a tariff with no holiday rule as it is on a holiday", () => {
+      const [place] = placesAt(new Date(2026, 8, 28, 10, 0), 5, 5);
+      expect(place.zone).toMatchObject({ kind: "paidZone", code: "A", dailyCapCzk: null });
+    });
+
+    it("reports a resident zone as paid, with its visitor limit, while its tariff runs", () => {
+      const [place] = placesAt(new Date(2026, 3, 6, 10, 0), 85, 85);
+      expect(place.zone).toMatchObject({
+        kind: "paidZone",
+        maxStayMinutes: 60,
+        code: "D",
+        category: "RES",
+      });
+    });
+
+    it("reports a resident zone as free for anyone outside its tariff hours", () => {
+      const [place] = placesAt(new Date(2026, 3, 6, 20, 0), 85, 85);
+      expect(place.zone).toEqual({ kind: "freeZoneRightNow", code: "D", category: "RES" });
+    });
+
+    it("reports a resident zone with no tariff as resident-only, at any time", () => {
+      const [place] = placesAt(new Date(2026, 3, 6, 3, 0), 45, 45);
+      expect(place.zone).toEqual({ kind: "residentZone", code: "C", category: "RES" });
     });
   });
 
-  it("reports an active paid tariff when inside the bounded window", () => {
-    const now = new Date(2026, 3, 6, 10, 0);
-    const data = buildFixture(now);
-    const indexes = buildIndexes(data);
-    const result = queryStatus(data, indexes, 25, 25, now);
-    expect(result.status).toEqual({
-      kind: "paidZone",
-      pricePerHour: 40,
-      dailyCapCzk: 90,
-      maxStayMinutes: null,
-      from: "08:00",
-      until: "17:59",
-      streetName: null,
-      code: "B",
-      category: "MIX",
+  describe("street cleaning", () => {
+    it("marks a zone's place as cleaned today when its street's section is", () => {
+      const [place] = placesAt(new Date(2026, 3, 7, 10, 0), 5, 5);
+      expect(place).toMatchObject({
+        zone: { code: "A" },
+        cleaning: { today: true, upcoming: null },
+      });
+    });
+
+    it("marks every section as cleaned today when told to", () => {
+      const [place] = placesAt(new Date(2026, 0, 1, 10, 0), 5, 5, null, true);
+      expect(place.cleaning.today).toBe(true);
+    });
+
+    it("still needs a section in reach to mark cleaning", () => {
+      const [place] = placesAt(new Date(2026, 0, 1, 10, 0), 45, 45, null, true);
+      expect(place).toMatchObject({ zone: { code: "C" }, cleaning: NO_CLEANING });
+    });
+
+    it("makes a section on a street with no zone a place of its own, with cleaning ahead", () => {
+      expect(placesAt(new Date(2026, 3, 5, 10, 0), 65, 65)).toEqual([
+        {
+          zone: null,
+          streetName: "Bar St",
+          cleaning: { today: false, upcoming: { date: "2026-04-10", daysUntil: 5 } },
+          distanceMeters: 0,
+        },
+      ]);
+    });
+
+    it("leaves out cleaning further ahead than the warning window, or already past", () => {
+      expect(placesAt(new Date(2026, 2, 1, 10, 0), 65, 65)[0].cleaning).toEqual(NO_CLEANING);
+      expect(placesAt(new Date(2026, 3, 15, 10, 0), 65, 65)[0].cleaning).toEqual(NO_CLEANING);
+    });
+
+    it("counts a section once the accuracy circle reaches it, on the zone of the same street", () => {
+      const now = new Date(2026, 0, 1, 10, 0);
+      // The Near St section is ~39m from the point.
+      expect(placesAt(now, 14.4005, 50.0005, 5)).toMatchObject([
+        { zone: { code: "P1" }, cleaning: NO_CLEANING },
+      ]);
+      expect(placesAt(now, 14.4005, 50.0005, 45)).toMatchObject([
+        {
+          zone: { code: "P1" },
+          streetName: "Near St",
+          cleaning: { today: false, upcoming: { date: "2026-01-02", daysUntil: 1 } },
+        },
+      ]);
+    });
+
+    it("gives a section named by a placeholder code the street it's on", () => {
+      const places = placesAt(new Date(2026, 0, 2, 10, 0), 14.4005, 50.0005, 60);
+      expect(places.map((p) => [p.zone?.code, p.streetName, p.cleaning.today])).toEqual([
+        ["P1", "Near St", true],
+        ["P2", "Gap St", true],
+      ]);
     });
   });
 
-  it("reports freeZoneRightNow (with the zone's code/category) when outside its tariff window", () => {
-    const now = new Date(2026, 3, 6, 20, 0); // past the bounded window's 17:59 end
-    const data = buildFixture(now);
-    const indexes = buildIndexes(data);
-    const result = queryStatus(data, indexes, 25, 25, now);
-    expect(result.status).toEqual({
-      kind: "freeZoneRightNow",
-      streetName: null,
-      code: "B",
-      category: "MIX",
+  describe("the accuracy circle", () => {
+    it("names the street a zone is on, even when it's further than the fix's accuracy", () => {
+      const places = placesAt(new Date(2026, 0, 1, 10, 0), 14.4005, 50.0005, 5);
+      expect(places).toMatchObject([
+        { zone: { code: "P1" }, streetName: "Near St", distanceMeters: 0 },
+      ]);
     });
-  });
 
-  it("lowers the cap to the tariff's holiday cap on a public holiday", () => {
-    const now = new Date(2026, 8, 28, 10, 0); // Den české státnosti, a Monday
-    const data = buildFixture(now);
-    const result = queryStatus(data, buildIndexes(data), -45, -45, now);
-    expect(result.status).toMatchObject({ kind: "paidZone", pricePerHour: 30, dailyCapCzk: 40 });
-  });
-
-  it("keeps the ordinary cap on the day after a holiday", () => {
-    const now = new Date(2026, 8, 29, 10, 0);
-    const data = buildFixture(now);
-    const result = queryStatus(data, buildIndexes(data), -45, -45, now);
-    expect(result.status).toMatchObject({ kind: "paidZone", pricePerHour: 30, dailyCapCzk: null });
-  });
-
-  it("keeps a lower ordinary cap on a holiday", () => {
-    const now = new Date(2026, 8, 28, 10, 0);
-    const data = buildFixture(now);
-    data.zps.tariffs[2].rules[0].dailyCapCzk = 25;
-    const result = queryStatus(data, buildIndexes(data), -45, -45, now);
-    expect(result.status).toMatchObject({ dailyCapCzk: 25 });
-  });
-
-  it("leaves a tariff with no holiday rule as it is on a holiday", () => {
-    const now = new Date(2026, 8, 28, 10, 0);
-    const data = buildFixture(now);
-    const result = queryStatus(data, buildIndexes(data), 5, 5, now);
-    expect(result.status).toMatchObject({ kind: "paidZone", code: "A", dailyCapCzk: null });
-  });
-
-  it("reports a resident zone as paid while its tariff runs", () => {
-    const now = new Date(2026, 3, 6, 10, 0);
-    const data = buildFixture(now);
-    const indexes = buildIndexes(data);
-    const result = queryStatus(data, indexes, 85, 85, now);
-    expect(result.status).toEqual({
-      kind: "paidZone",
-      pricePerHour: 40,
-      dailyCapCzk: 90,
-      maxStayMinutes: 60,
-      from: "08:00",
-      until: "17:59",
-      streetName: null,
-      code: "D",
-      category: "RES",
+    it("reports every zone it reaches, nearest first, each with its own street", () => {
+      const places = placesAt(new Date(2026, 0, 1, 10, 0), 14.4005, 50.0005, 60);
+      expect(places.map((p) => [p.zone?.kind, p.zone?.code, p.streetName])).toEqual([
+        ["paidZone", "P1", "Near St"],
+        ["residentZone", "P2", "Gap St"],
+      ]);
     });
-  });
 
-  it("reports a resident zone as free for anyone outside its tariff hours", () => {
-    const now = new Date(2026, 3, 6, 20, 0);
-    const data = buildFixture(now);
-    const indexes = buildIndexes(data);
-    const result = queryStatus(data, indexes, 85, 85, now);
-    expect(result.status).toEqual({
-      kind: "freeZoneRightNow",
-      streetName: null,
-      code: "D",
-      category: "RES",
+    it("reports a zone it reaches with the fix just outside, at its distance", () => {
+      // ~14m west of P1, and ~100m from P2.
+      const [place] = placesAt(new Date(2026, 0, 1, 10, 0), 14.3998, 50.0005, 20);
+      expect(place).toMatchObject({ zone: { code: "P1" }, streetName: "Near St" });
+      expect(place.distanceMeters).toBeCloseTo(14.3, 0);
     });
-  });
 
-  it("reports residentZone for a resident zone with no tariff, regardless of time", () => {
-    const now = new Date(2026, 3, 6, 3, 0);
-    const data = buildFixture(now);
-    const indexes = buildIndexes(data);
-    const result = queryStatus(data, indexes, 45, 45, now);
-    expect(result.status).toEqual({
-      kind: "residentZone",
-      streetName: null,
-      code: "C",
-      category: "RES",
+    it("reaches at least 10m even for a precise fix, and no zone past that", () => {
+      const now = new Date(2026, 0, 1, 10, 0);
+      expect(placesAt(now, 14.3998, 50.0005, 5)).toEqual([
+        { zone: null, streetName: null, cleaning: NO_CLEANING, distanceMeters: 0 },
+      ]);
     });
-  });
 
-  it("reports clear when no zone matches", () => {
-    const now = new Date(2026, 3, 6, 10, 0);
-    const data = buildFixture(now);
-    const indexes = buildIndexes(data);
-    const result = queryStatus(data, indexes, 100, 100, now);
-    expect(result.status).toEqual({ kind: "clear", streetName: null });
-    expect(result.upcomingClosure).toBeNull();
-  });
-
-  it("warns about a closure within the next 5 days", () => {
-    const now = new Date(2026, 3, 5, 10, 0); // 2026-04-05, Bar St closes 2026-04-10 (5 days out)
-    const data = buildFixture(now);
-    const indexes = buildIndexes(data);
-    const result = queryStatus(data, indexes, 65, 65, now);
-    expect(result.upcomingClosure).toEqual({
-      date: "2026-04-10",
-      daysUntil: 5,
-      streetName: "Bar St",
+    it("with no zone or cleaning in reach, finds the street within the circle, at least 25m", () => {
+      const now = new Date(2026, 3, 6, 10, 0);
+      // ~45m north of Lone St, and ~53m from its cleaning section.
+      expect(placesAt(now, 14.5008, 50.0004, 5)).toEqual([
+        { zone: null, streetName: null, cleaning: NO_CLEANING, distanceMeters: 0 },
+      ]);
+      expect(placesAt(now, 14.5008, 50.0004, 48)).toEqual([
+        { zone: null, streetName: "Lone St", cleaning: NO_CLEANING, distanceMeters: 0 },
+      ]);
     });
-  });
 
-  it("does not warn about a closure further out than the warning window", () => {
-    const now = new Date(2026, 2, 1, 10, 0); // 2026-03-01, more than 5 days before 2026-04-10
-    const data = buildFixture(now);
-    const indexes = buildIndexes(data);
-    const result = queryStatus(data, indexes, 65, 65, now);
-    expect(result.upcomingClosure).toBeNull();
-  });
-
-  it("does not warn about a closure that has already passed", () => {
-    const now = new Date(2026, 3, 15, 10, 0); // after 2026-04-10
-    const data = buildFixture(now);
-    const indexes = buildIndexes(data);
-    const result = queryStatus(data, indexes, 65, 65, now);
-    expect(result.upcomingClosure).toBeNull();
-  });
-
-  it("reports the single deterministic status when no accuracy is given, even right at a zone boundary", () => {
-    const now = new Date(2026, 0, 1, 10, 0);
-    const data = buildFixture(now);
-    const indexes = buildIndexes(data);
-    const result = queryStatus(data, indexes, 14.4005, 50.0005, now);
-    expect(result.status).toMatchObject({ kind: "paidZone", code: "P1" });
-  });
-
-  it("stays with the single deterministic status when the accuracy radius doesn't reach another zone", () => {
-    const now = new Date(2026, 0, 1, 10, 0);
-    const data = buildFixture(now);
-    const indexes = buildIndexes(data);
-    const result = queryStatus(data, indexes, 14.4005, 50.0005, now, 5);
-    expect(result.status).toMatchObject({ kind: "paidZone", code: "P1" });
-  });
-
-  it("reports ambiguous candidates, nearest first, when the accuracy radius reaches more than one zone", () => {
-    const now = new Date(2026, 0, 1, 10, 0);
-    const data = buildFixture(now);
-    const indexes = buildIndexes(data);
-    // P1 contains the point (distance 0); P2 sits ~14m away - within a 60m fix.
-    const result = queryStatus(data, indexes, 14.4005, 50.0005, now, 60);
-    expect(result.status.kind).toBe("ambiguous");
-    if (result.status.kind !== "ambiguous") throw new Error("unreachable");
-    expect(result.status.candidates.map((c) => c.code)).toEqual(["P1", "P2"]);
-    expect(result.status.candidates[0]).toMatchObject({ kind: "paidZone", code: "P1" });
-    expect(result.status.candidates[1]).toMatchObject({ kind: "residentZone", code: "P2" });
-  });
-
-  it("names the street a zone is on, even when it's further than the fix's accuracy", () => {
-    const now = new Date(2026, 0, 1, 10, 0);
-    const data = buildFixture(now);
-    const indexes = buildIndexes(data);
-    const result = queryStatus(data, indexes, 14.4005, 50.0005, now, 5);
-    expect(result.status).toMatchObject({ kind: "paidZone", code: "P1", streetName: "Near St" });
-  });
-
-  it("names each ambiguous candidate's own street, as seen from the zone's nearest point", () => {
-    const now = new Date(2026, 0, 1, 10, 0);
-    const data = buildFixture(now);
-    const indexes = buildIndexes(data);
-    const result = queryStatus(data, indexes, 14.4005, 50.0005, now, 60);
-    if (result.status.kind !== "ambiguous") throw new Error("expected ambiguous");
-    expect(result.status.candidates.map((c) => [c.code, c.streetName])).toEqual([
-      ["P1", "Near St"],
-      ["P2", "Gap St"],
-    ]);
-  });
-
-  it("answers for the one zone the accuracy circle reaches, even with the fix just outside it", () => {
-    const now = new Date(2026, 0, 1, 10, 0);
-    const data = buildFixture(now);
-    const indexes = buildIndexes(data);
-    // ~14m west of P1, and ~100m from P2.
-    const result = queryStatus(data, indexes, 14.3998, 50.0005, now, 20);
-    expect(result.status).toMatchObject({ kind: "paidZone", code: "P1", streetName: "Near St" });
-  });
-
-  it("reports clear when the fix is outside every zone and its circle reaches none", () => {
-    const now = new Date(2026, 0, 1, 10, 0);
-    const data = buildFixture(now);
-    const indexes = buildIndexes(data);
-    const result = queryStatus(data, indexes, 14.3998, 50.0005, now, 5);
-    expect(result.status).toEqual({ kind: "clear", streetName: null });
-  });
-
-  it("outside any zone, finds no street for a precise fix when the centerline is out of reach", () => {
-    const now = new Date(2026, 0, 1, 10, 0);
-    const data = buildFixture(now);
-    const indexes = buildIndexes(data);
-    // ~45m north of Lone St.
-    const result = queryStatus(data, indexes, 14.5005, 50.0004, now, 5);
-    expect(result.status).toEqual({ kind: "clear", streetName: null });
-  });
-
-  it("outside any zone, finds the street when the accuracy circle reaches its centerline", () => {
-    const now = new Date(2026, 0, 1, 10, 0);
-    const data = buildFixture(now);
-    const indexes = buildIndexes(data);
-    const result = queryStatus(data, indexes, 14.5005, 50.0004, now, 48);
-    expect(result.status).toEqual({ kind: "clear", streetName: "Lone St" });
-  });
-
-  it("caps the ambiguity radius so a very inaccurate fix doesn't pull in a far-away zone", () => {
-    const now = new Date(2026, 0, 1, 10, 0);
-    const data = buildFixture(now);
-    const indexes = buildIndexes(data);
-    // P3 is ~15km from P1/P2 - far past MAX_AMBIGUITY_RADIUS_METERS even with a huge
-    // reported accuracy, so this should stay a plain two-candidate (P1, P2) ambiguity.
-    const result = queryStatus(data, indexes, 14.4005, 50.0005, now, 50_000);
-    expect(result.status.kind).toBe("ambiguous");
-    if (result.status.kind !== "ambiguous") throw new Error("unreachable");
-    expect(result.status.candidates.map((c) => c.code)).toEqual(["P1", "P2"]);
+    it("reports nothing beyond 100m, however inaccurate the fix", () => {
+      // P3 is ~15km away.
+      const places = placesAt(new Date(2026, 0, 1, 10, 0), 14.4005, 50.0005, 50_000);
+      expect(places.map((p) => p.zone?.code)).toEqual(["P1", "P2"]);
+    });
   });
 });
 

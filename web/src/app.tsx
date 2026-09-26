@@ -14,7 +14,8 @@ const neutral = (icon: string, sentence: string): Display => ({
   tone: "neutral",
   icon,
   sentence,
-  detail: null,
+  cards: [],
+  agree: true,
 });
 
 interface Props {
@@ -35,7 +36,7 @@ export function App({ geo, now, cleaningEverywhereToday = false }: Props) {
   const client = useMemo(() => createQueryClient(), []);
   const [result, setResult] = useState<QueryResult | null>(null);
   const [dataError, setDataError] = useState<string | null>(null);
-  const [expandedCode, setExpandedCode] = useState<string | null>(null);
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [vehicle, setVehicle] = useState<Vehicle>(loadVehicle);
 
   const pickVehicle = (picked: Vehicle) => {
@@ -87,23 +88,21 @@ export function App({ geo, now, cleaningEverywhereToday = false }: Props) {
     if (geo.status === "searching" || !result) {
       return neutral("23f3", "Figuring out where you are..."); // ⏳
     }
-    return describe(result.status, result.upcomingClosure, vehicle);
+    return describe(result, vehicle);
   }, [result, geo, dataError, vehicle]);
 
   useThemeColor(display.tone);
 
-  const zone = display.detail?.zone ?? null;
-  const candidates = display.detail?.candidateZones ?? null;
-  const candidatesKey = candidates?.map((c) => c.code).join(",") ?? null;
+  const cardsKey = display.cards.map((c) => c.key).join(",");
 
-  // Collapse back down whenever the underlying spot (or its set of candidate zones)
-  // changes, so an expanded card from a previous location doesn't linger after moving.
+  // Collapse back down whenever the set of cards changes, so an expanded card from a
+  // previous location doesn't linger after moving.
   useEffect(() => {
-    setExpandedCode(null);
-  }, [display.detail?.streetName, zone?.code, candidatesKey]);
+    setExpandedKey(null);
+  }, [cardsKey]);
 
-  const toggleExpanded = (code: string) =>
-    setExpandedCode((current) => (current === code ? null : code));
+  const toggleExpanded = (key: string) =>
+    setExpandedKey((current) => (current === key ? null : key));
 
   return (
     <div className={`app app--${display.tone}`}>
@@ -112,24 +111,19 @@ export function App({ geo, now, cleaningEverywhereToday = false }: Props) {
         <img className="app__emoji" src={`/emoji/${display.icon}.svg`} alt="" />
       </div>
       <p className="app__sentence">{display.sentence}</p>
-      {display.detail && !candidates && (
-        <ZoneBox
-          streetName={display.detail.streetName}
-          zone={zone}
-          expanded={expandedCode === (zone?.code ?? "single")}
-          onToggle={() => toggleExpanded(zone?.code ?? "single")}
-        />
-      )}
-      {candidates && candidates.length > 0 && (
-        <div className="app__candidates">
-          {candidates.map((candidate) => (
-            <CandidateBox
-              key={candidate.code}
-              candidate={candidate}
-              expanded={expandedCode === candidate.code}
-              onToggle={() => toggleExpanded(candidate.code)}
-            />
-          ))}
+      {display.cards.length > 0 && (
+        <div className="app__cards">
+          {display.cards.map((card) => {
+            const Box = display.agree ? ZoneBox : CandidateBox;
+            return (
+              <Box
+                key={card.key}
+                card={card}
+                expanded={expandedKey === card.key}
+                onToggle={() => toggleExpanded(card.key)}
+              />
+            );
+          })}
         </div>
       )}
     </div>

@@ -1,25 +1,25 @@
-import type { ZoneChip } from "../describe";
+import type { Card } from "../describe";
 import { ExpandedRows } from "./ExpandedRows";
 import { PayLink } from "./PayLink";
 import { ZoneSummary } from "./ZoneSummary";
 
 interface ZoneBoxProps {
-  streetName?: string | null;
-  zone?: ZoneChip | null;
+  card: Card;
   expanded: boolean;
   onToggle: () => void;
 }
 
-/** The card under a confident answer - the zone's identity, its price rows when it has
- * any, and Pay as a full-height slice cut down the right edge. */
-export function ZoneBox({ streetName, zone, expanded, onToggle }: ZoneBoxProps) {
-  const canExpand = Boolean(zone?.expanded);
+/** A card whose place agrees with the answer above - its street, zone and cleaning, its
+ * price rows when it has any, and Pay as a full-height slice cut down the right edge. */
+export function ZoneBox({ card, expanded, onToggle }: ZoneBoxProps) {
+  const { zone } = card;
   return (
     <div className="app__detail">
       <ZoneSummary
-        streetName={streetName}
+        streetName={card.streetName}
         zone={zone}
-        canExpand={canExpand}
+        cleaning={card.cleaning}
+        canExpand={Boolean(zone?.expanded)}
         expanded={expanded}
         onToggle={onToggle}
       >
