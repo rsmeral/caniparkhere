@@ -4,6 +4,7 @@ import type { Card, ZoneChip } from "../describe";
 interface ZoneSummaryProps {
   streetName?: string | null;
   zone?: ZoneChip | null;
+  terms?: string | null;
   cleaning?: Card["cleaning"];
   canExpand: boolean;
   expanded: boolean;
@@ -12,11 +13,12 @@ interface ZoneSummaryProps {
 }
 
 /** The dark "here's what we detected" row - the street name, the zone's own code and curb
- * colour, and any street cleaning there - and the control that opens whatever the card
- * reveals. */
+ * colour, its terms, and any street cleaning there - and the control that opens whatever the
+ * card reveals. */
 export function ZoneSummary({
   streetName,
   zone,
+  terms,
   cleaning,
   canExpand,
   expanded,
@@ -55,6 +57,7 @@ export function ZoneSummary({
           {canExpand && <span className="app__detail-chevron">{expanded ? "▲" : "▼"}</span>}
         </p>
       )}
+      {terms && <p className="app__detail-row app__detail-terms">{terms}</p>}
       {cleaning && (
         <p
           className={`app__detail-row app__detail-cleaning${cleaning.today ? " app__detail-cleaning--today" : ""}`}

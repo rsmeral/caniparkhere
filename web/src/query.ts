@@ -1,7 +1,7 @@
 import type { LoadedData } from "./dataStore";
 import { isPublicHoliday } from "./holidays";
 import { LineIndex, PolygonIndex } from "./spatialIndex";
-import { activeRuleNow } from "./tariffLogic";
+import { activeRuleNow, nextChange, type Change } from "./tariffLogic";
 import type { Bounds, Tariff, TariffRule, ZpsProps } from "./types";
 
 /** The matched parking zone's own identity - shown as a lower-priority "here's what we
@@ -21,9 +21,15 @@ export type ZoneStatus =
       maxStayMinutes: number | null;
       from: string;
       until: string;
+      /** When paying stops, or null if it doesn't within a week. */
+      paidUntil: Change | null;
     } & ZoneInfo)
   | ({ kind: "residentZone" } & ZoneInfo)
-  | ({ kind: "freeZoneRightNow" } & ZoneInfo);
+  | ({
+      kind: "freeZoneRightNow";
+      /** When paying starts, or null if it doesn't within a week. */
+      paidFrom: Change | null;
+    } & ZoneInfo);
 
 /** Street cleaning on a place: today, and the soonest date within the warning window. */
 export interface Cleaning {
@@ -154,11 +160,13 @@ function zoneStatusOf(
         maxStayMinutes: feature.properties.maxStayMinutes ?? null,
         from: rule.start,
         until: rule.end,
+        paidUntil: nextChange(tariff, now),
         ...zone,
       };
     }
+    return { kind: "freeZoneRightNow", paidFrom: nextChange(tariff, now), ...zone };
   }
-  return { kind: "freeZoneRightNow", ...zone };
+  return { kind: "freeZoneRightNow", paidFrom: null, ...zone };
 }
 
 const NO_CLEANING: Cleaning = { today: false, upcoming: null };

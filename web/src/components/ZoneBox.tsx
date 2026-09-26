@@ -18,6 +18,7 @@ export function ZoneBox({ card, expanded, onToggle }: ZoneBoxProps) {
       <ZoneSummary
         streetName={card.streetName}
         zone={zone}
+        terms={card.terms}
         cleaning={card.cleaning}
         canExpand={Boolean(zone?.expanded)}
         expanded={expanded}

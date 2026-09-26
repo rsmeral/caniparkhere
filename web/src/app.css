@@ -201,6 +201,13 @@ body {
   opacity: 0.9;
 }
 
+.app__detail-terms {
+  /* Lines up with the zone code above it: past the colour dot, its border and the gap. */
+  padding-left: calc(0.65rem + 2px + 0.45rem);
+  font-size: 0.8rem;
+  opacity: 0.9;
+}
+
 .app__detail-cleaning {
   /* Street cleaning on the card's street: amber when it's coming up, red when it's today. */
   display: flex;
