@@ -435,6 +435,84 @@ suite("describe", () => {
     );
   });
 
+  suite("in a shared car", () => {
+    const paidMix: ZoneStatus = {
+      kind: "paidZone",
+      pricePerHour: 40,
+      dailyCapCzk: 400,
+      maxStayMinutes: null,
+      from: "08:00",
+      until: "20:00",
+      streetName: "Nerudova",
+      ...mixZone,
+    };
+    const paidRes: ZoneStatus = { ...paidMix, ...resZone, maxStayMinutes: 60 };
+    const paidVis: ZoneStatus = { ...paidMix, ...visZone };
+
+    it("lets the rental end in a blue or purple zone at any hour, with no price shown", () => {
+      const statuses: ZoneStatus[] = [
+        paidMix,
+        paidRes,
+        { kind: "residentZone", streetName: null, ...resZone },
+        { kind: "freeZoneRightNow", streetName: null, ...mixZone },
+      ];
+      for (const status of statuses) {
+        const display = describe(status, null, "shared");
+        expect(display.tone).toBe("good");
+        expect(display.sentence).toBe(
+          "You can end your rental here, for free and with no time limit.",
+        );
+        expect(display.detail?.zone).toMatchObject({ payment: null, expanded: null });
+      }
+    });
+
+    it("keeps an orange zone's price and Pay button for a stop during the rental", () => {
+      const display = describe(paidVis, null, "shared");
+      expect(display.tone).toBe("caution");
+      expect(display.sentence).toBe(
+        "You can't end your rental here. You can stop here during the rental, but it's paid.",
+      );
+      expect(display.detail?.zone?.payment?.priceLabel).toBe("40 Kč/hod");
+    });
+
+    it("says an orange zone outside its paid hours still isn't somewhere to end the rental", () => {
+      const display = describe(
+        { kind: "freeZoneRightNow", streetName: null, ...visZone },
+        null,
+        "shared",
+      );
+      expect(display.tone).toBe("caution");
+      expect(display.sentence).toBe(
+        "You can't end your rental here. You can stop here during the rental, and right now it's free.",
+      );
+    });
+
+    it("points to the carsharing app where there's no zone data, keeping the upcoming closure", () => {
+      const display = describe({ kind: "clear", streetName: null }, upcomingTomorrow, "shared");
+      expect(display.sentence).toBe(
+        "I don't have parking info for this spot — check your carsharing app before you end the rental here." +
+          " And watch out, street cleaning tomorrow.",
+      );
+    });
+
+    it("warns about street cleaning today just as for an own car", () => {
+      const status: Status = { kind: "closure", streetName: "Foo St" };
+      expect(describe(status, null, "shared")).toEqual(describe(status));
+    });
+
+    it("gives each ambiguous candidate its shared-car advice", () => {
+      const display = describe(
+        { kind: "ambiguous", streetName: null, candidates: [paidRes, paidVis] },
+        null,
+        "shared",
+      );
+      expect(display.detail!.candidateZones!.map((c) => [c.tone, c.payment])).toEqual([
+        ["good", null],
+        ["caution", { url: "https://platba.parkujvpraze.cz/pz/BUS-0001", priceLabel: "40 Kč/hod" }],
+      ]);
+    });
+  });
+
   it("has a downloaded SVG for every icon codepoint used in the app", () => {
     for (const codepoint of ALL_ICON_CODEPOINTS) {
       expect(existsSync(new URL(`../public/emoji/${codepoint}.svg`, import.meta.url))).toBe(true);
