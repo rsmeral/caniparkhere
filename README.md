@@ -31,9 +31,7 @@ From ČÚZK, the Czech land survey office:
 From [Golemio](https://api.golemio.cz/docs/public-openapi/), Prague's data platform:
 
 - Parking tariffs from TSK (`/v3/parking` and `/v3/parking-tariffs`, source `tsk_v2`) –
-  each zone's prices, paid hours, caps, and how long a visitor may stay. TSK keeps these
-  up to date: they had Praha 5's new hours from August 2026 while the LKOD text still had
-  the old ones.
+  each zone's prices, paid hours, caps, and how long a visitor may stay
 
 ## How it works
 

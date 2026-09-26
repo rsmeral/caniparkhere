@@ -58,9 +58,7 @@ interface ZoneTariff {
 
 /**
  * Builds the zones, taking each section's tariff from TSK's data in Golemio and falling
- * back to the LKOD tariftext for a section Golemio doesn't have. Golemio is the one kept
- * current: it had Praha 5's new hours from August 2026 while the tariftext still had the
- * old ones.
+ * back to the LKOD tariftext for a section Golemio doesn't have.
  */
 function buildZps(
   fc: FeatureCollection,
