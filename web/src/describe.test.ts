@@ -14,7 +14,7 @@ const ALL_ICON_CODEPOINTS = [
   "1f6f0",
   "1f9ed",
   "1f61f",
-  "1f642",
+  "1f911",
   "1f914",
   "1f60a",
   "1f440",
@@ -68,6 +68,7 @@ suite("describe", () => {
       const display = at([place(paid(visZone), { streetName: "Nerudova" })]);
       expect(display).toMatchObject({
         tone: "warn",
+        icon: "1f911",
         sentence: "You can park here, but it's paid.",
         agree: true,
       });
@@ -88,7 +89,7 @@ suite("describe", () => {
             ],
           },
           cleaning: null,
-          advice: { tone: "warn", icon: "1f642", sentence: "You can park here, but it's paid." },
+          advice: { tone: "warn", icon: "1f911", sentence: "You can park here, but it's paid." },
         },
       ]);
     });
