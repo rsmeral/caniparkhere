@@ -47,7 +47,7 @@ function buildFixture(now: Date): LoadedData {
       tariffs: [
         {
           id: 0,
-          raw: "always on",
+          source: "always on",
           rules: [
             {
               days: [0, 1, 2, 3, 4, 5, 6],
@@ -60,7 +60,7 @@ function buildFixture(now: Date): LoadedData {
         },
         {
           id: 1,
-          raw: "bounded",
+          source: "bounded",
           rules: [
             { days: [today], start: "08:00", end: "17:59", pricePerHour: 40, dailyCapCzk: 90 },
           ],

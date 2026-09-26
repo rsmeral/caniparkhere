@@ -39,10 +39,13 @@ describe("parseTariffText", () => {
     });
   });
 
-  it("handles an overnight window (end < start)", () => {
+  it("splits an overnight window into both of its parts on the same days", () => {
     const rules = parseTariffText("Po-Pá 08:00-05:59 60Kč/hod");
-    expect(rules![0].start).toBe("08:00");
-    expect(rules![0].end).toBe("05:59");
+    const weekdays = [0, 1, 2, 3, 4];
+    expect(rules).toEqual([
+      { days: weekdays, start: "00:00", end: "05:59", pricePerHour: 60, dailyCapCzk: null },
+      { days: weekdays, start: "08:00", end: "23:59", pricePerHour: 60, dailyCapCzk: null },
+    ]);
   });
 
   it("recovers price/hours and drops the cap when the suffix is truncated, warning instead of throwing", () => {

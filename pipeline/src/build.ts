@@ -13,7 +13,14 @@ import {
   simplifyGeometry,
   type Bbox,
 } from "./lib/geo.js";
-import { fetchTskParking, maxStayMinutesByCode } from "./lib/golemio.js";
+import {
+  fetchTskParking,
+  type GolemioParking,
+  type GolemioTariff,
+  maxStayMinutesByCode,
+  tariffIdByCode,
+  tariffRules,
+} from "./lib/golemio.js";
 import { parseLetniDates } from "./lib/letniDates.js";
 import { SOURCES } from "./sources.js";
 import { parseTariffText, type TariffRule } from "./lib/tariff.js";
@@ -40,20 +47,50 @@ interface ZpsFeatureProps {
   maxStayMinutes?: number | null;
 }
 
-function buildZps(fc: FeatureCollection, maxStayByCode: Map<string, number>) {
-  // Blank tariftext ("no visitor tariff here") must dictionary-encode to a null tariffId,
-  // not a real table entry - parseTariffText(raw) would be null and blow up activeRuleNow().
-  const rawTariffs = fc.features.map((f) => {
-    const t = (f.properties as any).tariftext as string;
-    return t && t.trim() ? t : null;
-  });
-  const { table, indexes } = buildDictionary(rawTariffs);
+/**
+ * A zone section's tariff: where it came from (a Golemio tariff id, or the LKOD
+ * tariftext it was parsed from) and its rules.
+ */
+interface ZoneTariff {
+  source: string;
+  rules: TariffRule[];
+}
 
-  const tariffs = table.map((raw, id) => ({
-    id,
-    raw,
-    rules: parseTariffText(raw) as TariffRule[],
-  }));
+/**
+ * Builds the zones, taking each section's tariff from TSK's data in Golemio and falling
+ * back to the LKOD tariftext for a section Golemio doesn't have.
+ */
+function buildZps(
+  fc: FeatureCollection,
+  tsk: { parkings: GolemioParking[]; tariffs: GolemioTariff[] },
+) {
+  const maxStayByCode = maxStayMinutesByCode(tsk.parkings, tsk.tariffs);
+  const golemioTariffByCode = tariffIdByCode(tsk.parkings);
+  const golemioTariffs = new Map(tsk.tariffs.map((t) => [t.id, t]));
+  const counts = { golemio: 0, tariftext: 0, none: 0 };
+
+  // A section with no tariff at all must dictionary-encode to a null tariffId, not a
+  // table entry with no rules.
+  const zoneTariffs = fc.features.map((f): ZoneTariff | null => {
+    const golemio = golemioTariffs.get(golemioTariffByCode.get((f.properties as any).code) ?? "");
+    if (golemio) {
+      counts.golemio++;
+      return { source: `golemio:${golemio.id}`, rules: tariffRules(golemio) };
+    }
+    const text = (f.properties as any).tariftext as string;
+    const rules = parseTariffText(text);
+    if (rules) {
+      counts.tariftext++;
+      return { source: text, rules };
+    }
+    counts.none++;
+    return null;
+  });
+  console.log(
+    `  zps: tariffs from Golemio ${counts.golemio}, from tariftext ${counts.tariftext}, none ${counts.none}`,
+  );
+  const { table, indexes } = buildDictionary(zoneTariffs);
+  const tariffs = table.map((t, id) => ({ id, ...t }));
 
   const features: Feature<MultiPolygon, ZpsFeatureProps>[] = fc.features.map((f, i) => {
     const code = (f.properties as any).code as string;
@@ -172,7 +209,7 @@ async function main() {
     fetchAndBuild(SOURCES.letni, buildLetni),
     fetchAndBuild(SOURCES.streets, buildStreets),
   ]);
-  const zps = buildZps(zpsSource, maxStayMinutesByCode(tsk.parkings, tsk.tariffs));
+  const zps = buildZps(zpsSource, tsk);
 
   console.log("Writing output...");
   const written = await Promise.all([

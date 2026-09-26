@@ -84,7 +84,7 @@ describe("queryWorker", () => {
         tariffs: [
           {
             id: 0,
-            raw: "Po-Ne 08:00-19:59 60Kč/hod",
+            source: "Po-Ne 08:00-19:59 60Kč/hod",
             rules: [
               {
                 days: [0, 1, 2, 3, 4, 5, 6],

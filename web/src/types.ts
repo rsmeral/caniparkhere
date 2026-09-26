@@ -3,14 +3,16 @@ import type { Feature, MultiLineString, MultiPolygon } from "geojson";
 export interface TariffRule {
   days: number[]; // 0=Mon .. 6=Sun
   start: string; // "HH:MM"
-  end: string; // "HH:MM"; may be < start, meaning it wraps past midnight
+  end: string; // "HH:MM", within the same day
   pricePerHour: number;
   dailyCapCzk: number | null;
 }
 
 export interface Tariff {
   id: number;
-  raw: string;
+  /** Where the rules came from: `golemio:<tariff id>`, or the LKOD tariftext they were
+   * parsed from. For tracing an answer back to its data. */
+  source: string;
   rules: TariffRule[];
 }
 
