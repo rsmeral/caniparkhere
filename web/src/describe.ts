@@ -216,38 +216,99 @@ function cleaningLabel(cleaning: Cleaning): Card["cleaning"] {
   };
 }
 
+/** What paying to park costs, and for how long it's allowed. */
+export interface PaidTerms {
+  pricePerHour: number;
+  dailyCapCzk: number | null;
+  /** In minutes. "unknown" for a resident zone whose limit isn't in the data - it has one,
+   * set on the sign - and null where the stay isn't limited. */
+  maxStay: number | "unknown" | null;
+  from: string;
+  until: string;
+}
+
 /**
- * A place as a card, and the legal consequence of parking there: the advice and the price,
- * limit and hours behind it. Zone code and colour aren't part of it - two zones that cost the
- * same and allow the same stay mean the same thing. A place with no zone and no cleaning
- * today has no known rules, so its consequence is null and it can't contradict one that has.
+ * What parking at a place means legally: anything that changes the price or risks a fine.
+ * The zone's code and colour aren't part of it - two zones that cost the same and allow the
+ * same stay mean the same thing. A shared car's consequences are about where its rental can
+ * end.
  */
-function cardOf(
-  place: Place,
-  index: number,
-  vehicle: Vehicle,
-): { card: Card; consequence: string | null } {
+export type Consequence =
+  | { kind: "cleaningToday" }
+  | { kind: "paid"; terms: PaidTerms }
+  | { kind: "residentOnly" }
+  | { kind: "freeNow" }
+  | { kind: "canEndRental" }
+  | { kind: "stopDuringRental"; terms: PaidTerms | null };
+
+function paidTerms(zone: Extract<ZoneStatus, { kind: "paidZone" }>): PaidTerms {
+  return {
+    pricePerHour: zone.pricePerHour,
+    dailyCapCzk: zone.dailyCapCzk,
+    maxStay: zone.category === "RES" ? (zone.maxStayMinutes ?? "unknown") : null,
+    from: zone.from,
+    until: zone.until,
+  };
+}
+
+/**
+ * The consequence of parking at a place, or null when it has no known rules: no zone and no
+ * cleaning today. Cleaning today outweighs the zone - parking isn't allowed at all.
+ */
+export function consequenceOf(place: Place, vehicle: Vehicle): Consequence | null {
+  if (place.cleaning.today) return { kind: "cleaningToday" };
+  const { zone } = place;
+  if (!zone) return null;
+  if (vehicle === "shared") {
+    if (zone.category !== "VIS") return { kind: "canEndRental" };
+    return { kind: "stopDuringRental", terms: zone.kind === "paidZone" ? paidTerms(zone) : null };
+  }
+  switch (zone.kind) {
+    case "paidZone":
+      return { kind: "paid", terms: paidTerms(zone) };
+    case "residentZone":
+      return { kind: "residentOnly" };
+    case "freeZoneRightNow":
+      return { kind: "freeNow" };
+  }
+}
+
+function sameTerms(a: PaidTerms | null, b: PaidTerms | null): boolean {
+  if (a === null || b === null) return a === b;
+  return (
+    a.pricePerHour === b.pricePerHour &&
+    a.dailyCapCzk === b.dailyCapCzk &&
+    a.maxStay === b.maxStay &&
+    a.from === b.from &&
+    a.until === b.until
+  );
+}
+
+export function sameConsequence(a: Consequence, b: Consequence): boolean {
+  if (a.kind !== b.kind) return false;
+  if (a.kind === "paid" && b.kind === "paid") return sameTerms(a.terms, b.terms);
+  if (a.kind === "stopDuringRental" && b.kind === "stopDuringRental") {
+    return sameTerms(a.terms, b.terms);
+  }
+  return true;
+}
+
+/** A place as a card, with the advice it would get on its own. */
+function cardOf(place: Place, index: number, vehicle: Vehicle): Card {
   const chip = place.zone ? chipForZoneStatus(place.zone, vehicle) : null;
   // No Pay button where parking isn't allowed today.
   const zone = chip && place.cleaning.today ? { ...chip, payment: null } : chip;
-  const known = place.cleaning.today || place.zone !== null;
   const advice = place.cleaning.today
     ? CLEANING_TODAY
     : place.zone
       ? adviceFor(place.zone, vehicle)
       : noInfoAdvice(vehicle);
   return {
-    card: {
-      key: place.zone?.code ?? (place.streetName ? `street:${place.streetName}` : `place:${index}`),
-      streetName: place.streetName,
-      zone,
-      cleaning: cleaningLabel(place.cleaning),
-      advice,
-    },
-    // On a cleaning day the zone's price no longer matters: parking isn't allowed at all.
-    consequence: !known
-      ? null
-      : JSON.stringify([advice.sentence, place.cleaning.today ? null : (zone?.expanded ?? null)]),
+    key: place.zone?.code ?? (place.streetName ? `street:${place.streetName}` : `place:${index}`),
+    streetName: place.streetName,
+    zone,
+    cleaning: cleaningLabel(place.cleaning),
+    advice,
   };
 }
 
@@ -290,12 +351,16 @@ export function describe(result: QueryResult, vehicle: Vehicle = "own"): Display
     };
   }
 
-  const described = result.places.map((place, i) => cardOf(place, i, vehicle));
-  const consequences = new Set(described.flatMap((d) => (d.consequence ? [d.consequence] : [])));
-  const agree = consequences.size <= 1;
+  const cards = result.places.map((place, i) => cardOf(place, i, vehicle));
+  // Places with no known rules can't contradict the others, so only the rest are compared.
+  const known = result.places.flatMap((place, i) => {
+    const consequence = consequenceOf(place, vehicle);
+    return consequence ? [{ consequence, card: cards[i] }] : [];
+  });
+  const agree = known.every((k) => sameConsequence(k.consequence, known[0].consequence));
   const cleaningToday = result.places.some((p) => p.cleaning.today);
   const headline: Advice = agree
-    ? (described.find((d) => d.consequence)?.card.advice ?? noInfoAdvice(vehicle))
+    ? (known[0]?.card.advice ?? noInfoAdvice(vehicle))
     : cleaningToday
       ? {
           tone: "danger",
@@ -313,9 +378,7 @@ export function describe(result: QueryResult, vehicle: Vehicle = "own"): Display
     ...headline,
     sentence: `${headline.sentence}${clause}`,
     // A place with nothing to show - no street, zone or cleaning - has no card.
-    cards: described
-      .map((d) => d.card)
-      .filter((card) => card.streetName || card.zone || card.cleaning),
+    cards: cards.filter((card) => card.streetName || card.zone || card.cleaning),
     agree,
   };
 }

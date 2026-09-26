@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { describe as suite, expect, it } from "vitest";
-import { describe } from "./describe";
+import { consequenceOf, describe, sameConsequence } from "./describe";
 import type { Cleaning, Place, ZoneInfo, ZoneStatus } from "./query";
 import type { Vehicle } from "./vehicle";
 
@@ -282,6 +282,47 @@ suite("describe", () => {
         `${COULD_BE} And watch out, possible street cleaning tomorrow.`,
       );
       expect(display.cards[0].advice.sentence).toBe("You can park here, but it's paid.");
+    });
+  });
+
+  suite("consequences", () => {
+    const same = (a: Place, b: Place, vehicle: Vehicle = "own") =>
+      sameConsequence(consequenceOf(a, vehicle)!, consequenceOf(b, vehicle)!);
+
+    it("has none for a place with no zone and no cleaning today", () => {
+      expect(consequenceOf(place(null, { streetName: "Úvoz" }), "own")).toBeNull();
+    });
+
+    it("treats zones of different colours with the same terms as the same", () => {
+      expect(same(place(paid(mixZone)), place(paid(visZone)))).toBe(true);
+    });
+
+    it("tells zones apart by price, cap and hours", () => {
+      expect(same(place(paid(mixZone)), place(paid(mixZone, { pricePerHour: 60 })))).toBe(false);
+      expect(same(place(paid(mixZone)), place(paid(mixZone, { dailyCapCzk: null })))).toBe(false);
+      expect(same(place(paid(mixZone)), place(paid(mixZone, { until: "19:59" })))).toBe(false);
+    });
+
+    it("tells a resident zone's unknown time limit apart from no limit at all", () => {
+      expect(consequenceOf(place(paid(resZone)), "own")).toMatchObject({
+        terms: { maxStay: "unknown" },
+      });
+      expect(same(place(paid(resZone)), place(paid(mixZone)))).toBe(false);
+      expect(same(place(paid(resZone, { maxStayMinutes: 60 })), place(paid(resZone)))).toBe(false);
+    });
+
+    it("treats cleaning today as the same whatever the zone", () => {
+      const cleaned = (zone: ZoneStatus | null) => place(zone, { cleaning: CLEANING_TODAY });
+      expect(same(cleaned(paid(mixZone)), cleaned(null))).toBe(true);
+    });
+
+    it("in a shared car, treats blue and purple alike and an orange zone's stop by its terms", () => {
+      expect(
+        same(place(paid(resZone)), place({ kind: "freeZoneRightNow", ...mixZone }), "shared"),
+      ).toBe(true);
+      expect(
+        same(place(paid(visZone)), place({ kind: "freeZoneRightNow", ...visZone }), "shared"),
+      ).toBe(false);
     });
   });
 
