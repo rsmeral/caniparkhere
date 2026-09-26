@@ -106,7 +106,7 @@ function adviceFor(status: ZoneStatus): { tone: Tone; icon: string; sentence: st
     return {
       tone: "warn",
       icon: "1f642", // 🙂
-      sentence: `Visitors can park here for ${stay}, but it's paid.`,
+      sentence: `You can park here for ${stay}, but it's paid.`,
     };
   }
   return ZONE_ADVICE[status.kind];

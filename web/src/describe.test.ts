@@ -136,7 +136,7 @@ suite("describe", () => {
       ...resZone,
     };
     const display = describe(status);
-    expect(display.sentence).toBe("Visitors can park here for up to 1 hour, but it's paid.");
+    expect(display.sentence).toBe("You can park here for up to 1 hour, but it's paid.");
     expect(display.detail?.zone?.expanded).toEqual([
       { label: "Price", value: "80 Kč/hod" },
       { label: "Max stay", value: "1 hour" },
@@ -156,7 +156,7 @@ suite("describe", () => {
       ...resZone,
     };
     expect(describe(status).sentence).toBe(
-      "Visitors can park here for up to 3 hours, but it's paid.",
+      "You can park here for up to 3 hours, but it's paid.",
     );
   });
 
@@ -173,7 +173,7 @@ suite("describe", () => {
     };
     const display = describe(status);
     expect(display.tone).toBe("warn");
-    expect(display.sentence).toBe("Visitors can park here for a short time, but it's paid.");
+    expect(display.sentence).toBe("You can park here for a short time, but it's paid.");
     expect(display.detail?.zone).toEqual({
       code: "P8-0012",
       categoryLabel: "Residents",
@@ -213,7 +213,7 @@ suite("describe", () => {
     }).detail!.candidateZones!;
     expect(candidate).toMatchObject({
       tone: "warn",
-      sentence: "Visitors can park here for a short time, but it's paid.",
+      sentence: "You can park here for a short time, but it's paid.",
     });
   });
 
