@@ -1,4 +1,5 @@
 import type { Card } from "../describe";
+import { emojiUrl } from "../emoji";
 import { ExpandedRows } from "./ExpandedRows";
 import { PayLink } from "./PayLink";
 import { ZoneSummary } from "./ZoneSummary";
@@ -39,7 +40,7 @@ export function CandidateBox({ card, expanded, onToggle }: CandidateBoxProps) {
             it - resident-zone orange on the ambiguous screen's orange, for instance. */}
         <div className="app__resolve-inset">
           <div className={`app__resolve app__resolve--${advice.tone}`}>
-            <img className="app__resolve-emoji" src={`/emoji/${advice.icon}.svg`} alt="" />
+            <img className="app__resolve-emoji" src={emojiUrl(advice.icon)} alt="" />
             <p className="app__resolve-sentence">{advice.sentence}</p>
             {zone?.expanded && <ExpandedRows rows={zone.expanded} />}
             {zone?.payment && <PayLink payment={zone.payment} block />}

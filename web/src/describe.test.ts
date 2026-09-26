@@ -1,25 +1,13 @@
 import { existsSync } from "node:fs";
 import { describe as suite, expect, it } from "vitest";
 import { consequenceOf, describe, sameConsequence } from "./describe";
+import { emojiUrl } from "./emoji";
 import type { Cleaning, Place, ZoneInfo, ZoneStatus } from "./query";
 import type { Vehicle } from "./vehicle";
 
-// Codepoints referenced anywhere in the app - describe()'s advice plus app.tsx's
-// hardcoded neutral (loading/error) states, which don't go through describe() at all.
-const ALL_ICON_CODEPOINTS = [
-  "23f3",
-  "1f635",
-  "1f937",
-  "1f512",
-  "1f6f0",
-  "1f9ed",
-  "1f61f",
-  "1f911",
-  "1f914",
-  "1f60a",
-  "1f440",
-  "1f9d0",
-];
+// Every emoji the app shows - describe()'s advice plus app.tsx's loading and error states,
+// which don't go through describe() at all.
+const ALL_EMOJI = ["⏳", "😵", "🤷", "🔒", "🛰", "🧭", "😟", "🤑", "🤔", "😊", "👀", "🧐"];
 
 const mixZone: ZoneInfo = { code: "P2-0237", category: "MIX" };
 const resZone: ZoneInfo = { code: "P8-0012", category: "RES" };
@@ -60,7 +48,7 @@ const COULD_BE = "Where are you exactly? Seems like one of these.";
 suite("describe", () => {
   it("describes being outside Prague with no cards", () => {
     const display = describe({ kind: "outOfArea" });
-    expect(display).toMatchObject({ tone: "outside", icon: "1f9ed", cards: [] });
+    expect(display).toMatchObject({ tone: "outside", icon: "🧭", cards: [] });
   });
 
   suite("one place", () => {
@@ -68,7 +56,7 @@ suite("describe", () => {
       const display = at([place(paid(visZone), { streetName: "Nerudova" })]);
       expect(display).toMatchObject({
         tone: "warn",
-        icon: "1f911",
+        icon: "🤑",
         sentence: "You can park here, but it's paid.",
         agree: true,
       });
@@ -89,7 +77,7 @@ suite("describe", () => {
             ],
           },
           cleaning: null,
-          advice: { tone: "warn", icon: "1f911", sentence: "You can park here, but it's paid." },
+          advice: { tone: "warn", icon: "🤑", sentence: "You can park here, but it's paid." },
         },
       ]);
     });
@@ -137,7 +125,7 @@ suite("describe", () => {
 
     it("says there's no info where there's no zone, with the street on a card", () => {
       const display = at([place(null, { streetName: "Nerudova" })]);
-      expect(display).toMatchObject({ tone: "neutral", icon: "1f440", sentence: NO_INFO });
+      expect(display).toMatchObject({ tone: "neutral", icon: "👀", sentence: NO_INFO });
       expect(display.cards).toMatchObject([
         { key: "street:Nerudova", streetName: "Nerudova", zone: null },
       ]);
@@ -153,7 +141,7 @@ suite("describe", () => {
       ]);
       expect(display).toMatchObject({
         tone: "danger",
-        icon: "1f61f",
+        icon: "😟",
         sentence: "There's street cleaning here today — don't park here.",
       });
       expect(display.cards[0].cleaning).toEqual({ label: "Street cleaning today", today: true });
@@ -196,7 +184,7 @@ suite("describe", () => {
       const display = at([place(paid(mixZone)), place(paid(visZone, { pricePerHour: 60 }))]);
       expect(display).toMatchObject({
         tone: "caution",
-        icon: "1f9d0",
+        icon: "🧐",
         sentence: COULD_BE,
         agree: false,
       });
@@ -217,7 +205,7 @@ suite("describe", () => {
         at([place({ kind: "freeZoneRightNow", ...mixZone })]).cards[0].advice,
         {
           tone: "caution",
-          icon: "1f914",
+          icon: "🤔",
           sentence: "This is a resident-only zone, so you might need a permit to park here.",
         },
       ]);
@@ -382,7 +370,7 @@ suite("describe", () => {
     });
   });
 
-  it("uses a lowercase-hex icon codepoint for every answer, each with a downloaded SVG", () => {
+  it("uses only known emoji, each with a downloaded Twemoji SVG", () => {
     const displays = [
       describe({ kind: "outOfArea" }),
       at([place(null)]),
@@ -393,11 +381,10 @@ suite("describe", () => {
       at([place(paid(mixZone)), place(paid(visZone, { pricePerHour: 60 }))]),
     ];
     for (const display of displays) {
-      expect(display.icon).toMatch(/^[0-9a-f]+$/);
-      expect(ALL_ICON_CODEPOINTS).toContain(display.icon);
+      expect(ALL_EMOJI).toContain(display.icon);
     }
-    for (const codepoint of ALL_ICON_CODEPOINTS) {
-      expect(existsSync(new URL(`../public/emoji/${codepoint}.svg`, import.meta.url))).toBe(true);
+    for (const emoji of ALL_EMOJI) {
+      expect(existsSync(new URL(`../public${emojiUrl(emoji)}`, import.meta.url)), emoji).toBe(true);
     }
   });
 });
