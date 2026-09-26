@@ -88,8 +88,8 @@ function toMinutes(time: string): number {
 
 /**
  * Turns a TSK tariff into the app's rules: one per paid window, with its days, hours,
- * hourly price and cap. Public holidays are left out, since the app doesn't know which
- * days they are; the rules describe every other day.
+ * hourly price and cap, as they apply on any day that isn't a public holiday. See
+ * holidayCap for what changes on a holiday.
  *
  * A "maximum" becomes a rule's daily cap only when it's less than a stay could cost anyway,
  * across all the paid time it covers that day and within the longest stay allowed. Most
@@ -166,6 +166,27 @@ export function tariffRules(tariff: GolemioTariff): TariffRule[] {
   return [...rules.values()]
     .map((rule) => ({ ...rule, days: [...new Set(rule.days)].sort((a, b) => a - b) }))
     .sort((a, b) => a.days[0] - b.days[0] || a.start.localeCompare(b.start));
+}
+
+/**
+ * The most one stay costs on a public holiday, or null when the tariff has no holiday
+ * rule. It's a maximum that applies on holidays only; everything else in a tariff is the
+ * same on a holiday as on any other day. A tariff with no such maximum works on holidays
+ * as it does on other days.
+ *
+ * @example holidayCap({ id: "t", charge_bands: [{ maximum_duration: null, charges: [{ charge: "40", charge_type: "maximum", charge_interval: null, periods_of_time: [{ day_in_week: "Mo", start: "00:00:00", end: "23:59:00", ph: "PH_only" }] }] }] }) -> 40
+ */
+export function holidayCap(tariff: GolemioTariff): number | null {
+  const amounts = tariff.charge_bands
+    .flatMap((band) => band.charges)
+    .filter(
+      (c) =>
+        c.charge_type === "maximum" &&
+        c.periods_of_time.length > 0 &&
+        c.periods_of_time.every((p) => p.ph === "PH_only"),
+    )
+    .map((c) => Number(c.charge));
+  return amounts.length > 0 ? Math.min(...amounts) : null;
 }
 
 const API_ROOT = "https://api.golemio.cz";

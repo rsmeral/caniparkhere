@@ -88,7 +88,11 @@ The datasets:
     by the minute, so the price is the per-minute charge × 60.
   - A Golemio "maximum" becomes the rule's daily cap only when it actually limits what a
     stay would cost. Most maximums are just the price × the longest allowed stay.
-  - Public-holiday tariffs are left out, since the app doesn't know the holiday dates.
+  - On a public holiday, a tariff works as on any other day, except that one stay may cost
+    no more than its holiday cap (`holidayCapCzk`, 20 or 40 Kč). That's Golemio's
+    holiday-only maximum. Most purple and orange zones have one; blue zones and the rest
+    have none, and their holidays are ordinary days. The app works out the holidays itself
+    (`web/src/holidays.ts`): the fixed dates, plus Good Friday and Easter Monday from Easter.
   - Windows never run past midnight. "Po-Pá 08:00-05:59" means 00:00–05:59 and 08:00–23:59
     on each of Monday to Friday, so a Friday night into Saturday is free.
   - For a zone Golemio doesn't have, the tariff is parsed from the LKOD `tariftext` field.

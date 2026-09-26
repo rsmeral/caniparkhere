@@ -14,6 +14,7 @@ describe("activeRuleNow", () => {
     const tariff: Tariff = {
       id: 0,
       source: "",
+      holidayCapCzk: null,
       rules: [
         {
           days: [dayIndexOf(now)],
@@ -32,6 +33,7 @@ describe("activeRuleNow", () => {
     const tariff: Tariff = {
       id: 0,
       source: "",
+      holidayCapCzk: null,
       rules: [
         {
           days: [dayIndexOf(now)],
@@ -51,6 +53,7 @@ describe("activeRuleNow", () => {
     const tariff: Tariff = {
       id: 0,
       source: "",
+      holidayCapCzk: null,
       rules: [
         { days: [otherDay], start: "08:00", end: "17:59", pricePerHour: 40, dailyCapCzk: null },
       ],
@@ -64,6 +67,7 @@ describe("activeRuleNow", () => {
     const tariff: Tariff = {
       id: 0,
       source: "",
+      holidayCapCzk: null,
       rules: [
         {
           days: [(today + 1) % 7],

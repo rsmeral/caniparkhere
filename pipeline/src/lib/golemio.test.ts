@@ -3,6 +3,7 @@ import {
   type GolemioCharge,
   type GolemioPeriod,
   type GolemioTariff,
+  holidayCap,
   maxStayMinutesByCode,
   tariffRules,
 } from "./golemio.js";
@@ -180,5 +181,42 @@ describe("tariffRules", () => {
 
   it("refuses a tariff with other than one band, rather than guess between them", () => {
     expect(() => tariffRules({ id: "t", charge_bands: [] })).toThrow("0 bands");
+  });
+});
+
+describe("holidayCap", () => {
+  it("is the maximum that applies on public holidays only", () => {
+    // P2-0135: 480 Kč on ordinary days is no real cap; on a holiday a stay costs at most 40 Kč.
+    const cap = holidayCap(
+      withCharges(
+        43200,
+        perMinute(40, periods(WEEKDAYS, "08:00", "19:59", ["PH_off", "PH_only"])),
+        total("maximum", 480, periods(EVERY_DAY, "00:00", "23:59")),
+        total("maximum", 40, periods(EVERY_DAY, "00:00", "23:59", ["PH_only"])),
+      ),
+    );
+    expect(cap).toBe(40);
+  });
+
+  it("ignores a maximum that also applies on ordinary days, like a night cap", () => {
+    const cap = holidayCap(
+      withCharges(
+        null,
+        perMinute(50, periods(WEEKDAYS, "20:00", "23:59", ["PH_off", "PH_only"])),
+        total("maximum", 50, periods(WEEKDAYS, "20:00", "23:59", ["PH_off", "PH_only"])),
+      ),
+    );
+    expect(cap).toBeNull();
+  });
+
+  it("is null for a tariff with no holiday rule, like every blue zone's", () => {
+    const cap = holidayCap(
+      withCharges(
+        10800,
+        perMinute(60, periods(WEEKDAYS, "08:00", "21:59")),
+        total("maximum", 180, periods(EVERY_DAY, "00:00", "23:59")),
+      ),
+    );
+    expect(cap).toBeNull();
   });
 });

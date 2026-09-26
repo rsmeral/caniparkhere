@@ -48,6 +48,7 @@ function buildFixture(now: Date): LoadedData {
         {
           id: 0,
           source: "always on",
+          holidayCapCzk: null,
           rules: [
             {
               days: [0, 1, 2, 3, 4, 5, 6],
@@ -61,12 +62,28 @@ function buildFixture(now: Date): LoadedData {
         {
           id: 1,
           source: "bounded",
+          holidayCapCzk: null,
           rules: [
             { days: [today], start: "08:00", end: "17:59", pricePerHour: 40, dailyCapCzk: 90 },
           ],
         },
+        {
+          id: 2,
+          source: "holiday cap",
+          holidayCapCzk: 40,
+          rules: [
+            {
+              days: [0, 1, 2, 3, 4, 5, 6],
+              start: "08:00",
+              end: "19:59",
+              pricePerHour: 30,
+              dailyCapCzk: null,
+            },
+          ],
+        },
       ],
       features: [
+        zpsFeature(square(-50, -50, -40, -40), { code: "H", category: "MIX", tariffId: 2 }),
         zpsFeature(square(0, 0, 10, 10), { code: "A", category: "MIX", tariffId: 0 }),
         zpsFeature(square(20, 20, 30, 30), { code: "B", category: "MIX", tariffId: 1 }),
         zpsFeature(square(40, 40, 50, 50), { code: "C", category: "RES", tariffId: null }),
@@ -177,6 +194,35 @@ describe("queryStatus", () => {
       code: "B",
       category: "MIX",
     });
+  });
+
+  it("lowers the cap to the tariff's holiday cap on a public holiday", () => {
+    const now = new Date(2026, 8, 28, 10, 0); // Den české státnosti, a Monday
+    const data = buildFixture(now);
+    const result = queryStatus(data, buildIndexes(data), -45, -45, now);
+    expect(result.status).toMatchObject({ kind: "paidZone", pricePerHour: 30, dailyCapCzk: 40 });
+  });
+
+  it("keeps the ordinary cap on the day after a holiday", () => {
+    const now = new Date(2026, 8, 29, 10, 0);
+    const data = buildFixture(now);
+    const result = queryStatus(data, buildIndexes(data), -45, -45, now);
+    expect(result.status).toMatchObject({ kind: "paidZone", pricePerHour: 30, dailyCapCzk: null });
+  });
+
+  it("keeps a lower ordinary cap on a holiday", () => {
+    const now = new Date(2026, 8, 28, 10, 0);
+    const data = buildFixture(now);
+    data.zps.tariffs[2].rules[0].dailyCapCzk = 25;
+    const result = queryStatus(data, buildIndexes(data), -45, -45, now);
+    expect(result.status).toMatchObject({ dailyCapCzk: 25 });
+  });
+
+  it("leaves a tariff with no holiday rule as it is on a holiday", () => {
+    const now = new Date(2026, 8, 28, 10, 0);
+    const data = buildFixture(now);
+    const result = queryStatus(data, buildIndexes(data), 5, 5, now);
+    expect(result.status).toMatchObject({ kind: "paidZone", code: "A", dailyCapCzk: null });
   });
 
   it("reports a resident zone as paid while its tariff runs", () => {

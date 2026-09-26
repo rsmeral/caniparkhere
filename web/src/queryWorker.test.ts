@@ -85,6 +85,7 @@ describe("queryWorker", () => {
           {
             id: 0,
             source: "Po-Ne 08:00-19:59 60Kč/hod",
+            holidayCapCzk: null,
             rules: [
               {
                 days: [0, 1, 2, 3, 4, 5, 6],

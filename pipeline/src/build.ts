@@ -16,6 +16,7 @@ import {
 import {
   fetchTskParking,
   type GolemioParking,
+  holidayCap,
   type GolemioTariff,
   maxStayMinutesByCode,
   tariffIdByCode,
@@ -54,6 +55,7 @@ interface ZpsFeatureProps {
 interface ZoneTariff {
   source: string;
   rules: TariffRule[];
+  holidayCapCzk: number | null;
 }
 
 /**
@@ -75,13 +77,17 @@ function buildZps(
     const golemio = golemioTariffs.get(golemioTariffByCode.get((f.properties as any).code) ?? "");
     if (golemio) {
       counts.golemio++;
-      return { source: `golemio:${golemio.id}`, rules: tariffRules(golemio) };
+      return {
+        source: `golemio:${golemio.id}`,
+        rules: tariffRules(golemio),
+        holidayCapCzk: holidayCap(golemio),
+      };
     }
     const text = (f.properties as any).tariftext as string;
     const rules = parseTariffText(text);
     if (rules) {
       counts.tariftext++;
-      return { source: text, rules };
+      return { source: text, rules, holidayCapCzk: null };
     }
     counts.none++;
     return null;

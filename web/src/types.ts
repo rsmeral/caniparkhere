@@ -14,6 +14,9 @@ export interface Tariff {
    * parsed from. For tracing an answer back to its data. */
   source: string;
   rules: TariffRule[];
+  /** The most one stay costs on a public holiday, when the tariff has a holiday rule. The
+   * rules themselves are the same on a holiday as on any other day. */
+  holidayCapCzk: number | null;
 }
 
 export interface ZpsProps {
