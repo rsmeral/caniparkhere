@@ -61,26 +61,24 @@ body {
 }
 
 .app__vehicle {
-  /* A small dark chip in the top right corner, like the detail card, so it reads on every
-     tone. The native select is laid invisibly over the chip: tapping anywhere on it opens
-     the platform's own picker. */
+  /* Plain text in the top right corner, in the page's own text colour, so it stays out of
+     the way of the answer and has the same contrast on every tone. The padding keeps the
+     tap area comfortable without drawing a chip. The native select is laid invisibly over
+     it: tapping anywhere on it opens the platform's own picker. */
   position: absolute;
-  top: calc(env(safe-area-inset-top, 0px) + 0.75rem);
-  right: calc(env(safe-area-inset-right, 0px) + 0.75rem);
+  top: calc(env(safe-area-inset-top, 0px) + 0.1rem);
+  right: calc(env(safe-area-inset-right, 0px) + 0.35rem);
   display: flex;
   align-items: center;
   gap: 0.35rem;
-  padding: 0.3rem 0.6rem;
-  background: rgba(0, 0, 0, 0.4);
-  border-radius: 999px;
-  color: #fff;
+  padding: 0.95rem 1rem;
   font-size: 0.75rem;
   font-weight: 600;
 }
 
 .app__vehicle-chevron {
   font-size: 0.5rem;
-  opacity: 0.7;
+  opacity: 0.8;
 }
 
 .app__vehicle-select {
@@ -93,8 +91,9 @@ body {
 }
 
 .app__vehicle:focus-within {
-  outline: 2px solid #fff;
-  outline-offset: 2px;
+  outline: 2px solid currentColor;
+  outline-offset: -2px;
+  border-radius: 0.5rem;
 }
 
 .app__emoji-halo {
