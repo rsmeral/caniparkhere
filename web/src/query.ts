@@ -18,6 +18,8 @@ export type ZoneStatus =
       kind: "paidZone";
       pricePerHour: number;
       dailyCapCzk: number | null;
+      /** The longest a visitor may stay, in minutes, when the zone limits it and it's known. */
+      maxStayMinutes: number | null;
       from: string;
       until: string;
       streetName: string | null;
@@ -158,6 +160,7 @@ function statusForZoneFeature(
         kind: "paidZone",
         pricePerHour: rule.pricePerHour,
         dailyCapCzk: rule.dailyCapCzk,
+        maxStayMinutes: feature.properties.maxStayMinutes ?? null,
         from: rule.start,
         until: rule.end,
         streetName,

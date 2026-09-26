@@ -24,6 +24,8 @@ jobs:
 
       - name: Run pipeline
         working-directory: pipeline
+        env:
+          GOLEMIO_API_KEY: ${{ secrets.GOLEMIO_API_KEY }}
         run: |
           npm ci
           npm run build

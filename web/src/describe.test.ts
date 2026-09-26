@@ -42,6 +42,7 @@ suite("describe", () => {
         kind: "paidZone",
         pricePerHour: 1,
         dailyCapCzk: null,
+        maxStayMinutes: null,
         from: "00:00",
         until: "00:00",
         streetName: null,
@@ -76,6 +77,7 @@ suite("describe", () => {
       kind: "paidZone",
       pricePerHour: 40,
       dailyCapCzk: 90,
+      maxStayMinutes: null,
       from: "08:00",
       until: "17:59",
       streetName: "Nerudova",
@@ -107,6 +109,7 @@ suite("describe", () => {
       kind: "paidZone",
       pricePerHour: 20,
       dailyCapCzk: null,
+      maxStayMinutes: null,
       from: "00:00",
       until: "23:59",
       streetName: null,
@@ -121,11 +124,48 @@ suite("describe", () => {
     ]);
   });
 
-  it("describes a resident zone's tariff hours as a short paid stay, with a max-stay row", () => {
+  it("names a resident zone's max stay in the sentence and the card when it's known", () => {
+    const status: Status = {
+      kind: "paidZone",
+      pricePerHour: 80,
+      dailyCapCzk: null,
+      maxStayMinutes: 60,
+      from: "08:00",
+      until: "19:59",
+      streetName: null,
+      ...resZone,
+    };
+    const display = describe(status);
+    expect(display.sentence).toBe("Visitors can park here for up to 1 hour, but it's paid.");
+    expect(display.detail?.zone?.expanded).toEqual([
+      { label: "Price", value: "80 Kč/hod" },
+      { label: "Max stay", value: "1 hour" },
+      { label: "Hours", value: "08:00–19:59" },
+    ]);
+  });
+
+  it("says hours in the plural for a longer max stay", () => {
+    const status: Status = {
+      kind: "paidZone",
+      pricePerHour: 40,
+      dailyCapCzk: null,
+      maxStayMinutes: 180,
+      from: "08:00",
+      until: "19:59",
+      streetName: null,
+      ...resZone,
+    };
+    expect(describe(status).sentence).toBe(
+      "Visitors can park here for up to 3 hours, but it's paid.",
+    );
+  });
+
+  it("describes a resident zone's tariff hours as a short paid stay when its max stay isn't known", () => {
     const status: Status = {
       kind: "paidZone",
       pricePerHour: 60,
       dailyCapCzk: null,
+      maxStayMinutes: null,
       from: "08:00",
       until: "05:59",
       streetName: "Slezská",
@@ -163,6 +203,7 @@ suite("describe", () => {
           kind: "paidZone",
           pricePerHour: 60,
           dailyCapCzk: null,
+          maxStayMinutes: null,
           from: "08:00",
           until: "05:59",
           streetName: null,
@@ -248,6 +289,7 @@ suite("describe", () => {
       kind: "paidZone",
       pricePerHour: 40,
       dailyCapCzk: 90,
+      maxStayMinutes: null,
       from: "08:00",
       until: "17:59",
       streetName: null,
@@ -296,6 +338,7 @@ suite("describe", () => {
         kind: "paidZone",
         pricePerHour: 40,
         dailyCapCzk: null,
+        maxStayMinutes: null,
         from: "08:00",
         until: "17:59",
         streetName: "Nerudova",
@@ -340,7 +383,7 @@ suite("describe", () => {
 
   it("gives a candidate the same advice that zone would get as a confident answer", () => {
     const status: ZoneStatus = { kind: "paidZone", pricePerHour: 40, dailyCapCzk: null,
-      from: "08:00", until: "17:59", streetName: "Nerudova", ...visZone };
+      maxStayMinutes: null, from: "08:00", until: "17:59", streetName: "Nerudova", ...visZone };
     const alone = describe(status);
     const [candidate] = describe({
       kind: "ambiguous", streetName: "Nerudova", candidates: [status],

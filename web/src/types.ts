@@ -18,6 +18,8 @@ export interface ZpsProps {
   code: string;
   category: "RES" | "MIX" | "VIS";
   tariffId: number | null;
+  /** Resident zones only: the longest a visitor may stay, in minutes, when it's known. */
+  maxStayMinutes?: number | null;
 }
 
 export interface ZpsData {

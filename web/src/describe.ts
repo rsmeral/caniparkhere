@@ -87,18 +87,28 @@ const ZONE_ADVICE: Record<ZoneStatus["kind"], { tone: Tone; icon: string; senten
   },
 };
 
-// A resident (blue) zone while its tariff runs: a visitor may pay to stay, but only briefly.
-// The limit is 1 hour in the centre and 3 hours elsewhere, set per district and posted on
-// the signs; the zone data doesn't say which applies.
-const SHORT_STAY_ADVICE = {
-  tone: "warn" as const,
-  icon: "1f642", // 🙂
-  sentence: "Visitors can park here for a short time, but it's paid.",
-};
+/** @example formatStay(60) -> "1 hour"; formatStay(180) -> "3 hours"; formatStay(90) -> "90 minutes" */
+function formatStay(minutes: number): string {
+  if (minutes % 60 !== 0) return `${minutes} minutes`;
+  const hours = minutes / 60;
+  return hours === 1 ? "1 hour" : `${hours} hours`;
+}
 
-/** The advice for a zone status, as the headline or as a candidate card. */
+/**
+ * The advice for a zone status, as the headline or as a candidate card. A resident (blue)
+ * zone while its tariff runs lets a visitor pay to stay, but only briefly: 1 to 3 hours,
+ * set per district. The data usually says which; when it doesn't, the sign does.
+ */
 function adviceFor(status: ZoneStatus): { tone: Tone; icon: string; sentence: string } {
-  if (status.kind === "paidZone" && status.category === "RES") return SHORT_STAY_ADVICE;
+  if (status.kind === "paidZone" && status.category === "RES") {
+    const stay =
+      status.maxStayMinutes === null ? "a short time" : `up to ${formatStay(status.maxStayMinutes)}`;
+    return {
+      tone: "warn",
+      icon: "1f642", // 🙂
+      sentence: `Visitors can park here for ${stay}, but it's paid.`,
+    };
+  }
   return ZONE_ADVICE[status.kind];
 }
 
@@ -140,7 +150,13 @@ function chipForZoneStatus(status: ZoneStatus): ZoneChip {
     // A visitor's stay in a resident zone is capped by time rather than by a daily price.
     const limit =
       status.category === "RES"
-        ? { label: "Max stay", value: "1–3 h, see sign" }
+        ? {
+            label: "Max stay",
+            value:
+              status.maxStayMinutes === null
+                ? "1–3 h, see sign"
+                : formatStay(status.maxStayMinutes),
+          }
         : { label: "Daily cap", value: status.dailyCapCzk ? `${status.dailyCapCzk} Kč` : "No cap" };
     return zoneChip(status, {
       payment: { pricePerHour: status.pricePerHour },

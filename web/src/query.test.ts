@@ -70,7 +70,12 @@ function buildFixture(now: Date): LoadedData {
         zpsFeature(square(0, 0, 10, 10), { code: "A", category: "MIX", tariffId: 0 }),
         zpsFeature(square(20, 20, 30, 30), { code: "B", category: "MIX", tariffId: 1 }),
         zpsFeature(square(40, 40, 50, 50), { code: "C", category: "RES", tariffId: null }),
-        zpsFeature(square(80, 80, 90, 90), { code: "D", category: "RES", tariffId: 1 }),
+        zpsFeature(square(80, 80, 90, 90), {
+          code: "D",
+          category: "RES",
+          tariffId: 1,
+          maxStayMinutes: 60,
+        }),
         // Real-world-scale coordinates (unlike the abstract-unit squares above), so
         // findNearby's meters-based distance math gives realistic separations: P1 and P2
         // sit ~14m apart, P3 sits far enough away that even a generous accuracy radius
@@ -134,6 +139,7 @@ describe("queryStatus", () => {
       kind: "paidZone",
       pricePerHour: 20,
       dailyCapCzk: null,
+      maxStayMinutes: null,
       from: "00:00",
       until: "23:59",
       streetName: "Foo St",
@@ -151,6 +157,7 @@ describe("queryStatus", () => {
       kind: "paidZone",
       pricePerHour: 40,
       dailyCapCzk: 90,
+      maxStayMinutes: null,
       from: "08:00",
       until: "17:59",
       streetName: null,
@@ -181,6 +188,7 @@ describe("queryStatus", () => {
       kind: "paidZone",
       pricePerHour: 40,
       dailyCapCzk: 90,
+      maxStayMinutes: 60,
       from: "08:00",
       until: "17:59",
       streetName: null,
