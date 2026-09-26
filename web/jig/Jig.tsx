@@ -36,6 +36,7 @@ const DEVICES = [
 const MAX_ACCURACY_METERS = 250;
 
 const TIME_STEPS = [
+  { label: "−1 day", minutes: -24 * 60 },
   { label: "−1 h", minutes: -60 },
   { label: "+1 h", minutes: 60 },
   { label: "+1 day", minutes: 24 * 60 },
