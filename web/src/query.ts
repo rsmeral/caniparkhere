@@ -1,7 +1,8 @@
 import type { LoadedData } from "./dataStore";
+import { isPublicHoliday } from "./holidays";
 import { LineIndex, PolygonIndex } from "./spatialIndex";
 import { activeRuleNow } from "./tariffLogic";
-import type { Bounds, ZpsProps } from "./types";
+import type { Bounds, Tariff, TariffRule, ZpsProps } from "./types";
 
 /** The matched parking zone's own identity - shown as a lower-priority "here's what we
  * detected" line so the recommendation is checkable against what's painted on the curb. */
@@ -136,6 +137,12 @@ function findUpcomingClosure(
   return soonest;
 }
 
+/** A rule's daily cap, lowered to the tariff's holiday cap on a public holiday. */
+function capAt(tariff: Tariff, rule: TariffRule, now: Date): number | null {
+  if (tariff.holidayCapCzk === null || !isPublicHoliday(now)) return rule.dailyCapCzk;
+  return Math.min(rule.dailyCapCzk ?? Infinity, tariff.holidayCapCzk);
+}
+
 /**
  * Resolves a single zps feature to its status, as if it were the only zone in play. Every
  * category is paid while its tariff is running and free for anyone outside those hours -
@@ -159,7 +166,7 @@ function statusForZoneFeature(
       return {
         kind: "paidZone",
         pricePerHour: rule.pricePerHour,
-        dailyCapCzk: rule.dailyCapCzk,
+        dailyCapCzk: capAt(tariff, rule, now),
         maxStayMinutes: feature.properties.maxStayMinutes ?? null,
         from: rule.start,
         until: rule.end,
