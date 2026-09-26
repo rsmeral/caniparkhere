@@ -24,8 +24,11 @@ body {
 }
 
 .jig__phone {
+  /* The scaled iframe keeps its full-size layout box, which overflows this one. Clipping
+     without a scroll container stops a browser from scrolling the phone sideways to reveal
+     a focused control, as Safari does for a select. */
   position: relative;
-  overflow: hidden;
+  overflow: clip;
   border-radius: 1.25rem;
   box-shadow:
     0 0 0 0.5rem #000,
