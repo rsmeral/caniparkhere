@@ -445,7 +445,9 @@ body {
   top: calc(env(safe-area-inset-top, 0px) + 0.1rem);
   left: calc(env(safe-area-inset-left, 0px) + 0.35rem);
   display: flex;
-  align-items: center;
+  /* The bars have no text, so their baseline is their bottom edge: they stand on the
+     label's baseline. The dot sits in the middle of the line instead. */
+  align-items: baseline;
   gap: 0.4rem;
   padding: 0.95rem 1rem;
   border: none;
@@ -469,6 +471,7 @@ body {
 }
 
 .app__live-dot {
+  align-self: center;
   position: relative;
   width: 0.5rem;
   height: 0.5rem;
