@@ -420,3 +420,123 @@ body {
 .app__pay--block .app__pay-price {
   font-size: 0.72rem;
 }
+
+.app__live {
+  /* Whether the answer follows the phone, in the top left corner: plain white, lifted off
+     every tone by the same soft shadow as the vehicle picker, with a tap area 44px tall and
+     nothing that draws the eye from the answer. The shadow is a filter so it falls behind
+     the dot and bars as well as the text. */
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 0.1rem);
+  left: calc(env(safe-area-inset-left, 0px) + 0.35rem);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.95rem 1rem;
+  border: none;
+  background: none;
+  color: #fff;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.55));
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.app__live:disabled {
+  cursor: default;
+}
+
+.app__live:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: -2px;
+  border-radius: 0.5rem;
+}
+
+.app__live-dot {
+  position: relative;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* A ring that grows and fades from the dot while the answer follows the phone. */
+.app__live--live .app__live-dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: currentColor;
+  animation: app-live-pulse 2s ease-out infinite;
+}
+
+@keyframes app-live-pulse {
+  from {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  to {
+    transform: scale(2.8);
+    opacity: 0;
+  }
+}
+
+.app__live--searching .app__live-dot {
+  animation: app-live-blink 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes app-live-blink {
+  to {
+    opacity: 0.25;
+  }
+}
+
+.app__live--paused .app__live-dot,
+.app__live--off .app__live-dot {
+  background: none;
+  box-shadow: inset 0 0 0 1.5px currentColor;
+}
+
+.app__live-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 1.5px;
+  height: 0.7rem;
+}
+
+.app__live-bar {
+  width: 3px;
+  border-radius: 1px;
+  background: currentColor;
+  opacity: 0.3;
+}
+
+.app__live-bar:nth-child(1) {
+  height: 25%;
+}
+.app__live-bar:nth-child(2) {
+  height: 50%;
+}
+.app__live-bar:nth-child(3) {
+  height: 75%;
+}
+.app__live-bar:nth-child(4) {
+  height: 100%;
+}
+
+.app__live-bar--on {
+  opacity: 1;
+}
+
+/* A paused answer keeps the accuracy of the fix it was paused at. */
+.app__live--paused .app__live-bars {
+  opacity: 0.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app__live-dot,
+  .app__live-dot::after {
+    animation: none !important;
+  }
+}
