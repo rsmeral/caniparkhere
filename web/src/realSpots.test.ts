@@ -101,6 +101,17 @@ describe("real spots", () => {
     );
   });
 
+  it("answers from the five nearest zones when a wide circle reaches more", () => {
+    // Near Tovačovského, a 100m circle reaches eight zones.
+    expect(cardsAt(50.08739, 14.46156, 100).cards).toEqual([
+      "P3-0187 Tovačovského",
+      "P3-0201 Tovačovského",
+      "P3-0157 Tovačovského",
+      "P3-0185 Ostromečská",
+      "P3-0197 Koldínova",
+    ]);
+  });
+
   it("doesn't lose its answer when the pin moves a metre", () => {
     for (const [name, [lat, lon, accuracy]] of Object.entries(SPOTS)) {
       const here = cardsAt(lat, lon, accuracy);

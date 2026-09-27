@@ -84,6 +84,11 @@ export const WARNING_WINDOW_DAYS = 5;
 const MIN_RADIUS_METERS = 10;
 const MAX_RADIUS_METERS = 100;
 
+// The most places an answer is drawn from - the nearest ones. A wide circle in the centre can
+// reach a dozen zones; the nearest few are the likely ones, and the headline and the cards
+// both come from the same few.
+const MAX_PLACES = 5;
+
 // The least distance at which a RÚIAN street centerline still counts as "this street". A
 // centerline has no width, so a car at the curb of a wide street sits well off it even with
 // a precise fix.
@@ -232,6 +237,7 @@ function mergeCleaning(a: Cleaning, b: Cleaning): Cleaning {
  * - A place with nothing but a street name - no zone, no cleaning today or coming up - only
  *   stands alone: it's left out when any place has more to say, and otherwise only the
  *   nearest one is kept. With nothing in reach at all, it's the street nearest the fix.
+ * - At most MAX_PLACES places, the nearest.
  *
  * cleaningEverywhereToday treats every street-cleaning section as being cleaned today,
  * whatever its dates. It exists for simulating a closure in the jig.
@@ -284,7 +290,7 @@ export function queryPlaces(
   const informative = places.filter(
     (p) => p.zone !== null || p.cleaning.today || p.cleaning.upcoming !== null,
   );
-  if (informative.length > 0) return informative;
+  if (informative.length > 0) return informative.slice(0, MAX_PLACES);
   if (places.length > 0) return [places[0]];
   const streetRadius = Math.max(radius, STREET_MATCH_RADIUS_METERS);
   return [
