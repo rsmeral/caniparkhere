@@ -39,12 +39,14 @@ export function CandidateBox({ card, expanded, onToggle }: CandidateBoxProps) {
         {/* The inset keeps a margin of the card's own dark chip around the panel, so the
             tone colour reads as a distinct card however closely it matches the page behind
             it - resident-zone orange on the ambiguous screen's orange, for instance. */}
-        <div className="app__resolve-inset">
-          <div className={`app__resolve app__resolve--${advice.tone}`}>
-            <img className="app__resolve-emoji" src={emojiUrl(advice.icon)} alt="" />
-            <p className="app__resolve-sentence">{advice.sentence}</p>
-            {zone?.expanded && <ExpandedRows rows={zone.expanded} />}
-            {zone?.payment && <PayLink payment={zone.payment} block />}
+        <div className="app__collapse-inner">
+          <div className="app__resolve-inset">
+            <div className={`app__resolve app__resolve--${advice.tone}`}>
+              <img className="app__resolve-emoji" src={emojiUrl(advice.icon)} alt="" />
+              <p className="app__resolve-sentence">{advice.sentence}</p>
+              {zone?.expanded && <ExpandedRows rows={zone.expanded} />}
+              {zone?.payment && <PayLink payment={zone.payment} block />}
+            </div>
           </div>
         </div>
       </div>

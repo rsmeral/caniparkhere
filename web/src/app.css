@@ -253,24 +253,32 @@ body {
   opacity: 0.7;
 }
 
-.app__detail-expand-wrap {
-  /* Animates the expand/collapse height without JS measuring the content. A child's own
-     border/margin paint outside what that child's own overflow clips, so overflow:hidden
-     belongs on this wrapper to fully hide it at 0 height. The ceiling (6rem) just needs to
-     comfortably clear the tallest real content (3 rows). */
-  max-height: 0;
+.app__detail-expand-wrap,
+.app__resolve-wrap {
+  /* Opens and closes to the content's own height, however tall, without JS measuring it:
+     a single grid row animates between 0fr and 1fr. The row's one child is a plain
+     .app__collapse-inner with no margin, border or padding of its own, since those would
+     keep a closed row from reaching 0. */
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.25s ease;
+}
+
+.app__detail-expand-wrap--open,
+.app__resolve-wrap--open {
+  grid-template-rows: 1fr;
+}
+
+.app__collapse-inner {
+  min-height: 0;
   overflow: hidden;
-  transition: max-height 0.25s ease;
+}
+
+.app__detail-expand-wrap {
   width: 100%;
 }
 
-.app__detail-expand-wrap--open {
-  max-height: 6rem;
-}
-
 .app__detail-expanded {
-  min-height: 0;
-  overflow: hidden;
   margin: 0.45rem 0 0;
   padding-top: 0.4rem;
   border-top: 1px solid var(--hairline);
@@ -310,19 +318,10 @@ body {
 }
 
 .app__resolve-wrap {
-  /* Same JS-free height animation as .app__detail-expand-wrap. The ceiling clears the
-     tallest panel: emoji, a sentence of a few lines, three rows and a Pay button. A width of
-     0 stretched to the card's own width keeps the panel's text from setting how wide the
-     card is, so every card is as wide as its summary row. */
+  /* A width of 0 stretched to the card's own width keeps the panel's text from setting how
+     wide the card is, so every card is as wide as its summary row. */
   width: 0;
   min-width: 100%;
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.28s ease;
-}
-
-.app__resolve-wrap--open {
-  max-height: 24rem;
 }
 
 .app__resolve-inset {

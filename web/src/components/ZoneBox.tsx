@@ -25,13 +25,15 @@ export function ZoneBox({ card, expanded, onToggle }: ZoneBoxProps) {
         onToggle={onToggle}
       >
         {zone?.expanded && (
-          // Stays mounted regardless of `expanded` - the CSS max-height transition on
+          // Stays mounted regardless of `expanded` - the CSS transition on
           // .app__detail-expand-wrap needs the element present to animate between its
           // collapsed and open states.
           <div
             className={`app__detail-expand-wrap${expanded ? " app__detail-expand-wrap--open" : ""}`}
           >
-            <ExpandedRows rows={zone.expanded} />
+            <div className="app__collapse-inner">
+              <ExpandedRows rows={zone.expanded} />
+            </div>
           </div>
         )}
       </ZoneSummary>
