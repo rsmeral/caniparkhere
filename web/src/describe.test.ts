@@ -29,15 +29,29 @@ const paid = (zone: ZoneInfo, rules: Partial<ZoneStatus> = {}): ZoneStatus =>
     maxStayMinutes: null,
     from: "08:00",
     until: "17:59",
-    paidUntil: { time: "18:00", daysAhead: 0, weekday: 2, minutesUntil: 120 },
+    paidUntil: { time: "18:00", daysAhead: 0, weekday: 2, minutesUntil: 120, rule: null },
+    paidWindows: ["08:00–17:59"],
     ...zone,
     ...rules,
   }) as ZoneStatus;
 
-const TOMORROW_8: Change = { time: "08:00", daysAhead: 1, weekday: 3, minutesUntil: 600 };
-const free = (zone: ZoneInfo, paidFrom: Change | null = TOMORROW_8): ZoneStatus => ({
+const NEXT_RULE = { days: [3], start: "08:00", end: "19:59", pricePerHour: 40, dailyCapCzk: 400 };
+const TOMORROW_8: Change = {
+  time: "08:00",
+  daysAhead: 1,
+  weekday: 3,
+  minutesUntil: 600,
+  rule: NEXT_RULE,
+};
+const free = (
+  zone: ZoneInfo,
+  paidFrom: Change | null = TOMORROW_8,
+  maxStayMinutes: number | null = null,
+): ZoneStatus => ({
   kind: "freeZoneRightNow",
   paidFrom,
+  paidWindows: paidFrom ? ["08:00–19:59"] : [],
+  maxStayMinutes,
   ...zone,
 });
 
@@ -82,7 +96,7 @@ suite("describe", () => {
             expanded: [
               { label: "Price", value: "40 Kč/hod" },
               { label: "Daily cap", value: "90 Kč" },
-              { label: "Hours", value: "08:00–17:59" },
+              { label: "Paid hours", value: "08:00–17:59" },
             ],
           },
           terms: "40 Kč/h until 18:00 · max 90 Kč/day",
@@ -100,7 +114,7 @@ suite("describe", () => {
     it("names a resident zone's max stay in the sentence and on the card", () => {
       const display = at([place(paid(resZone, { maxStayMinutes: 60 }))]);
       expect(display.sentence).toBe("You can park here for up to 1 hour, but it's paid.");
-      expect(display.cards[0].zone?.expanded?.[1]).toEqual({ label: "Max stay", value: "1 hour" });
+      expect(display.cards[0].zone?.expanded?.[1]).toEqual({ label: "Max stay", value: "1 h" });
       expect(at([place(paid(resZone, { maxStayMinutes: 180 }))]).sentence).toBe(
         "You can park here for up to 3 hours, but it's paid.",
       );
@@ -115,13 +129,24 @@ suite("describe", () => {
       });
     });
 
-    it("describes a zone outside its paid hours as free, with nothing to pay or open", () => {
+    it("describes a zone outside its paid hours as free, with its next paid terms to open", () => {
       const display = at([place(free(resZone))]);
       expect(display).toMatchObject({
         tone: "good",
         sentence: "You're in a paid zone, but right now it's free to park.",
       });
-      expect(display.cards[0].zone).toMatchObject({ payment: null, expanded: null });
+      expect(display.cards[0].zone).toMatchObject({
+        payment: null,
+        expanded: [
+          { label: "Free until", value: "08:00" },
+          { label: "Then", value: "40 Kč/hod" },
+          { label: "Max stay", value: "1–3 h, see sign" },
+          { label: "Paid hours", value: "08:00–19:59" },
+        ],
+      });
+      expect(at([place(free(mixZone, null))]).cards[0].zone?.expanded).toEqual([
+        { label: "Free", value: "At all hours" },
+      ]);
     });
 
     it("describes a resident-only zone", () => {
@@ -130,7 +155,10 @@ suite("describe", () => {
         tone: "caution",
         sentence: "This is a resident-only zone, so you might need a permit to park here.",
       });
-      expect(display.cards[0].zone).toMatchObject({ payment: null, expanded: null });
+      expect(display.cards[0].zone).toMatchObject({
+        payment: null,
+        expanded: [{ label: "Parking", value: "Permit holders only" }],
+      });
     });
 
     it("says there's no info where there's no zone, with the street on a card", () => {
@@ -181,12 +209,22 @@ suite("describe", () => {
       at([place(zone, extra)], vehicle).cards[0]?.terms;
 
     it("says until when free parking lasts", () => {
-      expect(termsOf(free(mixZone))).toBe("Free until tomorrow 08:00");
+      expect(termsOf(free(mixZone))).toBe("Free until 08:00");
       expect(
-        termsOf(free(mixZone, { time: "07:30", daysAhead: 0, weekday: 2, minutesUntil: 90 })),
+        termsOf(
+          free(mixZone, { time: "07:30", daysAhead: 0, weekday: 2, minutesUntil: 90, rule: null }),
+        ),
       ).toBe("Free until 07:30");
       expect(
-        termsOf(free(mixZone, { time: "08:00", daysAhead: 3, weekday: 0, minutesUntil: 3000 })),
+        termsOf(
+          free(mixZone, {
+            time: "08:00",
+            daysAhead: 3,
+            weekday: 0,
+            minutesUntil: 3000,
+            rule: null,
+          }),
+        ),
       ).toBe("Free until Mon 08:00");
       expect(termsOf(free(mixZone, null))).toBe("Free at all hours");
     });
@@ -198,7 +236,7 @@ suite("describe", () => {
       expect(termsOf(paid(mixZone, { paidUntil: null }))).toBe(
         "40 Kč/h at all hours · max 90 Kč/day",
       );
-      const midnight = { time: "00:00", daysAhead: 1, weekday: 3, minutesUntil: 300 };
+      const midnight = { time: "00:00", daysAhead: 1, weekday: 3, minutesUntil: 300, rule: null };
       expect(termsOf(paid(mixZone, { dailyCapCzk: null, paidUntil: midnight }))).toBe(
         "40 Kč/h until midnight",
       );
@@ -221,7 +259,13 @@ suite("describe", () => {
 
   suite("free parking that's about to end", () => {
     it("says so in the headline when less than an hour is left", () => {
-      const soon = free(mixZone, { time: "08:00", daysAhead: 0, weekday: 2, minutesUntil: 45 });
+      const soon = free(mixZone, {
+        time: "08:00",
+        daysAhead: 0,
+        weekday: 2,
+        minutesUntil: 45,
+        rule: null,
+      });
       expect(at([place(soon)])).toMatchObject({
         tone: "warn",
         icon: "⏰",
@@ -230,7 +274,13 @@ suite("describe", () => {
     });
 
     it("keeps the plain free headline with an hour or more left", () => {
-      const later = free(mixZone, { time: "08:00", daysAhead: 0, weekday: 2, minutesUntil: 60 });
+      const later = free(mixZone, {
+        time: "08:00",
+        daysAhead: 0,
+        weekday: 2,
+        minutesUntil: 60,
+        rule: null,
+      });
       expect(at([place(later)])).toMatchObject({
         tone: "good",
         sentence: "You're in a paid zone, but right now it's free to park.",
@@ -238,10 +288,33 @@ suite("describe", () => {
     });
 
     it("counts a different start of paid hours as a different consequence", () => {
-      const at7 = free(mixZone, { time: "07:00", daysAhead: 1, weekday: 3, minutesUntil: 540 });
+      const at7 = free(mixZone, {
+        time: "07:00",
+        daysAhead: 1,
+        weekday: 3,
+        minutesUntil: 540,
+        rule: null,
+      });
       expect(at([place(free(mixZone)), place(at7)]).agree).toBe(false);
       expect(at([place(free(mixZone)), place(free(visZone))]).agree).toBe(true);
     });
+  });
+
+  it("gives every zone's card a table to open", () => {
+    const zones: ZoneStatus[] = [
+      paid(mixZone),
+      free(visZone),
+      free(mixZone, null),
+      { kind: "residentZone", ...resZone },
+    ];
+    for (const vehicle of ["own", "shared"] as const) {
+      for (const zone of zones) {
+        expect(
+          at([place(zone)], vehicle).cards[0].zone?.expanded.length,
+          `${zone.kind} ${vehicle}`,
+        ).toBeGreaterThan(0);
+      }
+    }
   });
 
   suite("several places", () => {
@@ -404,7 +477,10 @@ suite("describe", () => {
           tone: "good",
           sentence: "You can end your rental here, for free and with no time limit.",
         });
-        expect(display.cards[0].zone).toMatchObject({ payment: null, expanded: null });
+        expect(display.cards[0].zone).toMatchObject({
+          payment: null,
+          expanded: [{ label: "End rental", value: "Free, no time limit" }],
+        });
       }
     });
 
@@ -420,6 +496,10 @@ suite("describe", () => {
           "You can't end your rental here. You can stop here during the rental, but it's paid.",
       });
       expect(display.cards[0].zone?.payment?.priceLabel).toBe("40 Kč/hod");
+      expect(display.cards[0].zone?.expanded[0]).toEqual({
+        label: "End rental",
+        value: "Not here",
+      });
     });
 
     it("says an orange zone outside its paid hours still isn't somewhere to end the rental", () => {

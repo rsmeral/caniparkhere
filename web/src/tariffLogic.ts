@@ -22,6 +22,19 @@ export function activeRuleNow(tariff: Tariff, now: Date): TariffRule | null {
   return tariff.rules.find((rule) => ruleActiveAt(rule, dayOfWeek, minutes)) ?? null;
 }
 
+/**
+ * The paid windows on the day of `date`, earliest first.
+ *
+ * @example paidWindowsOn(tariff, wednesday) -> ["00:00–05:59", "08:00–23:59"]
+ */
+export function paidWindowsOn(tariff: Tariff, date: Date): string[] {
+  const weekday = (date.getDay() + 6) % 7;
+  return tariff.rules
+    .filter((rule) => rule.days.includes(weekday))
+    .sort((a, b) => toMinutes(a.start) - toMinutes(b.start))
+    .map((rule) => `${rule.start}–${rule.end}`);
+}
+
 /** When parking next switches between paid and free, as seen from the moment asked about. */
 export interface Change {
   /** Local time of day, "HH:MM". */
@@ -31,6 +44,8 @@ export interface Change {
   /** 0=Mon .. 6=Sun */
   weekday: number;
   minutesUntil: number;
+  /** The rule in effect from the change on, or null when parking turns free. */
+  rule: TariffRule | null;
 }
 
 /**
@@ -64,5 +79,6 @@ export function nextChange(tariff: Tariff, now: Date): Change | null {
     daysAhead: Math.round((changeDay.getTime() - startOfToday.getTime()) / 86_400_000),
     weekday: (change.getDay() + 6) % 7,
     minutesUntil: Math.ceil((change.getTime() - now.getTime()) / 60_000),
+    rule: activeRuleNow(tariff, change),
   };
 }

@@ -284,11 +284,13 @@ body {
 
 .app__detail-expanded-row dt {
   opacity: 0.7;
+  white-space: nowrap;
 }
 
 .app__detail-expanded-row dd {
   margin: 0;
   font-weight: 600;
+  text-align: right;
 }
 
 .app__detail--resolvable {

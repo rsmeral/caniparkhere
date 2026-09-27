@@ -203,6 +203,7 @@ describe("queryPlaces", () => {
             from: "00:00",
             until: "23:59",
             paidUntil: null,
+            paidWindows: ["00:00–23:59"],
             code: "A",
             category: "MIX",
           },
@@ -222,7 +223,8 @@ describe("queryPlaces", () => {
         maxStayMinutes: null,
         from: "08:00",
         until: "17:59",
-        paidUntil: { time: "18:00", daysAhead: 0, weekday: 0, minutesUntil: 480 },
+        paidUntil: { time: "18:00", daysAhead: 0, weekday: 0, minutesUntil: 480, rule: null },
+        paidWindows: ["08:00–17:59"],
         code: "B",
         category: "MIX",
       });
@@ -233,7 +235,15 @@ describe("queryPlaces", () => {
       // The tariff runs on this weekday only, so it's paid again a week later.
       expect(place.zone).toEqual({
         kind: "freeZoneRightNow",
-        paidFrom: { time: "08:00", daysAhead: 7, weekday: 0, minutesUntil: 7 * 24 * 60 - 12 * 60 },
+        paidFrom: {
+          time: "08:00",
+          daysAhead: 7,
+          weekday: 0,
+          minutesUntil: 7 * 24 * 60 - 12 * 60,
+          rule: expect.objectContaining({ start: "08:00", end: "17:59", pricePerHour: 40 }),
+        },
+        maxStayMinutes: null,
+        paidWindows: ["08:00–17:59"],
         code: "B",
         category: "MIX",
       });
@@ -267,6 +277,7 @@ describe("queryPlaces", () => {
       expect(place.zone).toMatchObject({
         kind: "paidZone",
         maxStayMinutes: 60,
+        paidWindows: ["08:00–17:59"],
         code: "D",
         category: "RES",
       });
@@ -276,7 +287,15 @@ describe("queryPlaces", () => {
       const [place] = placesAt(new Date(2026, 3, 6, 20, 0), 85, 85);
       expect(place.zone).toEqual({
         kind: "freeZoneRightNow",
-        paidFrom: { time: "08:00", daysAhead: 7, weekday: 0, minutesUntil: 7 * 24 * 60 - 12 * 60 },
+        paidFrom: {
+          time: "08:00",
+          daysAhead: 7,
+          weekday: 0,
+          minutesUntil: 7 * 24 * 60 - 12 * 60,
+          rule: expect.objectContaining({ start: "08:00", end: "17:59", pricePerHour: 40 }),
+        },
+        maxStayMinutes: 60,
+        paidWindows: ["08:00–17:59"],
         code: "D",
         category: "RES",
       });

@@ -1,7 +1,7 @@
 import type { LoadedData } from "./dataStore";
 import { isPublicHoliday } from "./holidays";
 import { LineIndex, PolygonIndex } from "./spatialIndex";
-import { activeRuleNow, nextChange, type Change } from "./tariffLogic";
+import { activeRuleNow, nextChange, paidWindowsOn, type Change } from "./tariffLogic";
 import type { Bounds, Tariff, TariffRule, ZpsProps } from "./types";
 
 /** The matched parking zone's own identity - shown as a lower-priority "here's what we
@@ -23,12 +23,18 @@ export type ZoneStatus =
       until: string;
       /** When paying stops, or null if it doesn't within a week. */
       paidUntil: Change | null;
+      /** Every paid window today, e.g. ["00:00–05:59", "08:00–23:59"]. */
+      paidWindows: string[];
     } & ZoneInfo)
   | ({ kind: "residentZone" } & ZoneInfo)
   | ({
       kind: "freeZoneRightNow";
       /** When paying starts, or null if it doesn't within a week. */
       paidFrom: Change | null;
+      /** Every paid window on the day paying starts. */
+      paidWindows: string[];
+      /** The longest a visitor may stay once paying starts, in minutes, when it's known. */
+      maxStayMinutes: number | null;
     } & ZoneInfo);
 
 /** Street cleaning on a place: today, and the soonest date within the warning window. */
@@ -161,12 +167,28 @@ function zoneStatusOf(
         from: rule.start,
         until: rule.end,
         paidUntil: nextChange(tariff, now),
+        paidWindows: paidWindowsOn(tariff, now),
         ...zone,
       };
     }
-    return { kind: "freeZoneRightNow", paidFrom: nextChange(tariff, now), ...zone };
+    const paidFrom = nextChange(tariff, now);
+    const startDay = new Date(now);
+    startDay.setDate(startDay.getDate() + (paidFrom?.daysAhead ?? 0));
+    return {
+      kind: "freeZoneRightNow",
+      paidFrom,
+      paidWindows: paidFrom ? paidWindowsOn(tariff, startDay) : [],
+      maxStayMinutes: feature.properties.maxStayMinutes ?? null,
+      ...zone,
+    };
   }
-  return { kind: "freeZoneRightNow", paidFrom: null, ...zone };
+  return {
+    kind: "freeZoneRightNow",
+    paidFrom: null,
+    paidWindows: [],
+    maxStayMinutes: null,
+    ...zone,
+  };
 }
 
 const NO_CLEANING: Cleaning = { today: false, upcoming: null };
