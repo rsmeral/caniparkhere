@@ -200,16 +200,11 @@ body {
 }
 
 .app__detail-zone {
+  /* The colour dot, the zone code with its terms, and the chevron. The terms may wrap onto a
+     second line, so the dot and the chevron line up with the first. */
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.45rem;
-  font-size: 0.8rem;
-  opacity: 0.9;
-}
-
-.app__detail-terms {
-  /* Lines up with the zone code above it: past the colour dot, its border and the gap. */
-  padding-left: calc(0.65rem + 2px + 0.45rem);
   font-size: 0.8rem;
   opacity: 0.9;
 }
@@ -238,6 +233,8 @@ body {
 }
 
 .app__swatch {
+  /* Centred on the first line of the text beside it. */
+  margin-top: calc((1lh - 0.65rem - 2px) / 2);
   width: 0.65rem;
   height: 0.65rem;
   border-radius: 50%;
@@ -245,12 +242,13 @@ body {
   flex-shrink: 0;
 }
 
-.app__detail-text {
+.app__detail-part {
   white-space: nowrap;
 }
 
 .app__detail-chevron {
   flex-shrink: 0;
+  margin-top: calc((1lh - 0.6rem * 1.2) / 2);
   font-size: 0.6rem;
   opacity: 0.7;
 }

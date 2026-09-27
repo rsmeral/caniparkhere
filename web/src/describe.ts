@@ -194,7 +194,7 @@ function zoneChip(
           priceLabel: `${payment.pricePerHour} Kč/hod`,
         }
       : null,
-    expanded,
+    expanded: [{ label: "Zone", value: label }, ...expanded],
   };
 }
 
