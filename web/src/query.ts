@@ -229,7 +229,9 @@ function mergeCleaning(a: Cleaning, b: Cleaning): Cleaning {
  *   depends on the part of the zone in play.
  * - Each cleaning section the circle reaches belongs to the places on its street. A section
  *   on a street with no such place is a place of its own, so cleaning is never dropped.
- * - With neither in reach, the one place is the street nearest the fix, if any.
+ * - A place with nothing but a street name - no zone, no cleaning today or coming up - only
+ *   stands alone: it's left out when any place has more to say, and otherwise only the
+ *   nearest one is kept. With nothing in reach at all, it's the street nearest the fix.
  *
  * cleaningEverywhereToday treats every street-cleaning section as being cleaned today,
  * whatever its dates. It exists for simulating a closure in the jig.
@@ -278,15 +280,19 @@ export function queryPlaces(
     }
   }
 
-  if (places.length === 0) {
-    const streetRadius = Math.max(radius, STREET_MATCH_RADIUS_METERS);
-    places.push({
+  places.sort((a, b) => a.distanceMeters - b.distanceMeters);
+  const informative = places.filter(
+    (p) => p.zone !== null || p.cleaning.today || p.cleaning.upcoming !== null,
+  );
+  if (informative.length > 0) return informative;
+  if (places.length > 0) return [places[0]];
+  const streetRadius = Math.max(radius, STREET_MATCH_RADIUS_METERS);
+  return [
+    {
       zone: null,
       streetName: streetNameNear(data, indexes, [lon, lat], streetRadius),
       cleaning: NO_CLEANING,
       distanceMeters: 0,
-    });
-  }
-
-  return places.sort((a, b) => a.distanceMeters - b.distanceMeters);
+    },
+  ];
 }
