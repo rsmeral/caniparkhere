@@ -94,6 +94,7 @@ suite("describe", () => {
             colorName: "oranžová",
             payment: { url: "https://platba.parkujvpraze.cz/pz/BUS-0001", priceLabel: "40 Kč/hod" },
             expanded: [
+              { label: "Zone", value: "Visitors" },
               { label: "Price", value: "40 Kč/hod" },
               { label: "Daily cap", value: "90 Kč" },
               { label: "Paid hours", value: "08:00–17:59" },
@@ -108,13 +109,13 @@ suite("describe", () => {
 
     it("says 'No cap' for a paid zone without one", () => {
       const [card] = at([place(paid(mixZone, { dailyCapCzk: null }))]).cards;
-      expect(card.zone?.expanded?.[1]).toEqual({ label: "Daily cap", value: "No cap" });
+      expect(card.zone?.expanded?.[2]).toEqual({ label: "Daily cap", value: "No cap" });
     });
 
     it("names a resident zone's max stay in the sentence and on the card", () => {
       const display = at([place(paid(resZone, { maxStayMinutes: 60 }))]);
       expect(display.sentence).toBe("You can park here for up to 1 hour, but it's paid.");
-      expect(display.cards[0].zone?.expanded?.[1]).toEqual({ label: "Max stay", value: "1 h" });
+      expect(display.cards[0].zone?.expanded?.[2]).toEqual({ label: "Max stay", value: "1 h" });
       expect(at([place(paid(resZone, { maxStayMinutes: 180 }))]).sentence).toBe(
         "You can park here for up to 3 hours, but it's paid.",
       );
@@ -123,7 +124,7 @@ suite("describe", () => {
     it("describes a resident zone's unknown max stay as a short time, and points to the sign", () => {
       const display = at([place(paid(resZone))]);
       expect(display.sentence).toBe("You can park here for a short time, but it's paid.");
-      expect(display.cards[0].zone?.expanded?.[1]).toEqual({
+      expect(display.cards[0].zone?.expanded?.[2]).toEqual({
         label: "Max stay",
         value: "1–3 h, see sign",
       });
@@ -138,6 +139,7 @@ suite("describe", () => {
       expect(display.cards[0].zone).toMatchObject({
         payment: null,
         expanded: [
+          { label: "Zone", value: "Residents" },
           { label: "Free until", value: "08:00" },
           { label: "Then", value: "40 Kč/hod" },
           { label: "Max stay", value: "1–3 h, see sign" },
@@ -145,6 +147,7 @@ suite("describe", () => {
         ],
       });
       expect(at([place(free(mixZone, null))]).cards[0].zone?.expanded).toEqual([
+        { label: "Zone", value: "Mixed" },
         { label: "Free", value: "At all hours" },
       ]);
     });
@@ -157,7 +160,10 @@ suite("describe", () => {
       });
       expect(display.cards[0].zone).toMatchObject({
         payment: null,
-        expanded: [{ label: "Parking", value: "Permit holders only" }],
+        expanded: [
+          { label: "Zone", value: "Residents" },
+          { label: "Parking", value: "Permit holders only" },
+        ],
       });
     });
 
@@ -185,7 +191,7 @@ suite("describe", () => {
       expect(display.cards[0].cleaning).toEqual({ label: "Street cleaning today", today: true });
       expect(display.cards[0].zone).toMatchObject({
         payment: null,
-        expanded: [{ label: "Price" }, {}, {}],
+        expanded: [{ label: "Zone" }, { label: "Price" }, {}, {}],
       });
     });
 
@@ -479,7 +485,10 @@ suite("describe", () => {
         });
         expect(display.cards[0].zone).toMatchObject({
           payment: null,
-          expanded: [{ label: "End rental", value: "Free, no time limit" }],
+          expanded: [
+            { label: "Zone", value: expect.any(String) },
+            { label: "End rental", value: "Free, no time limit" },
+          ],
         });
       }
     });
@@ -496,7 +505,7 @@ suite("describe", () => {
           "You can't end your rental here. You can stop here during the rental, but it's paid.",
       });
       expect(display.cards[0].zone?.payment?.priceLabel).toBe("40 Kč/hod");
-      expect(display.cards[0].zone?.expanded[0]).toEqual({
+      expect(display.cards[0].zone?.expanded[1]).toEqual({
         label: "End rental",
         value: "Not here",
       });
