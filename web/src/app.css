@@ -22,13 +22,19 @@ body {
 }
 
 .app {
+  /* The answer sits in the middle of the screen when it fits. "safe" makes a taller answer -
+     a long list of cards - start at the top instead, so it scrolls from the emoji rather
+     than overflowing past the top where scrolling can't reach. The top padding keeps the
+     emoji clear of the corner controls. dvh is the height actually visible between a
+     phone browser's toolbars; vh is the fallback. */
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: safe center;
   gap: 1.5rem;
   height: 100vh;
-  padding: 2rem;
+  height: 100dvh;
+  padding: 3rem 2rem 2rem;
   box-sizing: border-box;
   color: #fff;
   font-family: system-ui, sans-serif;
