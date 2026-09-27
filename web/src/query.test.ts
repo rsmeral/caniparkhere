@@ -125,11 +125,14 @@ function buildFixture(now: Date): LoadedData {
         letniFeature(square(14.4, 50.00085, 14.401, 50.00095), { name: "near st", datesId: 2 }),
         letniFeature(square(14.5, 49.99995, 14.5003, 50.00005), { name: "Lone St", datesId: 2 }),
         letniFeature(square(14.40105, 50, 14.40115, 50.0003), { name: "NN9", datesId: 2 }),
+        // On its own street ~14m west of P1 and ~64m from the point inside it, cleaned on
+        // 2026-04-10 only.
+        letniFeature(square(14.3994, 50.0003, 14.3996, 50.0006), { name: "Side St", datesId: 1 }),
       ],
     },
     streets: {
       // Bar St has a cleaning section but no centerline.
-      names: ["Foo St", "Near St", "Gap St", "Lone St", "Bar St"],
+      names: ["Foo St", "Near St", "Gap St", "Lone St", "Bar St", "Side St"],
       features: [
         streetFeature(
           [
@@ -362,6 +365,34 @@ describe("queryPlaces", () => {
       expect(places.map((p) => [p.zone?.code, p.streetName, p.cleaning.today])).toEqual([
         ["P1", "Near St", true],
         ["P2", "Gap St", true],
+      ]);
+    });
+  });
+
+  describe("places with only a street", () => {
+    it("leaves one out when a zone is in reach", () => {
+      const places = placesAt(new Date(2026, 0, 1, 10, 0), 14.4005, 50.0005, 70);
+      expect(places.map((p) => p.streetName)).not.toContain("Side St");
+    });
+
+    it("keeps it when its street has cleaning coming up", () => {
+      const places = placesAt(new Date(2026, 3, 8, 10, 0), 14.4005, 50.0005, 70);
+      expect(places.find((p) => p.streetName === "Side St")).toMatchObject({
+        zone: null,
+        cleaning: { today: false, upcoming: { date: "2026-04-10", daysUntil: 2 } },
+      });
+    });
+
+    it("keeps just one when there's nothing else", () => {
+      // Near Lone St's cleaning section, with no cleaning within the warning window.
+      const places = placesAt(new Date(2026, 2, 1, 10, 0), 14.5002, 50.0003, 30);
+      expect(places).toEqual([
+        {
+          zone: null,
+          streetName: "Lone St",
+          cleaning: NO_CLEANING,
+          distanceMeters: expect.any(Number),
+        },
       ]);
     });
   });
