@@ -1,4 +1,5 @@
 import type { Cleaning, Place, QueryResult, ZoneInfo, ZoneStatus } from "./query";
+import type { Change } from "./tariffLogic";
 import type { Vehicle } from "./vehicle";
 
 export type Tone = "neutral" | "good" | "warn" | "caution" | "danger" | "outside";
@@ -19,9 +20,9 @@ export interface ZoneChip {
   colorName: string;
   /** Deep link to pay for this zone (parkujvpraze.cz), when the zone is currently a paid one. */
   payment: ZonePayment | null;
-  /** Extra rows (price/cap/hours) revealed when the card is tapped - null when there's
-   * nothing beyond what's already in the summary row (e.g. a resident zone). */
-  expanded: { label: string; value: string }[] | null;
+  /** The zone's terms in full - price, limit, paid hours and the like - revealed when the
+   * card is tapped. Every zone has some. */
+  expanded: { label: string; value: string }[];
 }
 
 export interface Advice {
@@ -40,6 +41,8 @@ export interface Card {
   key: string;
   streetName: string | null;
   zone: ZoneChip | null;
+  /** The terms that set this place apart, e.g. "Free until 08:00". */
+  terms: string | null;
   cleaning: { label: string; today: boolean } | null;
   advice: Advice;
 }
@@ -93,6 +96,30 @@ function formatStay(minutes: number): string {
   return hours === 1 ? "1 hour" : `${hours} hours`;
 }
 
+/** @example formatStayShort(60) -> "1 h"; formatStayShort(90) -> "90 min" */
+function formatStayShort(minutes: number): string {
+  return minutes % 60 === 0 ? `${minutes / 60} h` : `${minutes} min`;
+}
+
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+/**
+ * A change within the next day is just its time, since the next 08:00 is clearly meant. A
+ * change further ahead names its weekday.
+ *
+ * @example formatChange({time:"08:00", daysAhead:1, ...}) -> "08:00"
+ * @example formatChange({time:"00:00", daysAhead:1, ...}) -> "midnight"
+ * @example formatChange({time:"08:00", daysAhead:3, weekday:0, ...}) -> "Mon 08:00"
+ */
+function formatChange(change: Change): string {
+  if (change.daysAhead === 1 && change.time === "00:00") return "midnight";
+  if (change.daysAhead <= 1) return change.time;
+  return `${WEEKDAYS[change.weekday]} ${change.time}`;
+}
+
+// Free parking that ends sooner than this is worth saying so in the headline.
+const SHORT_FREE_MINUTES = 60;
+
 /**
  * The advice for a zone status, as the headline or as a candidate card. A resident (blue)
  * zone while its tariff runs lets a visitor pay to stay, but only briefly: 1 to 3 hours,
@@ -107,6 +134,17 @@ function adviceFor(status: ZoneStatus, vehicle: Vehicle): Advice {
       tone: "warn",
       icon: "🤑",
       sentence: `You can park here for ${stay}, but it's paid.`,
+    };
+  }
+  if (
+    status.kind === "freeZoneRightNow" &&
+    status.paidFrom &&
+    status.paidFrom.minutesUntil < SHORT_FREE_MINUTES
+  ) {
+    return {
+      tone: "warn",
+      icon: "⏰",
+      sentence: `You can park here for free now, but not for long — it's paid from ${formatChange(status.paidFrom)}.`,
     };
   }
   return ZONE_ADVICE[status.kind];
@@ -135,54 +173,83 @@ function sharedAdviceFor(status: ZoneStatus): Advice {
   };
 }
 
-interface ZoneChipOptions {
-  /** Present only for an actively-paid zone: drives both the Pay button and its price label. */
-  payment?: { pricePerHour: number } | null;
-  expanded?: ZoneChip["expanded"];
-}
+type Row = ZoneChip["expanded"][number];
 
-/** @example zoneChip({code:"P2-0237", category:"MIX"}, {}) -> { code:"P2-0237", categoryLabel:"Mixed", colorHex:"#8b5cf6", colorName:"fialová", payment:null, expanded:null } */
-function zoneChip(zone: ZoneInfo, options: ZoneChipOptions = {}): ZoneChip {
+/** @example zoneChip({code:"P2-0237", category:"MIX"}, rows, null) -> { code:"P2-0237", categoryLabel:"Mixed", colorHex:"#8b5cf6", colorName:"fialová", payment:null, expanded:rows } */
+function zoneChip(
+  zone: ZoneInfo,
+  expanded: Row[],
+  /** Present only for an actively-paid zone: drives both the Pay button and its price label. */
+  payment: { pricePerHour: number } | null,
+): ZoneChip {
   const { label, colorName, colorHex } = ZONE_CATEGORY[zone.category];
   return {
     code: zone.code,
     categoryLabel: label,
     colorHex,
     colorName,
-    payment: options.payment
+    payment: payment
       ? {
           url: `https://platba.parkujvpraze.cz/pz/${zone.code}`,
-          priceLabel: `${options.payment.pricePerHour} Kč/hod`,
+          priceLabel: `${payment.pricePerHour} Kč/hod`,
         }
       : null,
-    expanded: options.expanded ?? null,
+    expanded,
   };
 }
 
-/** Builds the ZoneChip for a zone's card. A shared car has nothing to pay where its rental
- * can end, so those zones show no price. */
-function chipForZoneStatus(status: ZoneStatus, vehicle: Vehicle): ZoneChip {
-  if (vehicle === "shared" && status.category !== "VIS") return zoneChip(status);
-  if (status.kind === "paidZone") {
-    const price = { label: "Price", value: `${status.pricePerHour} Kč/hod` };
-    const hours = { label: "Hours", value: `${status.from}–${status.until}` };
-    // A visitor's stay in a resident zone is capped by time rather than by a daily price.
-    const limit =
-      status.category === "RES"
-        ? {
-            label: "Max stay",
-            value:
-              status.maxStayMinutes === null
-                ? "1–3 h, see sign"
-                : formatStay(status.maxStayMinutes),
-          }
-        : { label: "Daily cap", value: status.dailyCapCzk ? `${status.dailyCapCzk} Kč` : "No cap" };
-    return zoneChip(status, {
-      payment: { pricePerHour: status.pricePerHour },
-      expanded: [price, limit, hours],
-    });
+/**
+ * How long, or for how much, a paid stay is allowed. A visitor's stay in a resident zone is
+ * capped by time rather than by a daily price.
+ */
+function limitRow(zone: ZoneInfo, maxStayMinutes: number | null, dailyCapCzk: number | null): Row {
+  if (zone.category === "RES") {
+    return {
+      label: "Max stay",
+      value: maxStayMinutes === null ? "1–3 h, see sign" : formatStayShort(maxStayMinutes),
+    };
   }
-  return zoneChip(status);
+  return { label: "Daily cap", value: dailyCapCzk ? `${dailyCapCzk} Kč` : "No cap" };
+}
+
+/** A zone's own terms, whatever the vehicle: what paying costs, and when. */
+function tariffRows(status: ZoneStatus): Row[] {
+  switch (status.kind) {
+    case "paidZone":
+      return [
+        { label: "Price", value: `${status.pricePerHour} Kč/hod` },
+        limitRow(status, status.maxStayMinutes, status.dailyCapCzk),
+        { label: "Paid hours", value: status.paidWindows.join(", ") },
+      ];
+    case "freeZoneRightNow": {
+      const next = status.paidFrom;
+      if (!next?.rule) return [{ label: "Free", value: "At all hours" }];
+      return [
+        { label: "Free until", value: formatChange(next) },
+        { label: "Then", value: `${next.rule.pricePerHour} Kč/hod` },
+        limitRow(status, status.maxStayMinutes, next.rule.dailyCapCzk),
+        { label: "Paid hours", value: status.paidWindows.join(", ") },
+      ];
+    }
+    case "residentZone":
+      return [{ label: "Parking", value: "Permit holders only" }];
+  }
+}
+
+/**
+ * Builds the ZoneChip for a zone's card, with its terms in full. A shared car has nothing to
+ * pay where its rental can end, so those zones show that instead of a price.
+ */
+function chipForZoneStatus(status: ZoneStatus, vehicle: Vehicle): ZoneChip {
+  if (vehicle === "shared" && status.category !== "VIS") {
+    return zoneChip(status, [{ label: "End rental", value: "Free, no time limit" }], null);
+  }
+  const rows = tariffRows(status);
+  const payment = status.kind === "paidZone" ? { pricePerHour: status.pricePerHour } : null;
+  if (vehicle === "shared") {
+    return zoneChip(status, [{ label: "End rental", value: "Not here" }, ...rows], payment);
+  }
+  return zoneChip(status, rows, payment);
 }
 
 const CLEANING_TODAY: Advice = {
@@ -236,7 +303,7 @@ export type Consequence =
   | { kind: "cleaningToday" }
   | { kind: "paid"; terms: PaidTerms }
   | { kind: "residentOnly" }
-  | { kind: "freeNow" }
+  | { kind: "freeNow"; paidFrom: Pick<Change, "time" | "daysAhead"> | null }
   | { kind: "canEndRental" }
   | { kind: "stopDuringRental"; terms: PaidTerms | null };
 
@@ -268,7 +335,10 @@ export function consequenceOf(place: Place, vehicle: Vehicle): Consequence | nul
     case "residentZone":
       return { kind: "residentOnly" };
     case "freeZoneRightNow":
-      return { kind: "freeNow" };
+      return {
+        kind: "freeNow",
+        paidFrom: zone.paidFrom && { time: zone.paidFrom.time, daysAhead: zone.paidFrom.daysAhead },
+      };
   }
 }
 
@@ -289,7 +359,45 @@ export function sameConsequence(a: Consequence, b: Consequence): boolean {
   if (a.kind === "stopDuringRental" && b.kind === "stopDuringRental") {
     return sameTerms(a.terms, b.terms);
   }
+  if (a.kind === "freeNow" && b.kind === "freeNow") {
+    return a.paidFrom?.time === b.paidFrom?.time && a.paidFrom?.daysAhead === b.paidFrom?.daysAhead;
+  }
   return true;
+}
+
+/**
+ * A place's terms in a few words, for its card: when free parking ends; the price, when
+ * paying ends and how long or how much it allows; or whether a shared car's rental can end
+ * there. They're what tells one card from another without opening it.
+ * On a cleaning day the card's cleaning mark says it all.
+ */
+function termsOf(place: Place, vehicle: Vehicle): string | null {
+  const { zone } = place;
+  if (!zone || place.cleaning.today) return null;
+  if (vehicle === "shared") {
+    return zone.category === "VIS" ? "Can't end rental here" : "Rental can end here";
+  }
+  switch (zone.kind) {
+    case "residentZone":
+      return "Permit needed";
+    case "freeZoneRightNow":
+      return zone.paidFrom ? `Free until ${formatChange(zone.paidFrom)}` : "Free at all hours";
+    case "paidZone": {
+      const price = `${zone.pricePerHour} Kč/h`;
+      const paid = zone.paidUntil
+        ? `${price} until ${formatChange(zone.paidUntil)}`
+        : `${price} at all hours`;
+      const limit =
+        zone.category === "RES"
+          ? zone.maxStayMinutes === null
+            ? "limit on the sign"
+            : `max ${formatStayShort(zone.maxStayMinutes)}`
+          : zone.dailyCapCzk
+            ? `max ${zone.dailyCapCzk} Kč/day`
+            : null;
+      return limit ? `${paid} · ${limit}` : paid;
+    }
+  }
 }
 
 /** A place as a card, with the advice it would get on its own. */
@@ -306,6 +414,7 @@ function cardOf(place: Place, index: number, vehicle: Vehicle): Card {
     key: place.zone?.code ?? (place.streetName ? `street:${place.streetName}` : `place:${index}`),
     streetName: place.streetName,
     zone,
+    terms: termsOf(place, vehicle),
     cleaning: cleaningLabel(place.cleaning),
     advice,
   };

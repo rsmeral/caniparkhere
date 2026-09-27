@@ -28,6 +28,7 @@ export function CandidateBox({ card, expanded, onToggle }: CandidateBoxProps) {
         <ZoneSummary
           streetName={card.streetName}
           zone={zone}
+          terms={card.terms}
           cleaning={card.cleaning}
           canExpand
           expanded={expanded}
