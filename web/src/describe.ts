@@ -80,12 +80,12 @@ const ZONE_ADVICE: Record<ZoneStatus["kind"], { tone: Tone; icon: string; senten
   residentZone: {
     tone: "caution",
     icon: "🤔",
-    sentence: "This is a resident-only zone, so you might need a permit to park here.",
+    sentence: "Residents only — you'll need a permit here.",
   },
   freeZoneRightNow: {
     tone: "good",
     icon: "😊",
-    sentence: "You're in a paid zone, but right now it's free to park.",
+    sentence: "Free to park right now.",
   },
 };
 
@@ -155,7 +155,7 @@ function adviceFor(status: ZoneStatus, vehicle: Vehicle): Advice {
     return {
       tone: "warn",
       icon: "⏰",
-      sentence: `You can park here for free now, but not for long — it's paid from ${formatChange(status.paidFrom)}.`,
+      sentence: `Free for now, but not for long — it's paid from ${formatChange(status.paidFrom)}.`,
     };
   }
   return ZONE_ADVICE[status.kind];
@@ -179,8 +179,8 @@ function sharedAdviceFor(status: ZoneStatus): Advice {
     icon: "🤔",
     sentence:
       status.kind === "paidZone"
-        ? "You can't end your rental here. You can stop here during the rental, but it's paid."
-        : "You can't end your rental here. You can stop here during the rental, and right now it's free.",
+        ? "Don't end your rental here. Stopping is fine, but it's paid."
+        : "Don't end your rental here. Stopping is fine, and free right now.",
   };
 }
 
@@ -279,7 +279,7 @@ function chipForZoneStatus(status: ZoneStatus, vehicle: Vehicle): ZoneChip {
 const CLEANING_TODAY: Advice = {
   tone: "danger",
   icon: "😟",
-  sentence: "There's street cleaning here today — don't park here.",
+  sentence: "Street cleaning today — don't park here.",
 };
 
 /** For a place with no zone data. Outside the zones, where a rental can end is up to the
@@ -290,8 +290,8 @@ function noInfoAdvice(vehicle: Vehicle): Advice {
     icon: "👀",
     sentence:
       vehicle === "shared"
-        ? "I don't have parking info for this spot — check your carsharing app before you end the rental here."
-        : "I don't have parking info for this spot — better check the signs around you.",
+        ? "No info for this spot — check your carsharing app before ending the rental."
+        : "No info for this spot — trust the signs.",
   };
 }
 

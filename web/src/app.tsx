@@ -77,6 +77,8 @@ export function App({ geo: liveGeo, now, cleaningEverywhereToday = false, onPaus
         if (live) setResult(r);
       })
       .catch((err) => {
+        // The screen says only that it couldn't connect; the reason goes to the console.
+        console.error(err);
         if (live) setDataError((err as Error).message);
       });
     return () => {
@@ -85,21 +87,17 @@ export function App({ geo: liveGeo, now, cleaningEverywhereToday = false, onPaus
   }, [client, geo, nowMs, cleaningEverywhereToday]);
 
   const display: Display = useMemo(() => {
-    if (dataError) return neutral("😵", `Couldn't load zone data: ${dataError}`);
+    if (dataError) {
+      return neutral("😵", "Can't connect. Your internet sucks, or I messed up. Try later.");
+    }
     if (geo.status === "unsupported") {
       return neutral("🤷", "This device can't share its location.");
     }
     if (geo.status === "denied") {
-      return neutral(
-        "🔒",
-        "Location is turned off. Allow it for this site to see what applies here.",
-      );
+      return neutral("🔒", "Can't tell you, 'cause you won't let me see you.");
     }
     if (geo.status === "unavailable") {
-      return neutral(
-        "🛰",
-        "Still can't get a location fix. Try moving somewhere with a clearer view of the sky.",
-      );
+      return neutral("🛰", "Can't tell you, 'cause I can't see where you are.");
     }
     if (geo.status === "searching" || !result) {
       return neutral("⏳", "Figuring out where you are...");

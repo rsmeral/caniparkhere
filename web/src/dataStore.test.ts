@@ -124,7 +124,9 @@ describe("loadData", () => {
     vi.stubGlobal("fetch", offlineFetch());
     vi.mocked(get).mockResolvedValue(undefined);
 
-    await expect(loadData()).rejects.toThrow("you'll need to be online the first time.");
+    await expect(loadData()).rejects.toThrow(
+      "No zone data cached yet, and no connection to fetch it.",
+    );
   });
 
   it("backfills the manifest for a device cached before it was stored, without refetching", async () => {

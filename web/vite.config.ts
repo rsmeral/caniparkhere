@@ -25,10 +25,10 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,png,svg,woff2}"],
       },
       manifest: {
-        name: "Can I Park Here",
+        name: "Can I park here?",
         // What a launcher labels the installed app with, and what Firefox offers at the
         // install prompt. Kept short because launchers truncate past about 12 characters.
-        short_name: "Can I Park?",
+        short_name: "Can I park?",
         description: "Is it OK to park here right now, in Prague?",
         // The status bar an installed window paints above the app. It reads as chrome
         // rather than as one of the tones, since a single fixed colour can only ever match
