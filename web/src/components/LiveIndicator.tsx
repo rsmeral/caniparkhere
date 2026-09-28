@@ -21,7 +21,7 @@ export function LiveIndicator({ geo, paused, onToggle }: LiveIndicatorProps) {
       : geo.status === "searching"
         ? "searching"
         : "off";
-  const label = { live: "Live", paused: "Paused", searching: "Locating", off: "No location" }[
+  const label = { live: "Live", paused: "Paused", searching: "Locating...", off: "No location" }[
     state
   ];
   const bars = ready ? accuracyBars(geo.accuracyMeters) : 0;
