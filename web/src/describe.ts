@@ -229,7 +229,7 @@ function tariffRows(status: ZoneStatus): Row[] {
       return [
         { label: "Price", value: `${status.pricePerHour} Kč/hod` },
         limitRow(status, status.maxStayMinutes, status.dailyCapCzk),
-        { label: "Paid hours", value: status.paidWindows.join(", ") },
+        { label: "Paid hours", value: status.paidWindows.join("\n") },
       ];
     case "freeZoneRightNow": {
       const next = status.paidFrom;
@@ -238,7 +238,7 @@ function tariffRows(status: ZoneStatus): Row[] {
         { label: "Free until", value: formatChange(next) },
         { label: "Then", value: `${next.rule.pricePerHour} Kč/hod` },
         limitRow(status, status.maxStayMinutes, next.rule.dailyCapCzk),
-        { label: "Paid hours", value: status.paidWindows.join(", ") },
+        { label: "Paid hours", value: status.paidWindows.join("\n") },
       ];
     }
     case "residentZone":
