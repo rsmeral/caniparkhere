@@ -6,9 +6,6 @@ import type { MultiPolygon } from "geojson";
  * ("podoblast", e.g. "5.1"). A resident's or business's parking permit is issued for one of
  * them and covers its blue and purple sections. Neighbouring areas overlap along the
  * streets on their border, where a section counts for both.
- *
- * The map's API asks for HTTP basic auth: the fixed credentials the public map's own script
- * sends for every visitor.
  */
 const AREAS_URL = "https://vph.zpspraha.cz/api/v1/parking/area?category=PARKING";
 const PUBLIC_MAP_CREDENTIALS = "test:test";

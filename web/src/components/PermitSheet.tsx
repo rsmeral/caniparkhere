@@ -47,7 +47,7 @@ export function PermitSheet({ open, areas, permits, onSave, onClose }: PermitShe
 
   return (
     <Sheet title="Your permits" open={open} onClose={onClose}>
-      <p>Pick the areas your parking permits are for. Every zone's sign shows its area.</p>
+      <p>Pick the areas your parking permits are for.</p>
       {areas === null ? (
         <p>Loading the areas...</p>
       ) : (
@@ -60,13 +60,15 @@ export function PermitSheet({ open, areas, permits, onSave, onClose }: PermitShe
           ))}
         </ul>
       )}
-      <button
-        type="button"
-        className="app__permit-save"
-        onClick={() => onSave([...picked].sort(compareAreas))}
-      >
-        Save
-      </button>
+      <div className="app__permit-footer">
+        <button
+          type="button"
+          className="app__permit-save"
+          onClick={() => onSave([...picked].sort(compareAreas))}
+        >
+          Save
+        </button>
+      </div>
     </Sheet>
   );
 }

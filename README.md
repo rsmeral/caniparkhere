@@ -63,8 +63,7 @@ From [Golemio](https://api.golemio.cz/docs/public-openapi/), Prague's data platf
 From [VPH](https://vph.zpspraha.cz/parkingmap), the city's official parking map:
 
 - Parking areas (`/api/v1/parking/area?category=PARKING`) – the shapes of the districts and
-  sub-areas that parking permits are issued for. The API asks for HTTP basic auth, with the
-  fixed credentials the public map sends for every visitor.
+  sub-areas that parking permits are issued for.
 
 ## How it works
 
