@@ -135,9 +135,10 @@ const SHORT_FREE_MINUTES = 60;
  * zone while its tariff runs lets a visitor pay to stay, but only briefly: 1 to 3 hours,
  * set per district. The data usually says which; when it doesn't, the sign does.
  */
-function adviceFor(status: ZoneStatus, vehicle: Vehicle): Advice {
+function adviceFor(status: ZoneStatus, vehicle: Vehicle, permits: string[]): Advice {
   if (vehicle === "shared") return sharedAdviceFor(status);
   if (vehicle === "motorbike") return MOTORBIKE_ADVICE;
+  if (permitCovers(status, vehicle, permits)) return PERMIT_ADVICE;
   if (status.kind === "paidZone" && status.category === "RES") {
     const stay =
       status.maxStayMinutes === null ? "a short time" : `up to ${formatStay(status.maxStayMinutes)}`;
@@ -192,6 +193,25 @@ const MOTORBIKE_ADVICE: Advice = {
   tone: "good",
   icon: "😊",
   sentence: "Motorbikes park here for free, with no time limit.",
+};
+
+/**
+ * Whether one of the user's parking permits covers a zone. A permit is for a district or
+ * one of its sub-areas, and covers the blue and purple zones there, at any hour and with
+ * no time limit. A zone on the border between two areas counts for both.
+ */
+function permitCovers(zone: ZoneInfo, vehicle: Vehicle, permits: string[]): boolean {
+  return (
+    vehicle === "permit" &&
+    zone.category !== "VIS" &&
+    zone.areas.some((area) => permits.includes(area))
+  );
+}
+
+const PERMIT_ADVICE: Advice = {
+  tone: "good",
+  icon: "😎",
+  sentence: "You're in your zone! Park at will.",
 };
 
 type Row = ZoneChip["expanded"][number];
@@ -261,9 +281,12 @@ function tariffRows(status: ZoneStatus): Row[] {
  * Builds the ZoneChip for a zone's card, with its terms in full. A shared car has nothing to
  * pay where its rental can end, so those zones show that instead of a price.
  */
-function chipForZoneStatus(status: ZoneStatus, vehicle: Vehicle): ZoneChip {
+function chipForZoneStatus(status: ZoneStatus, vehicle: Vehicle, permits: string[]): ZoneChip {
   if (vehicle === "motorbike") {
     return zoneChip(status, [{ label: "Motorbike", value: "Free, no time limit" }], null);
+  }
+  if (permitCovers(status, vehicle, permits)) {
+    return zoneChip(status, [{ label: "Your permit", value: "Valid here" }], null);
   }
   if (vehicle === "shared" && status.category !== "VIS") {
     return zoneChip(status, [{ label: "End rental", value: "Free, no time limit" }], null);
@@ -272,6 +295,9 @@ function chipForZoneStatus(status: ZoneStatus, vehicle: Vehicle): ZoneChip {
   const payment = status.kind === "paidZone" ? { pricePerHour: status.pricePerHour } : null;
   if (vehicle === "shared") {
     return zoneChip(status, [{ label: "End rental", value: "Not here" }, ...rows], payment);
+  }
+  if (vehicle === "permit") {
+    return zoneChip(status, [{ label: "Your permit", value: "Not valid here" }, ...rows], payment);
   }
   return zoneChip(status, rows, payment);
 }
@@ -330,6 +356,7 @@ export type Consequence =
   | { kind: "freeNow"; paidFrom: Pick<Change, "time" | "daysAhead"> | null }
   | { kind: "canEndRental" }
   | { kind: "motorbikeFree" }
+  | { kind: "permitCovers" }
   | { kind: "stopDuringRental"; terms: PaidTerms | null };
 
 function paidTerms(zone: Extract<ZoneStatus, { kind: "paidZone" }>): PaidTerms {
@@ -346,11 +373,16 @@ function paidTerms(zone: Extract<ZoneStatus, { kind: "paidZone" }>): PaidTerms {
  * The consequence of parking at a place, or null when it has no known rules: no zone and no
  * cleaning today. Cleaning today outweighs the zone - parking isn't allowed at all.
  */
-export function consequenceOf(place: Place, vehicle: Vehicle): Consequence | null {
+export function consequenceOf(
+  place: Place,
+  vehicle: Vehicle,
+  permits: string[] = [],
+): Consequence | null {
   if (place.cleaning.today) return { kind: "cleaningToday" };
   const { zone } = place;
   if (!zone) return null;
   if (vehicle === "motorbike") return { kind: "motorbikeFree" };
+  if (permitCovers(zone, vehicle, permits)) return { kind: "permitCovers" };
   if (vehicle === "shared") {
     if (zone.category !== "VIS") return { kind: "canEndRental" };
     return { kind: "stopDuringRental", terms: zone.kind === "paidZone" ? paidTerms(zone) : null };
@@ -397,10 +429,11 @@ export function sameConsequence(a: Consequence, b: Consequence): boolean {
  * there. They're what tells one card from another without opening it.
  * On a cleaning day the card's cleaning mark says it all.
  */
-function termsOf(place: Place, vehicle: Vehicle): string | null {
+function termsOf(place: Place, vehicle: Vehicle, permits: string[]): string | null {
   const { zone } = place;
   if (!zone || place.cleaning.today) return null;
   if (vehicle === "motorbike") return "Free for motorbikes";
+  if (permitCovers(zone, vehicle, permits)) return "Your permit's valid here";
   if (vehicle === "shared") {
     return zone.category === "VIS" ? "Can't end rental here" : "Rental can end here";
   }
@@ -428,20 +461,20 @@ function termsOf(place: Place, vehicle: Vehicle): string | null {
 }
 
 /** A place as a card, with the advice it would get on its own. */
-function cardOf(place: Place, index: number, vehicle: Vehicle): Card {
-  const chip = place.zone ? chipForZoneStatus(place.zone, vehicle) : null;
+function cardOf(place: Place, index: number, vehicle: Vehicle, permits: string[]): Card {
+  const chip = place.zone ? chipForZoneStatus(place.zone, vehicle, permits) : null;
   // No Pay button where parking isn't allowed today.
   const zone = chip && place.cleaning.today ? { ...chip, payment: null } : chip;
   const advice = place.cleaning.today
     ? CLEANING_TODAY
     : place.zone
-      ? adviceFor(place.zone, vehicle)
+      ? adviceFor(place.zone, vehicle, permits)
       : noInfoAdvice(vehicle);
   return {
     key: place.zone?.code ?? (place.streetName ? `street:${place.streetName}` : `place:${index}`),
     streetName: place.streetName && capitalise(place.streetName),
     zone,
-    terms: termsOf(place, vehicle),
+    terms: termsOf(place, vehicle, permits),
     cleaning: cleaningLabel(place.cleaning),
     advice,
   };
@@ -475,7 +508,12 @@ function upcomingClause(places: Place[]): string {
  * headline, unless there's cleaning today. For a shared car, zone advice is about where the
  * rental can end.
  */
-export function describe(result: QueryResult, vehicle: Vehicle = "own"): Display {
+export function describe(
+  result: QueryResult,
+  vehicle: Vehicle = "own",
+  /** The parking areas the user's permits are for; they apply when `vehicle` is "permit". */
+  permits: string[] = [],
+): Display {
   if (result.kind === "outOfArea") {
     return {
       tone: "outside",
@@ -486,10 +524,10 @@ export function describe(result: QueryResult, vehicle: Vehicle = "own"): Display
     };
   }
 
-  const cards = result.places.map((place, i) => cardOf(place, i, vehicle));
+  const cards = result.places.map((place, i) => cardOf(place, i, vehicle, permits));
   // Places with no known rules can't contradict the others, so only the rest are compared.
   const known = result.places.flatMap((place, i) => {
-    const consequence = consequenceOf(place, vehicle);
+    const consequence = consequenceOf(place, vehicle, permits);
     return consequence ? [{ consequence, card: cards[i] }] : [];
   });
   const agree = known.every((k) => sameConsequence(k.consequence, known[0].consequence));

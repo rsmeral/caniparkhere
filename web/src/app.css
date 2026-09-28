@@ -312,6 +312,52 @@ body {
   opacity: 0.7;
 }
 
+.app__permit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: 0 0 1.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.app__permit-row {
+  /* A district's whole-district permit first, then its sub-areas beside it. */
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.app__permit-chip {
+  min-width: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  border-radius: 1.25rem;
+  background: rgba(0, 0, 0, 0.06);
+  color: inherit;
+  font: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.app__permit-chip[aria-pressed="true"] {
+  background: #111;
+  color: #fff;
+  font-weight: 600;
+}
+
+.app__permit-save {
+  width: 100%;
+  padding: 0.85rem;
+  border: none;
+  border-radius: 0.75rem;
+  background: #111;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .app__emoji-halo {
   /* The emoji over a soft, highly feathered dark shadow, which separates it from the page
      whatever the tone. The shadow is painted around the emoji and takes no space, so its

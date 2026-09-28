@@ -1,13 +1,15 @@
 /**
- * What the user is driving. A car from a carsharing service registered with the city holds
- * a permit for every blue and purple zone in Prague, which covers it while it waits between
- * rentals - so for a shared car the question is where the rental can end. A motorbike parks
- * in every zone for free.
+ * What the user is driving. An own car with a parking permit parks freely in the blue and
+ * purple zones of the areas its permits are for (see permits.ts). A car from a carsharing
+ * service registered with the city holds a permit for every blue and purple zone in Prague,
+ * which covers it while it waits between rentals - so for a shared car the question is
+ * where the rental can end. A motorbike parks in every zone for free.
  */
-export type Vehicle = "own" | "shared" | "motorbike";
+export type Vehicle = "own" | "permit" | "shared" | "motorbike";
 
 export const VEHICLE_LABEL: Record<Vehicle, string> = {
   own: "Own car",
+  permit: "Own car + permit",
   shared: "Shared car",
   motorbike: "Motorbike",
 };

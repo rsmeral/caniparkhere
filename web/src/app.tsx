@@ -3,6 +3,7 @@ import "./app.css";
 import { AboutButton } from "./components/About";
 import { CandidateBox } from "./components/CandidateBox";
 import { LiveIndicator } from "./components/LiveIndicator";
+import { PermitSheet } from "./components/PermitSheet";
 import { VehiclePicker } from "./components/VehiclePicker";
 import { ZoneBox } from "./components/ZoneBox";
 import { describe, type Display } from "./describe";
@@ -11,6 +12,7 @@ import type { QueryResult } from "./query";
 import { createQueryClient } from "./queryClient";
 import type { GeoState } from "./useGeolocation";
 import { useThemeColor } from "./useThemeColor";
+import { loadPermits, savePermits } from "./permits";
 import { loadVehicle, saveVehicle, type Vehicle } from "./vehicle";
 
 const neutral = (icon: string, sentence: string): Display => ({
@@ -44,6 +46,10 @@ export function App({ geo: liveGeo, now, cleaningEverywhereToday = false, onPaus
   const [dataError, setDataError] = useState<string | null>(null);
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [vehicle, setVehicle] = useState<Vehicle>(loadVehicle);
+  const [permits, setPermits] = useState<string[]>(loadPermits);
+  const [permitSheetOpen, setPermitSheetOpen] = useState(false);
+  // Every area a permit can be for, asked of the worker the first time the page opens.
+  const [permitAreas, setPermitAreas] = useState<string[] | null>(null);
   // While paused, the answer stays with the position it was paused at - where the car is,
   // once the user walks away from it.
   const [pausedGeo, setPausedGeo] = useState<GeoState | null>(null);
@@ -55,10 +61,30 @@ export function App({ geo: liveGeo, now, cleaningEverywhereToday = false, onPaus
     onPausedChange?.(pausing);
   };
 
-  const pickVehicle = (picked: Vehicle) => {
+  const switchVehicle = (picked: Vehicle) => {
     setVehicle(picked);
     saveVehicle(picked);
   };
+
+  // A permit with no areas picked yet starts by picking them; the vehicle switches once
+  // they're saved.
+  const pickVehicle = (picked: Vehicle) => {
+    if (picked === "permit" && permits.length === 0) setPermitSheetOpen(true);
+    else switchVehicle(picked);
+  };
+
+  const savePermitAreas = (saved: string[]) => {
+    setPermits(saved);
+    savePermits(saved);
+    setPermitSheetOpen(false);
+    if (saved.length > 0) switchVehicle("permit");
+    else if (vehicle === "permit") switchVehicle("own");
+  };
+
+  useEffect(() => {
+    if (!permitSheetOpen || permitAreas !== null) return;
+    client.areas().then(setPermitAreas, (err) => setDataError((err as Error).message));
+  }, [permitSheetOpen, permitAreas, client]);
 
   useEffect(() => () => client.terminate(), [client]);
 
@@ -102,8 +128,8 @@ export function App({ geo: liveGeo, now, cleaningEverywhereToday = false, onPaus
     if (geo.status === "searching" || !result) {
       return neutral("⏳", "Figuring out where you are...");
     }
-    return describe(result, vehicle);
-  }, [result, geo, dataError, vehicle]);
+    return describe(result, vehicle, permits);
+  }, [result, geo, dataError, vehicle, permits]);
 
   useThemeColor(display.tone);
 
@@ -122,9 +148,20 @@ export function App({ geo: liveGeo, now, cleaningEverywhereToday = false, onPaus
     <div className={`app app--${display.tone}`}>
       <LiveIndicator geo={geo} paused={pausedGeo !== null} onToggle={togglePaused} />
       <div className="app__corner">
-        <VehiclePicker vehicle={vehicle} onChange={pickVehicle} />
+        <VehiclePicker
+          vehicle={vehicle}
+          onChange={pickVehicle}
+          onEditPermits={() => setPermitSheetOpen(true)}
+        />
         <AboutButton />
       </div>
+      <PermitSheet
+        open={permitSheetOpen}
+        areas={permitAreas}
+        permits={permits}
+        onSave={savePermitAreas}
+        onClose={() => setPermitSheetOpen(false)}
+      />
       <div className="app__emoji-halo">
         <img className="app__emoji" src={emojiUrl(display.icon)} alt="" />
       </div>

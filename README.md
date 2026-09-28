@@ -28,6 +28,12 @@ In a shared car (pick "Shared car" in the top right corner), it tells you whethe
 end the rental there instead. Cars from carsharing services registered with the city can
 be left in any blue or purple zone for free, with no time limit, but not in orange zones.
 
+With a parking permit (pick "Own car + permit"), you pick which areas your permits are for:
+a whole district such as Praha 5, or one of the smaller sub-areas some districts have, such
+as 5.1. In the blue and purple zones of those areas the app says you can park at will; the
+rest are answered as for any own car. A zone on the border between two areas counts for
+both. "Edit permits…" in the same menu changes them.
+
 On a motorbike (pick "Motorbike"), every zone is free, with no time limit: motorbikes park
 without a permit in blue, purple and orange zones alike.
 
@@ -53,6 +59,12 @@ From [Golemio](https://api.golemio.cz/docs/public-openapi/), Prague's data platf
 
 - Parking tariffs from TSK (`/v3/parking` and `/v3/parking-tariffs`, source `tsk_v2`) –
   each zone's prices, paid hours, caps, and how long a visitor may stay
+
+From [VPH](https://vph.zpspraha.cz/parkingmap), the city's official parking map:
+
+- Parking areas (`/api/v1/parking/area?category=PARKING`) – the shapes of the districts and
+  sub-areas that parking permits are issued for. The API asks for HTTP basic auth, with the
+  fixed credentials the public map sends for every visitor.
 
 ## How it works
 
@@ -87,8 +99,8 @@ GOLEMIO_API_KEY=...
 
 What `npm run build` does:
 
-1. Downloads each source: the LKOD and RÚIAN layers as GeoJSON, and TSK's zones and tariffs
-   from Golemio.
+1. Downloads each source: the LKOD and RÚIAN layers as GeoJSON, TSK's zones and tariffs
+   from Golemio, and the parking areas from VPH.
 2. Rounds and simplifies the shapes, and keeps only the fields the app uses.
 3. Stores repeated values (tariffs, cleaning dates, street names) once, in a shared table,
    and points to them from each shape.
@@ -123,6 +135,14 @@ The datasets:
   - Resident zones also get `maxStayMinutes`, the longest a visitor may stay, from Golemio,
     matched by zone code. It's `null` for a section Golemio doesn't have, and the build logs
     how many those are.
+  - Blue and purple zones also get the parking areas whose permits cover them (`areasId`,
+    pointing into `areaSets`, e.g. `["5", "5.1", "5.3"]`): every VPH area whose shape holds
+    the section's centre. Neighbouring areas overlap along their border streets, so a
+    section there gets both. A section outside every district's shape gets the district its
+    code names, and the build logs it.
+  - The build fails if VPH can't be reached, its answer looks different from what it
+    expects, or more than a few blue and purple sections end up with no area. The nightly
+    refresh then fails without committing anything, so the app keeps the last good data.
 - **`letni`** – summer street cleaning. One shape per street section, with its list of
   cleaning days. The source only covers the current year, so this needs a refresh at least
   once a year.
