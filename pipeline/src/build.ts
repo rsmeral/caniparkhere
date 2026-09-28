@@ -4,7 +4,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Feature, FeatureCollection, Geometry, MultiLineString, MultiPolygon } from "geojson";
 
-import { buildDictionary } from "./lib/dictionary.js";
+import { buildDictionary } from "./lib/dictionary";
 import {
   bboxOfGeometry,
   mergeBbox,
@@ -12,7 +12,7 @@ import {
   roundGeometry,
   simplifyGeometry,
   type Bbox,
-} from "./lib/geo.js";
+} from "./lib/geo";
 import {
   fetchTskParking,
   type GolemioParking,
@@ -21,11 +21,11 @@ import {
   maxStayMinutesByCode,
   tariffIdByCode,
   tariffRules,
-} from "./lib/golemio.js";
-import { parseLetniDates } from "./lib/letniDates.js";
-import { SOURCES } from "./sources.js";
-import { parseTariffText, type TariffRule } from "./lib/tariff.js";
-import { areasOfSection, fetchParkingAreas, type ParkingArea } from "./lib/vph.js";
+} from "./lib/golemio";
+import { parseLetniDates } from "./lib/letniDates";
+import { SOURCES } from "./sources";
+import { parseTariffText, type TariffRule } from "./lib/tariff";
+import { areasOfSection, fetchParkingAreas, type ParkingArea } from "./lib/vph";
 
 const OUT_DIR = path.resolve(import.meta.dirname, "../../web/public/data");
 // Local runs read the Golemio key from the repo's .env; CI sets it in the environment.

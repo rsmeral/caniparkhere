@@ -1,4 +1,4 @@
-import type { TariffRule } from "./tariff.js";
+import type { TariffRule } from "./tariff";
 
 /**
  * The parts of Golemio's parking API (https://api.golemio.cz/docs/public-openapi/) this

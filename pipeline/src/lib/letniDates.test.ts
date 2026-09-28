@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseLetniDates } from "./letniDates.js";
+import { parseLetniDates } from "./letniDates";
 
 describe("parseLetniDates", () => {
   it("parses two comma-separated dates into ISO format", () => {

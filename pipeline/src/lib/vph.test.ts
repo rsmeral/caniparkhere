@@ -1,6 +1,6 @@
 import type { MultiPolygon } from "geojson";
 import { describe, expect, it } from "vitest";
-import { areasOfSection, compareAreas, isInside, parseAreas, type VphArea } from "./vph.js";
+import { areasOfSection, compareAreas, isInside, parseAreas, type VphArea } from "./vph";
 
 /** A square from (x, y) to (x + size, y + size), as VPH lists its points. */
 const square = (x: number, y: number, size: number) =>

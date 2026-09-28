@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { expandDayRange } from "./days.js";
+import { expandDayRange } from "./days";
 
 describe("expandDayRange", () => {
   it("expands a Mon-first range", () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildDictionary } from "./dictionary.js";
+import { buildDictionary } from "./dictionary";
 
 describe("buildDictionary", () => {
   it("dedupes repeated values and preserves first-seen order", () => {
