@@ -65,7 +65,7 @@ const place = (zone: ZoneStatus | null, extra: Partial<Place> = {}): Place => ({
 
 const at = (places: Place[], vehicle?: Vehicle) => describe({ kind: "places", places }, vehicle);
 
-const NO_INFO = "I don't have parking info for this spot — better check the signs around you.";
+const NO_INFO = "No info for this spot — trust the signs.";
 const COULD_BE = "Where are you exactly? Seems like one of these.";
 
 suite("describe", () => {
@@ -140,7 +140,7 @@ suite("describe", () => {
       const display = at([place(free(resZone))]);
       expect(display).toMatchObject({
         tone: "good",
-        sentence: "You're in a paid zone, but right now it's free to park.",
+        sentence: "Free to park right now.",
       });
       expect(display.cards[0].zone).toMatchObject({
         payment: null,
@@ -162,7 +162,7 @@ suite("describe", () => {
       const display = at([place({ kind: "residentZone", ...resZone })]);
       expect(display).toMatchObject({
         tone: "caution",
-        sentence: "This is a resident-only zone, so you might need a permit to park here.",
+        sentence: "Residents only — you'll need a permit here.",
       });
       expect(display.cards[0].zone).toMatchObject({
         payment: null,
@@ -197,7 +197,7 @@ suite("describe", () => {
       expect(display).toMatchObject({
         tone: "danger",
         icon: "😟",
-        sentence: "There's street cleaning here today — don't park here.",
+        sentence: "Street cleaning today — don't park here.",
       });
       expect(display.cards[0].cleaning).toEqual({ label: "Street cleaning today", today: true });
       expect(display.cards[0].zone).toMatchObject({
@@ -286,7 +286,7 @@ suite("describe", () => {
       expect(at([place(soon)])).toMatchObject({
         tone: "warn",
         icon: "⏰",
-        sentence: "You can park here for free now, but not for long — it's paid from 08:00.",
+        sentence: "Free for now, but not for long — it's paid from 08:00.",
       });
     });
 
@@ -300,7 +300,7 @@ suite("describe", () => {
       });
       expect(at([place(later)])).toMatchObject({
         tone: "good",
-        sentence: "You're in a paid zone, but right now it's free to park.",
+        sentence: "Free to park right now.",
       });
     });
 
@@ -371,7 +371,7 @@ suite("describe", () => {
         {
           tone: "caution",
           icon: "🤔",
-          sentence: "This is a resident-only zone, so you might need a permit to park here.",
+          sentence: "Residents only — you'll need a permit here.",
         },
       ]);
     });
@@ -412,7 +412,7 @@ suite("describe", () => {
         place(null, { streetName: "Úvoz", cleaning: CLEANING_TODAY }),
       ]);
       expect(display).toMatchObject({
-        sentence: "There's street cleaning here today — don't park here.",
+        sentence: "Street cleaning today — don't park here.",
         agree: true,
       });
     });
@@ -513,7 +513,7 @@ suite("describe", () => {
       expect(display).toMatchObject({
         tone: "caution",
         sentence:
-          "You can't end your rental here. You can stop here during the rental, but it's paid.",
+          "Don't end your rental here. Stopping is fine, but it's paid.",
       });
       expect(display.cards[0].zone?.payment?.priceLabel).toBe("40 Kč/hod");
       expect(display.cards[0].zone?.expanded[1]).toEqual({
@@ -524,13 +524,13 @@ suite("describe", () => {
 
     it("says an orange zone outside its paid hours still isn't somewhere to end the rental", () => {
       expect(at([place(free(visZone))], "shared").sentence).toBe(
-        "You can't end your rental here. You can stop here during the rental, and right now it's free.",
+        "Don't end your rental here. Stopping is fine, and free right now.",
       );
     });
 
     it("points to the carsharing app where there's no zone data", () => {
       expect(at([place(null, { cleaning: cleaningIn(1) })], "shared").sentence).toBe(
-        "I don't have parking info for this spot — check your carsharing app before you end the rental here." +
+        "No info for this spot — check your carsharing app before ending the rental." +
           " And watch out, street cleaning tomorrow.",
       );
     });

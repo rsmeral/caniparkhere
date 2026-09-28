@@ -91,7 +91,7 @@ describe("real spots", () => {
     const [lat, lon] = SPOTS.myslikova;
     const cleaningDay = new Date(2026, 9, 3, 10, 0);
     expect(headlineAt(lat, lon, 5, cleaningDay)).toBe(
-      "There's street cleaning here today — don't park here.",
+      "Street cleaning today — don't park here.",
     );
     expect(headlineAt(lat, lon, 30, cleaningDay)).toBe(
       "Where are you exactly? Some of these have street cleaning today.",
