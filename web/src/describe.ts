@@ -137,6 +137,7 @@ const SHORT_FREE_MINUTES = 60;
  */
 function adviceFor(status: ZoneStatus, vehicle: Vehicle): Advice {
   if (vehicle === "shared") return sharedAdviceFor(status);
+  if (vehicle === "motorbike") return MOTORBIKE_ADVICE;
   if (status.kind === "paidZone" && status.category === "RES") {
     const stay =
       status.maxStayMinutes === null ? "a short time" : `up to ${formatStay(status.maxStayMinutes)}`;
@@ -182,6 +183,16 @@ function sharedAdviceFor(status: ZoneStatus): Advice {
         : "You can't end your rental here. You can stop here during the rental, and right now it's free.",
   };
 }
+
+/**
+ * A motorbike parks free in every blue, purple and orange zone, at any hour and with no
+ * permit, under the city's rules for paid parking zones.
+ */
+const MOTORBIKE_ADVICE: Advice = {
+  tone: "good",
+  icon: "😊",
+  sentence: "Motorbikes park here for free, with no time limit.",
+};
 
 type Row = ZoneChip["expanded"][number];
 
@@ -251,6 +262,9 @@ function tariffRows(status: ZoneStatus): Row[] {
  * pay where its rental can end, so those zones show that instead of a price.
  */
 function chipForZoneStatus(status: ZoneStatus, vehicle: Vehicle): ZoneChip {
+  if (vehicle === "motorbike") {
+    return zoneChip(status, [{ label: "Motorbike", value: "Free, no time limit" }], null);
+  }
   if (vehicle === "shared" && status.category !== "VIS") {
     return zoneChip(status, [{ label: "End rental", value: "Free, no time limit" }], null);
   }
@@ -315,6 +329,7 @@ export type Consequence =
   | { kind: "residentOnly" }
   | { kind: "freeNow"; paidFrom: Pick<Change, "time" | "daysAhead"> | null }
   | { kind: "canEndRental" }
+  | { kind: "motorbikeFree" }
   | { kind: "stopDuringRental"; terms: PaidTerms | null };
 
 function paidTerms(zone: Extract<ZoneStatus, { kind: "paidZone" }>): PaidTerms {
@@ -335,6 +350,7 @@ export function consequenceOf(place: Place, vehicle: Vehicle): Consequence | nul
   if (place.cleaning.today) return { kind: "cleaningToday" };
   const { zone } = place;
   if (!zone) return null;
+  if (vehicle === "motorbike") return { kind: "motorbikeFree" };
   if (vehicle === "shared") {
     if (zone.category !== "VIS") return { kind: "canEndRental" };
     return { kind: "stopDuringRental", terms: zone.kind === "paidZone" ? paidTerms(zone) : null };
@@ -384,6 +400,7 @@ export function sameConsequence(a: Consequence, b: Consequence): boolean {
 function termsOf(place: Place, vehicle: Vehicle): string | null {
   const { zone } = place;
   if (!zone || place.cleaning.today) return null;
+  if (vehicle === "motorbike") return "Free for motorbikes";
   if (vehicle === "shared") {
     return zone.category === "VIS" ? "Can't end rental here" : "Rental can end here";
   }

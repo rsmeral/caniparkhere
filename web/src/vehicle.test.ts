@@ -23,7 +23,16 @@ describe("vehicle", () => {
     vi.stubGlobal("localStorage", memoryStorage());
     saveVehicle("shared");
     expect(loadVehicle()).toBe("shared");
+    saveVehicle("motorbike");
+    expect(loadVehicle()).toBe("motorbike");
     saveVehicle("own");
+    expect(loadVehicle()).toBe("own");
+  });
+
+  it("falls back to an own car for a stored value it doesn't know", () => {
+    const storage = memoryStorage();
+    storage.setItem("caniparkhere.vehicle", "hovercraft");
+    vi.stubGlobal("localStorage", storage);
     expect(loadVehicle()).toBe("own");
   });
 
