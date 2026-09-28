@@ -107,6 +107,12 @@ suite("describe", () => {
       ]);
     });
 
+    it("puts each paid window on a line of its own", () => {
+      const status = paid(visZone, { paidWindows: ["00:00–05:59", "08:00–23:59"] });
+      const rows = at([place(status)]).cards[0].zone!.expanded;
+      expect(rows.find((r) => r.label === "Paid hours")!.value).toBe("00:00–05:59\n08:00–23:59");
+    });
+
     it("says 'No cap' for a paid zone without one", () => {
       const [card] = at([place(paid(mixZone, { dailyCapCzk: null }))]).cards;
       expect(card.zone?.expanded?.[2]).toEqual({ label: "Daily cap", value: "No cap" });

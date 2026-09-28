@@ -532,9 +532,11 @@ body {
 }
 
 .app__detail-expanded-row dd {
+  /* A value of several lines, such as a day's paid windows, is one line per window. */
   margin: 0;
   font-weight: 600;
   text-align: right;
+  white-space: pre-line;
 }
 
 .app__detail--resolvable {
