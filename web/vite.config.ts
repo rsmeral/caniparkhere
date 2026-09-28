@@ -38,6 +38,9 @@ export default defineConfig({
         // is whichever tone the answer turns out to warrant, and this shows before there
         // is an answer.
         background_color: "#1f2937",
+        // The same identity an install gets without one, stated so the Web Install API can
+        // install the current page.
+        id: "/",
         display: "standalone",
         start_url: "/",
         // The maskable icon is what keeps a launcher from shrinking the plate onto a

@@ -28,6 +28,10 @@ In a shared car (pick "Shared car" in the top right corner), it tells you whethe
 end the rental there instead. Cars from carsharing services registered with the city can
 be left in any blue or purple zone for free, with no time limit, but not in orange zones.
 
+The app's icon in the top right corner opens the About page, with a link to the source and,
+where the browser can install the app from a button, Install (the Web Install API, or
+Chromium's own install prompt).
+
 ## Data sources
 
 From Prague's open data catalog, [LKOD](https://lkod.cz/):

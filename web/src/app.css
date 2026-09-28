@@ -123,14 +123,21 @@ body {
   pointer-events: none;
 }
 
-.app__vehicle {
-  /* Plain white text in the top right corner, lifted off every tone by a soft shadow, so it
-     stays out of the way of the answer. The padding keeps the tap area comfortable without
-     drawing a chip. The native select is laid invisibly over it: tapping anywhere on it
-     opens the platform's own picker. */
+.app__corner {
+  /* The vehicle picker and the app menu, side by side in the top right corner. */
   position: absolute;
   top: calc(env(safe-area-inset-top, 0px) + 0.1rem);
   right: calc(env(safe-area-inset-right, 0px) + 0.35rem);
+  display: flex;
+  align-items: center;
+}
+
+.app__vehicle {
+  /* Plain white text, lifted off every tone by a soft shadow, so it stays out of the way of
+     the answer. The padding keeps the tap area comfortable without drawing a chip. The
+     native select is laid invisibly over it: tapping anywhere on it opens the platform's
+     own picker. */
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.35rem;
@@ -159,6 +166,150 @@ body {
   outline: 2px solid currentColor;
   outline-offset: -2px;
   border-radius: 0.5rem;
+}
+
+.app__about-button {
+  /* The app's icon, as the way into the About page. */
+  display: flex;
+  padding: 0.5rem 0.6rem 0.5rem 0.2rem;
+  border: none;
+  background: none;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.55));
+  cursor: pointer;
+}
+
+.app__about-button:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: -2px;
+  border-radius: 0.5rem;
+}
+
+.app__about-icon {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.45rem;
+}
+
+.app__sheet {
+  /* A page of its own over the app, edge to edge, with its content in the middle of the
+     screen when it fits, the way the main screen's answer is. The auto margins on the body
+     centre it, and give way to the top of the page when it's taller than the screen. */
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: none;
+  overflow-y: auto;
+  background: #fff;
+  color: #111;
+  font-family: system-ui, sans-serif;
+  text-align: left;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.app__sheet[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.app__sheet::backdrop {
+  background: #fff;
+}
+
+.app__sheet-close {
+  /* A bold cross in the top right corner, staying there while the page scrolls. */
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 0.35rem);
+  right: calc(env(safe-area-inset-right, 0px) + 0.35rem);
+  display: grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.app__sheet-close svg {
+  width: 1.6rem;
+  height: 1.6rem;
+}
+
+.app__sheet-close:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: -4px;
+  border-radius: 0.5rem;
+}
+
+.app__sheet-body {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 34rem;
+  margin: auto;
+  padding: calc(env(safe-area-inset-top, 0px) + 4.5rem) 1.75rem 3rem;
+  font-size: 1.15rem;
+  line-height: 1.5;
+}
+
+.app__sheet-title {
+  margin: 0;
+  font-family: "Fraunces", system-ui, serif;
+  font-size: 1.9rem;
+  font-weight: 650;
+}
+
+.app__sheet-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0 1.5rem;
+}
+
+.app__sheet-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.75rem;
+  border: none;
+  border-radius: 1rem;
+  background: rgba(0, 0, 0, 0.06);
+  color: inherit;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.app__sheet-action-icon {
+  width: 1.1em;
+  height: 1.1em;
+  flex-shrink: 0;
+}
+
+.app__sheet-action:hover,
+.app__sheet-action:focus-visible {
+  background: rgba(0, 0, 0, 0.12);
+  outline: none;
+}
+
+.app__sheet-body p,
+.app__sheet-body ul {
+  margin: 0 0 1rem;
+  text-wrap: pretty;
+}
+
+.app__sheet-body ul {
+  padding-left: 1.25rem;
+}
+
+.app__sheet-note {
+  opacity: 0.7;
 }
 
 .app__emoji-halo {

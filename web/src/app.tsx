@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "preact/hooks";
 import "./app.css";
+import { AboutButton } from "./components/About";
 import { CandidateBox } from "./components/CandidateBox";
 import { LiveIndicator } from "./components/LiveIndicator";
 import { VehiclePicker } from "./components/VehiclePicker";
@@ -122,7 +123,10 @@ export function App({ geo: liveGeo, now, cleaningEverywhereToday = false, onPaus
   return (
     <div className={`app app--${display.tone}`}>
       <LiveIndicator geo={geo} paused={pausedGeo !== null} onToggle={togglePaused} />
-      <VehiclePicker vehicle={vehicle} onChange={pickVehicle} />
+      <div className="app__corner">
+        <VehiclePicker vehicle={vehicle} onChange={pickVehicle} />
+        <AboutButton />
+      </div>
       <div className="app__emoji-halo">
         <img className="app__emoji" src={emojiUrl(display.icon)} alt="" />
       </div>
