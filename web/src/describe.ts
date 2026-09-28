@@ -89,6 +89,16 @@ const ZONE_ADVICE: Record<ZoneStatus["kind"], { tone: Tone; icon: string; senten
   },
 };
 
+/**
+ * Street names start with a capital on the cards. RÚIAN writes a few in lower case, such as
+ * "náměstí Míru", as Czech spelling does mid-sentence.
+ *
+ * @example capitalise("náměstí Míru") -> "Náměstí Míru"
+ */
+function capitalise(name: string): string {
+  return name.charAt(0).toLocaleUpperCase("cs") + name.slice(1);
+}
+
 /** @example formatStay(60) -> "1 hour"; formatStay(180) -> "3 hours"; formatStay(90) -> "90 minutes" */
 function formatStay(minutes: number): string {
   if (minutes % 60 !== 0) return `${minutes} minutes`;
@@ -412,7 +422,7 @@ function cardOf(place: Place, index: number, vehicle: Vehicle): Card {
       : noInfoAdvice(vehicle);
   return {
     key: place.zone?.code ?? (place.streetName ? `street:${place.streetName}` : `place:${index}`),
-    streetName: place.streetName,
+    streetName: place.streetName && capitalise(place.streetName),
     zone,
     terms: termsOf(place, vehicle),
     cleaning: cleaningLabel(place.cleaning),

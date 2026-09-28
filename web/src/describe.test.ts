@@ -167,6 +167,11 @@ suite("describe", () => {
       });
     });
 
+    it("starts a street name with a capital", () => {
+      const display = at([place(null, { streetName: "náměstí Míru" })]);
+      expect(display.cards[0].streetName).toBe("Náměstí Míru");
+    });
+
     it("says there's no info where there's no zone, with the street on a card", () => {
       const display = at([place(null, { streetName: "Nerudova" })]);
       expect(display).toMatchObject({ tone: "neutral", icon: "👀", sentence: NO_INFO });
