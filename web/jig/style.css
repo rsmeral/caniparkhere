@@ -1,0 +1,405 @@
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background: #111827;
+  color: #e5e7eb;
+  font:
+    13px/1.4 system-ui,
+    sans-serif;
+}
+
+button,
+select,
+input {
+  font: inherit;
+}
+
+button,
+select {
+  padding: 0.25rem 0.55rem;
+  border: 1px solid #374151;
+  border-radius: 0.35rem;
+  background: #1f2937;
+  color: inherit;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.sj {
+  display: flex;
+  height: 100vh;
+}
+
+.sj__panel {
+  flex: 0 0 23rem;
+  overflow-y: auto;
+  border-right: 1px solid #374151;
+  background: #0b1120;
+}
+
+.sj__bar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.6rem 0.75rem;
+  background: #0b1120;
+  border-bottom: 1px solid #374151;
+}
+
+.sj__toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-weight: 600;
+  margin-right: auto;
+}
+
+.sj__section {
+  border-bottom: 1px solid #1f2937;
+}
+
+.sj__section summary {
+  padding: 0.6rem 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sj__section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0 0.75rem 0.9rem;
+}
+
+.sj__row {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.sj__hint {
+  margin: 0;
+  color: #9ca3af;
+}
+
+.sj__field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sj__field > span:first-child {
+  flex: 0 0 8.5rem;
+  color: #9ca3af;
+}
+
+.sj__slider input[type="range"] {
+  flex: 1;
+  min-width: 0;
+}
+
+.sj__slider--compact > span:first-child {
+  flex-basis: 1rem;
+  font-weight: 700;
+}
+
+.sj__range--track {
+  appearance: none;
+  height: 0.7rem;
+  border-radius: 0.35rem;
+}
+
+.sj__range--track::-webkit-slider-thumb {
+  appearance: none;
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 1px #000;
+}
+
+.sj__range--track::-moz-range-thumb {
+  width: 0.9rem;
+  height: 0.9rem;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 1px #000;
+}
+
+.sj__number {
+  width: 4rem;
+  padding: 0.1rem 0.3rem;
+  border: 1px solid #374151;
+  border-radius: 0.3rem;
+  background: #1f2937;
+  color: inherit;
+}
+
+.sj__unit {
+  color: #6b7280;
+  width: 1.5rem;
+}
+
+.sj__color input[type="color"] {
+  width: 2.5rem;
+  height: 1.6rem;
+  padding: 0;
+  border: 1px solid #374151;
+  background: none;
+}
+
+.sj__check {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.sj__choice {
+  display: flex;
+}
+
+.sj__choice button {
+  flex: 1;
+  border-radius: 0;
+}
+
+.sj__choice button:first-child {
+  border-radius: 0.35rem 0 0 0.35rem;
+}
+
+.sj__choice button:last-child {
+  border-radius: 0 0.35rem 0.35rem 0;
+}
+
+.sj__choice .sj__choice--on {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+}
+
+.sj__tone {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.5rem;
+  border: 1px solid #1f2937;
+  border-radius: 0.45rem;
+}
+
+.sj__tone-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.sj__tone-head select {
+  margin-left: auto;
+  padding: 0.1rem 0.3rem;
+}
+
+.sj__swatch {
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 1.5rem;
+  border-radius: 0.3rem;
+  font-weight: 700;
+}
+
+.sj__swatch--small {
+  width: 0.75rem;
+  margin-left: -0.3rem;
+}
+
+.sj__ratio {
+  color: #86efac;
+  font-variant-numeric: tabular-nums;
+}
+
+.sj__ratio--low {
+  color: #fca5a5;
+}
+
+.sj__warn {
+  color: #fcd34d;
+}
+
+.sj__wheel {
+  position: relative;
+  align-self: center;
+}
+
+.sj__wheel-disc {
+  position: absolute;
+  border-radius: 50%;
+}
+
+.sj__wheel svg {
+  position: relative;
+  touch-action: none;
+}
+
+.sj__wheel-anchor {
+  stroke: #fff;
+  stroke-dasharray: 3 3;
+  opacity: 0.7;
+}
+
+.sj__wheel-link {
+  stroke: #fff;
+  opacity: 0.6;
+}
+
+.sj__wheel-dot {
+  stroke: #fff;
+  stroke-width: 1.5;
+  pointer-events: none;
+}
+
+.sj__wheel-handle {
+  fill: transparent;
+  stroke: #000;
+  stroke-width: 1.5;
+  cursor: grab;
+}
+
+.sj__code {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.5rem;
+  border: 1px solid #374151;
+  border-radius: 0.35rem;
+  background: #030712;
+  color: #d1d5db;
+  font:
+    12px/1.45 ui-monospace,
+    monospace;
+  resize: vertical;
+}
+
+.sj__code--tall {
+  height: 28rem;
+}
+
+.sj__code--out {
+  margin: 0;
+  max-height: 28rem;
+  overflow: auto;
+  white-space: pre;
+  user-select: text;
+}
+
+.sj__stage {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sj__stage-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid #374151;
+}
+
+.sj__stage-bar .sj__slider {
+  width: 16rem;
+}
+
+.sj__stage-bar .sj__field > span:first-child {
+  flex-basis: auto;
+}
+
+.sj__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.sj__chip {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.5rem 0.15rem 0.3rem;
+  border: 1px solid #374151;
+  border-radius: 1rem;
+}
+
+.sj__phones {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 1.75rem 1.25rem;
+  padding: 1.25rem;
+}
+
+.sj__phone-wrap {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sj__phone-wrap figcaption {
+  color: #9ca3af;
+}
+
+.sj__phone {
+  /* The scaled iframe keeps its full-size layout box; clipping hides the overflow. */
+  overflow: clip;
+  border-radius: 0.9rem;
+  box-shadow:
+    0 0 0 0.3rem #000,
+    0 0 0 calc(0.3rem + 1px) #374151;
+}
+
+.sj__frame {
+  display: block;
+  border: 0;
+  transform-origin: top left;
+}
+
+.sj__tone-text {
+  display: flex;
+  gap: 0.9rem;
+  color: #9ca3af;
+}
+
+.sj__tone-text label {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.sj__tone-text select {
+  padding: 0.05rem 0.25rem;
+}
+
+.sj__text {
+  flex: 1;
+  min-width: 0;
+  padding: 0.2rem 0.4rem;
+  border: 1px solid #374151;
+  border-radius: 0.3rem;
+  background: #1f2937;
+  color: inherit;
+}
