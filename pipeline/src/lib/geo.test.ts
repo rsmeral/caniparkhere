@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { bboxOfGeometry, mergeBbox, padBbox, roundGeometry, simplifyGeometry } from "./geo.js";
+import { bboxOfGeometry, mergeBbox, padBbox, roundGeometry, simplifyGeometry } from "./geo";
 
 describe("roundGeometry", () => {
   it("rounds coordinates to ~1m precision (5 decimals)", () => {
@@ -43,7 +43,7 @@ describe("simplifyGeometry", () => {
     }));
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-    const { simplifyGeometry: simplifyWithMock } = await import("./geo.js");
+    const { simplifyGeometry: simplifyWithMock } = await import("./geo");
     const geometry = { type: "Point", coordinates: [14.5, 50.1] } as any;
     expect(simplifyWithMock(geometry, 0.00002)).toEqual(geometry);
     expect(warn).toHaveBeenCalledOnce();

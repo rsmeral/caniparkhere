@@ -1,4 +1,4 @@
-import { expandDayRange } from "./days.js";
+import { expandDayRange } from "./days";
 
 export interface TariffRule {
   days: number[]; // 0=Mon .. 6=Sun

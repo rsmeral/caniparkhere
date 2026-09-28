@@ -6,7 +6,7 @@ import {
   holidayCap,
   maxStayMinutesByCode,
   tariffRules,
-} from "./golemio.js";
+} from "./golemio";
 
 const tariff = (id: string, ...durations: (number | null)[]): GolemioTariff => ({
   id,

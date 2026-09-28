@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { parseTariffText } from "./tariff.js";
+import { parseTariffText } from "./tariff";
 
 describe("parseTariffText", () => {
   it("returns null for blank/whitespace-only text", () => {
