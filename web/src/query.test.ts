@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { Feature, MultiLineString, MultiPolygon } from "geojson";
 import type { LoadedData } from "./dataStore";
-import { buildIndexes, isWithinBounds, queryPlaces } from "./query";
+import { compareAreas } from "./areas";
+import { buildIndexes, isWithinBounds, permitAreas, queryPlaces } from "./query";
 import type { LetniProps, StreetProps, ZpsProps } from "./types";
 
 function square(x0: number, y0: number, x1: number, y1: number) {
@@ -86,11 +87,17 @@ function buildFixture(now: Date): LoadedData {
           ],
         },
       ],
+      areaSets: [["2"], ["1", "2", "2.1"]],
       features: [
         zpsFeature(square(-50, -50, -40, -40), { code: "H", category: "MIX", tariffId: 2 }),
-        zpsFeature(square(0, 0, 10, 10), { code: "A", category: "MIX", tariffId: 0 }),
+        zpsFeature(square(0, 0, 10, 10), { code: "A", category: "MIX", tariffId: 0, areasId: 0 }),
         zpsFeature(square(20, 20, 30, 30), { code: "B", category: "MIX", tariffId: 1 }),
-        zpsFeature(square(40, 40, 50, 50), { code: "C", category: "RES", tariffId: null }),
+        zpsFeature(square(40, 40, 50, 50), {
+          code: "C",
+          category: "RES",
+          tariffId: null,
+          areasId: 1,
+        }),
         zpsFeature(square(80, 80, 90, 90), {
           code: "D",
           category: "RES",
@@ -209,6 +216,7 @@ describe("queryPlaces", () => {
             paidWindows: ["00:00–23:59"],
             code: "A",
             category: "MIX",
+            areas: ["2"],
           },
           streetName: "Foo St",
           cleaning: NO_CLEANING,
@@ -230,6 +238,7 @@ describe("queryPlaces", () => {
         paidWindows: ["08:00–17:59"],
         code: "B",
         category: "MIX",
+        areas: [],
       });
     });
 
@@ -249,6 +258,7 @@ describe("queryPlaces", () => {
         paidWindows: ["08:00–17:59"],
         code: "B",
         category: "MIX",
+        areas: [],
       });
     });
 
@@ -283,6 +293,7 @@ describe("queryPlaces", () => {
         paidWindows: ["08:00–17:59"],
         code: "D",
         category: "RES",
+        areas: [],
       });
     });
 
@@ -301,12 +312,18 @@ describe("queryPlaces", () => {
         paidWindows: ["08:00–17:59"],
         code: "D",
         category: "RES",
+        areas: [],
       });
     });
 
     it("reports a resident zone with no tariff as resident-only, at any time", () => {
       const [place] = placesAt(new Date(2026, 3, 6, 3, 0), 45, 45);
-      expect(place.zone).toEqual({ kind: "residentZone", code: "C", category: "RES" });
+      expect(place.zone).toEqual({
+        kind: "residentZone",
+        code: "C",
+        category: "RES",
+        areas: ["1", "2", "2.1"],
+      });
     });
   });
 
@@ -460,5 +477,18 @@ describe("isWithinBounds", () => {
 
   it("returns false for a point outside the envelope (e.g. a different city)", () => {
     expect(isWithinBounds(bounds, 16.6068, 49.1951)).toBe(false); // Brno
+  });
+});
+
+describe("permitAreas", () => {
+  it("lists every area once, districts in number order, each followed by its sub-areas", () => {
+    const data = {
+      zps: { areaSets: [["10", "10.1"], ["2"], ["9", "9.2"], ["2", "10"], ["9", "9.1"]] },
+    } as LoadedData;
+    expect(permitAreas(data)).toEqual(["2", "9", "9.1", "9.2", "10", "10.1"]);
+  });
+
+  it("orders by number, not as text", () => {
+    expect(["10", "9", "18.10", "18.2"].sort(compareAreas)).toEqual(["9", "10", "18.2", "18.10"]);
   });
 });

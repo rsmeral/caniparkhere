@@ -1,5 +1,5 @@
 import type { QueryResult } from "./query";
-import type { QueryRequest, QueryResponse } from "./queryProtocol";
+import type { QueryResponse, WorkerRequest } from "./queryProtocol";
 
 export interface QueryOptions {
   /** The moment to answer for. Left out, the answer is for the time it's worked out. */
@@ -15,8 +15,12 @@ export interface QueryClient {
     accuracyMeters: number | null,
     options?: QueryOptions,
   ): Promise<QueryResult>;
+  /** Every parking area a permit can be for, e.g. ["1", "2", "5", "5.1", ...]. */
+  areas(): Promise<string[]>;
   terminate(): void;
 }
+
+type Answer = Extract<QueryResponse, { ok: true }>;
 
 /**
  * Talks to the worker that owns the datasets and their indexes. Requests carry an id
@@ -25,7 +29,7 @@ export interface QueryClient {
  */
 export function createQueryClient(): QueryClient {
   const worker = new Worker(new URL("./queryWorker.ts", import.meta.url), { type: "module" });
-  const pending = new Map<number, { resolve(r: QueryResult): void; reject(e: Error): void }>();
+  const pending = new Map<number, { resolve(answer: Answer): void; reject(e: Error): void }>();
   let nextId = 0;
 
   const failAll = (message: string) => {
@@ -38,7 +42,7 @@ export function createQueryClient(): QueryClient {
     const entry = pending.get(response.id);
     if (!entry) return;
     pending.delete(response.id);
-    if (response.ok) entry.resolve(response.result);
+    if (response.ok) entry.resolve(response);
     else entry.reject(new Error(response.message));
   });
 
@@ -46,21 +50,30 @@ export function createQueryClient(): QueryClient {
   // waiting callers need to hear about it rather than sitting on a promise forever.
   worker.addEventListener("error", (event) => failAll(event.message || "Zone data worker failed"));
 
+  const ask = (request: WorkerRequest) =>
+    new Promise<Answer>((resolve, reject) => {
+      pending.set(request.id, { resolve, reject });
+      worker.postMessage(request);
+    });
+
   return {
-    query(lon, lat, accuracyMeters, { at, cleaningEverywhereToday = false } = {}) {
-      const id = nextId++;
-      const request: QueryRequest = {
-        id,
+    async query(lon, lat, accuracyMeters, { at, cleaningEverywhereToday = false } = {}) {
+      const answer = await ask({
+        kind: "query",
+        id: nextId++,
         lon,
         lat,
         accuracyMeters,
         at: at?.getTime() ?? null,
         cleaningEverywhereToday,
-      };
-      return new Promise<QueryResult>((resolve, reject) => {
-        pending.set(id, { resolve, reject });
-        worker.postMessage(request);
       });
+      if (!("result" in answer)) throw new Error("Zone data worker sent no result");
+      return answer.result;
+    },
+    async areas() {
+      const answer = await ask({ kind: "areas", id: nextId++ });
+      if (!("areas" in answer)) throw new Error("Zone data worker sent no areas");
+      return answer.areas;
     },
     terminate() {
       worker.terminate();

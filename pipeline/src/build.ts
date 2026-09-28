@@ -25,6 +25,7 @@ import {
 import { parseLetniDates } from "./lib/letniDates.js";
 import { SOURCES } from "./sources.js";
 import { parseTariffText, type TariffRule } from "./lib/tariff.js";
+import { areasOfSection, fetchParkingAreas, type ParkingArea } from "./lib/vph.js";
 
 const OUT_DIR = path.resolve(import.meta.dirname, "../../web/public/data");
 // Local runs read the Golemio key from the repo's .env; CI sets it in the environment.
@@ -46,7 +47,16 @@ interface ZpsFeatureProps {
   tariffId: number | null;
   /** Resident zones only: the longest a visitor may stay, in minutes, when Golemio has it. */
   maxStayMinutes?: number | null;
+  /** Blue and purple zones only: the parking areas whose permits cover it, in `areaSets`. */
+  areasId?: number | null;
 }
+
+// Parking permits only cover blue and purple zones.
+const PERMIT_CATEGORIES = new Set(["RES", "MIX"]);
+
+// More blue and purple sections than this without an area means VPH's areas or the zones'
+// codes have changed shape, so the build stops rather than publish permits that don't work.
+const MAX_SECTIONS_WITHOUT_AREA = 10;
 
 /**
  * A zone section's tariff: where it came from (a Golemio tariff id, or the LKOD
@@ -65,6 +75,7 @@ interface ZoneTariff {
 function buildZps(
   fc: FeatureCollection,
   tsk: { parkings: GolemioParking[]; tariffs: GolemioTariff[] },
+  parkingAreas: ParkingArea[],
 ) {
   const maxStayByCode = maxStayMinutesByCode(tsk.parkings, tsk.tariffs);
   const golemioTariffByCode = tariffIdByCode(tsk.parkings);
@@ -98,6 +109,23 @@ function buildZps(
   const { table, indexes } = buildDictionary(zoneTariffs);
   const tariffs = table.map((t, id) => ({ id, ...t }));
 
+  const fallbacks: string[] = [];
+  const sectionAreas = fc.features.map((f) => {
+    const { code, category } = f.properties as any;
+    if (!PERMIT_CATEGORIES.has(category)) return null;
+    return areasOfSection(code, f.geometry as MultiPolygon, parkingAreas, (c) => fallbacks.push(c));
+  });
+  if (fallbacks.length > 0) {
+    console.warn(`  zps: outside every VPH district, so in their code's: ${fallbacks.join(", ")}`);
+  }
+  const withoutArea = fc.features.filter((_, i) => sectionAreas[i]?.length === 0);
+  if (withoutArea.length > MAX_SECTIONS_WITHOUT_AREA) {
+    throw new Error(`zps: ${withoutArea.length} blue and purple sections have no parking area`);
+  }
+  const { table: areaSets, indexes: areasIds } = buildDictionary(
+    sectionAreas.map((a) => (a && a.length > 0 ? a : null)),
+  );
+
   const features: Feature<MultiPolygon, ZpsFeatureProps>[] = fc.features.map((f, i) => {
     const code = (f.properties as any).code as string;
     const category = (f.properties as any).category as string;
@@ -109,6 +137,7 @@ function buildZps(
         category,
         tariffId: indexes[i],
         ...(category === "RES" ? { maxStayMinutes: maxStayByCode.get(code) ?? null } : {}),
+        ...(PERMIT_CATEGORIES.has(category) ? { areasId: areasIds[i] } : {}),
       },
     };
   });
@@ -118,7 +147,7 @@ function buildZps(
     console.warn(`  zps: ${unmatched} resident zone sections have no max stay in Golemio`);
   }
 
-  return { tariffs, features };
+  return { tariffs, areaSets, features };
 }
 
 interface LetniFeatureProps {
@@ -209,13 +238,14 @@ async function main() {
   await mkdir(OUT_DIR, { recursive: true });
 
   console.log("Fetching + cleaning source datasets...");
-  const [tsk, zpsSource, letni, streets] = await Promise.all([
+  const [tsk, parkingAreas, zpsSource, letni, streets] = await Promise.all([
     withRetries(() => fetchTskParking(golemioKey)),
+    withRetries(fetchParkingAreas),
     withRetries(() => fetchGeoJSON(SOURCES.zps)),
     fetchAndBuild(SOURCES.letni, buildLetni),
     fetchAndBuild(SOURCES.streets, buildStreets),
   ]);
-  const zps = buildZps(zpsSource, tsk);
+  const zps = buildZps(zpsSource, tsk, parkingAreas);
 
   console.log("Writing output...");
   const written = await Promise.all([

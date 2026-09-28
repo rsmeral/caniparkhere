@@ -25,10 +25,14 @@ export interface ZpsProps {
   tariffId: number | null;
   /** Resident zones only: the longest a visitor may stay, in minutes, when it's known. */
   maxStayMinutes?: number | null;
+  /** Blue and purple zones only: the parking areas whose permits cover it, in `areaSets`. */
+  areasId?: number | null;
 }
 
 export interface ZpsData {
   tariffs: Tariff[];
+  /** Lists of parking area names, e.g. ["5", "5.1"], shared by the zones that have them. */
+  areaSets: string[][];
   features: Feature<MultiPolygon, ZpsProps>[];
 }
 

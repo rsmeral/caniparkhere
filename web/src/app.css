@@ -312,6 +312,63 @@ body {
   opacity: 0.7;
 }
 
+.app__sheet-body .app__permit-list {
+  /* A list of toggles rather than bullets, so without the page's list indent. */
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.app__permit-row {
+  /* A district's whole-district permit first, then its sub-areas beside it. */
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.app__permit-chip {
+  min-width: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  border-radius: 1.25rem;
+  background: rgba(0, 0, 0, 0.06);
+  color: inherit;
+  font: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.app__permit-chip[aria-pressed="true"] {
+  background: #111;
+  color: #fff;
+  font-weight: 600;
+}
+
+.app__permit-footer {
+  /* Keeps Save at the bottom of the screen while the list scrolls under it. */
+  position: sticky;
+  bottom: 0;
+  margin: 0 -1.75rem -3rem;
+  padding: 0.75rem 1.75rem calc(env(safe-area-inset-bottom, 0px) + 1rem);
+  background: #fff;
+  box-shadow: 0 -1px 0 rgba(0, 0, 0, 0.08);
+}
+
+.app__permit-save {
+  width: 100%;
+  padding: 0.85rem;
+  border: none;
+  border-radius: 0.75rem;
+  background: #111;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .app__emoji-halo {
   /* The emoji over a soft, highly feathered dark shadow, which separates it from the page
      whatever the tone. The shadow is painted around the emoji and takes no space, so its

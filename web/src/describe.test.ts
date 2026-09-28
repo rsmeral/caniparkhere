@@ -8,11 +8,26 @@ import type { Vehicle } from "./vehicle";
 
 // Every emoji the app shows - describe()'s advice plus app.tsx's loading and error states,
 // which don't go through describe() at all.
-const ALL_EMOJI = ["⏳", "😵", "🤷", "🔒", "🛰", "🧭", "😟", "🤑", "🤔", "😊", "👀", "🧐", "⏰"];
+const ALL_EMOJI = [
+  "⏳",
+  "😵",
+  "🤷",
+  "🔒",
+  "🛰",
+  "🧭",
+  "😟",
+  "🤑",
+  "🤔",
+  "😊",
+  "👀",
+  "🧐",
+  "⏰",
+  "😎",
+];
 
-const mixZone: ZoneInfo = { code: "P2-0237", category: "MIX" };
-const resZone: ZoneInfo = { code: "P8-0012", category: "RES" };
-const visZone: ZoneInfo = { code: "BUS-0001", category: "VIS" };
+const mixZone: ZoneInfo = { code: "P2-0237", category: "MIX", areas: ["2"] };
+const resZone: ZoneInfo = { code: "P8-0012", category: "RES", areas: ["8", "8.1"] };
+const visZone: ZoneInfo = { code: "BUS-0001", category: "VIS", areas: [] };
 
 const NO_CLEANING: Cleaning = { today: false, upcoming: null };
 const CLEANING_TODAY: Cleaning = { today: true, upcoming: null };
@@ -63,7 +78,8 @@ const place = (zone: ZoneStatus | null, extra: Partial<Place> = {}): Place => ({
   ...extra,
 });
 
-const at = (places: Place[], vehicle?: Vehicle) => describe({ kind: "places", places }, vehicle);
+const at = (places: Place[], vehicle?: Vehicle, permits?: string[]) =>
+  describe({ kind: "places", places }, vehicle, permits);
 
 const NO_INFO = "No info for this spot — trust the signs.";
 const COULD_BE = "Where are you exactly? Seems like one of these.";
@@ -324,7 +340,7 @@ suite("describe", () => {
       free(mixZone, null),
       { kind: "residentZone", ...resZone },
     ];
-    for (const vehicle of ["own", "shared", "motorbike"] as const) {
+    for (const vehicle of ["own", "permit", "shared", "motorbike"] as const) {
       for (const zone of zones) {
         expect(
           at([place(zone)], vehicle).cards[0].zone?.expanded.length,
@@ -512,8 +528,7 @@ suite("describe", () => {
       const display = at([place(paidVis)], "shared");
       expect(display).toMatchObject({
         tone: "caution",
-        sentence:
-          "Don't end your rental here. Stopping is fine, but it's paid.",
+        sentence: "Don't end your rental here. Stopping is fine, but it's paid.",
       });
       expect(display.cards[0].zone?.payment?.priceLabel).toBe("40 Kč/hod");
       expect(display.cards[0].zone?.expanded[1]).toEqual({
@@ -538,6 +553,72 @@ suite("describe", () => {
     it("warns about street cleaning today just as for an own car", () => {
       const places = [place(paidMix, { cleaning: CLEANING_TODAY })];
       expect(at(places, "shared").sentence).toBe(at(places).sentence);
+    });
+  });
+
+  suite("with a permit", () => {
+    const own = (zone: ZoneStatus) => at([place(zone)]);
+
+    it("parks at will in a blue or purple zone in one of the permit's areas", () => {
+      const zones: ZoneStatus[] = [
+        paid(resZone, { maxStayMinutes: 60 }),
+        { kind: "residentZone", ...resZone },
+        free(resZone),
+      ];
+      for (const zone of zones) {
+        const display = at([place(zone)], "permit", ["8.1"]);
+        expect(display).toMatchObject({
+          tone: "good",
+          icon: "😎",
+          sentence: "You're in your zone! Park at will.",
+        });
+        expect(display.cards[0].terms).toBe("Your permit's valid here");
+        expect(display.cards[0].zone).toMatchObject({
+          payment: null,
+          expanded: [
+            { label: "Zone", value: "Residents" },
+            { label: "Your permit", value: "Valid here" },
+          ],
+        });
+      }
+    });
+
+    it("counts a zone for every area it's in, so a district permit covers its sub-areas' zones", () => {
+      expect(at([place(paid(resZone))], "permit", ["8"]).tone).toBe("good");
+    });
+
+    it("answers like an own car where the permit isn't valid, and says so in the table", () => {
+      for (const [zone, permits] of [
+        [paid(resZone), ["2"]],
+        [paid(visZone), ["2", "8"]],
+        [paid(mixZone), []],
+      ] as const) {
+        const display = at([place(zone)], "permit", [...permits]);
+        expect(display.sentence).toBe(own(zone).sentence);
+        expect(display.cards[0].terms).toBe(own(zone).cards[0].terms);
+        expect(display.cards[0].zone?.payment).toEqual(own(zone).cards[0].zone?.payment);
+        expect(display.cards[0].zone?.expanded[1]).toEqual({
+          label: "Your permit",
+          value: "Not valid here",
+        });
+      }
+    });
+
+    it("applies only when driving with the permit", () => {
+      expect(at([place(paid(resZone))], "own", ["8"]).sentence).toBe(own(paid(resZone)).sentence);
+    });
+
+    it("tells zones the permit covers from ones it doesn't", () => {
+      const display = at([place(paid(resZone)), place(paid(mixZone))], "permit", ["8"]);
+      expect(display.agree).toBe(false);
+      expect(at([place(paid(resZone)), place(paid(mixZone))], "permit", ["2", "8"]).agree).toBe(
+        true,
+      );
+    });
+
+    it("still warns about street cleaning today", () => {
+      const places = [place(paid(resZone), { cleaning: CLEANING_TODAY })];
+      expect(at(places, "permit", ["8"]).sentence).toBe(at(places).sentence);
     });
   });
 

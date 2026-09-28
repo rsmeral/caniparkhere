@@ -3,11 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("./dataStore", () => ({ loadData: vi.fn() }));
 
 import { loadData } from "./dataStore";
-import type { QueryRequest, QueryResponse } from "./queryProtocol";
+import type { QueryRequest, QueryResponse, WorkerRequest } from "./queryProtocol";
 
 const bounds = { minLon: 14.16, minLat: 49.84, maxLon: 14.8, maxLat: 50.27 };
 const emptyData = {
-  zps: { tariffs: [], features: [] },
+  zps: { tariffs: [], areaSets: [], features: [] },
   letni: { dates: [], features: [] },
   streets: { names: [], features: [] },
   bounds,
@@ -16,7 +16,7 @@ const emptyData = {
 /** A request with the defaults the app sends: the real time, and street cleaning as dated. */
 const request = (
   fields: Pick<QueryRequest, "id" | "lon" | "lat" | "accuracyMeters"> & Partial<QueryRequest>,
-): QueryRequest => ({ at: null, cleaningEverywhereToday: false, ...fields });
+): QueryRequest => ({ kind: "query", at: null, cleaningEverywhereToday: false, ...fields });
 
 /**
  * Loads the worker module against a stubbed worker global, and hands back a way to post it
@@ -24,7 +24,7 @@ const request = (
  * its data load at import time.
  */
 async function startWorker() {
-  let onMessage: ((event: { data: QueryRequest }) => void) | undefined;
+  let onMessage: ((event: { data: WorkerRequest }) => void) | undefined;
   const replies: QueryResponse[] = [];
   const waiters: ((response: QueryResponse) => void)[] = [];
 
@@ -41,7 +41,7 @@ async function startWorker() {
   vi.resetModules();
   await import("./queryWorker");
 
-  return async (request: QueryRequest): Promise<QueryResponse> => {
+  return async (request: WorkerRequest): Promise<QueryResponse> => {
     const reply = new Promise<QueryResponse>((resolve) => waiters.push(resolve));
     onMessage?.({ data: request });
     return reply;
@@ -91,6 +91,7 @@ describe("queryWorker", () => {
     vi.mocked(loadData).mockResolvedValue({
       ...emptyData,
       zps: {
+        areaSets: [],
         tariffs: [
           {
             id: 0,
@@ -127,7 +128,7 @@ describe("queryWorker", () => {
     );
 
     const zoneKind = (r: typeof day) =>
-      r.ok && r.result.kind === "places" ? r.result.places[0].zone?.kind : null;
+      r.ok && "result" in r && r.result.kind === "places" ? r.result.places[0].zone?.kind : null;
     expect(zoneKind(day)).toBe("paidZone");
     expect(zoneKind(night)).toBe("freeZoneRightNow");
   });
@@ -152,6 +153,20 @@ describe("queryWorker", () => {
     const response = await ask(request({ id: 9, lon: 14.42, lat: 50.08, accuracyMeters: 20 }));
 
     expect(response).toEqual({ id: 9, ok: false, message: "Failed to fetch zps.json: 404" });
+  });
+
+  it("lists the parking areas a permit can be for", async () => {
+    vi.mocked(loadData).mockResolvedValue({
+      ...emptyData,
+      zps: { ...emptyData.zps, areaSets: [["5", "5.1"], ["2"], ["5", "5.2"]] },
+    });
+    const ask = await startWorker();
+
+    expect(await ask({ kind: "areas", id: 4 })).toEqual({
+      id: 4,
+      ok: true,
+      areas: ["2", "5", "5.1", "5.2"],
+    });
   });
 
   it("loads the data once, however many queries arrive", async () => {

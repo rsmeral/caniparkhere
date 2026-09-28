@@ -1,12 +1,12 @@
 import { loadData } from "./dataStore";
-import { buildIndexes, isWithinBounds, queryPlaces, type QueryResult } from "./query";
-import type { QueryRequest, QueryResponse } from "./queryProtocol";
+import { buildIndexes, isWithinBounds, permitAreas, queryPlaces, type QueryResult } from "./query";
+import type { QueryResponse, WorkerRequest } from "./queryProtocol";
 
 // The worker global. `lib.dom` types `self` as a Window, so the two calls this worker makes
 // are narrowed here instead - which also pins postMessage to the protocol type.
 const ctx = self as unknown as {
   postMessage(message: QueryResponse): void;
-  addEventListener(type: "message", listener: (event: MessageEvent<QueryRequest>) => void): void;
+  addEventListener(type: "message", listener: (event: MessageEvent<WorkerRequest>) => void): void;
 };
 
 // Fetching, parsing and indexing the datasets is around a second of solid CPU. It starts as
@@ -15,9 +15,15 @@ const ctx = self as unknown as {
 const ready = loadData().then((data) => ({ data, indexes: buildIndexes(data) }));
 
 ctx.addEventListener("message", async (event) => {
-  const { id, lon, lat, accuracyMeters, at, cleaningEverywhereToday } = event.data;
+  const request = event.data;
+  const { id } = request;
   try {
     const { data, indexes } = await ready;
+    if (request.kind === "areas") {
+      ctx.postMessage({ id, ok: true, areas: permitAreas(data) });
+      return;
+    }
+    const { lon, lat, accuracyMeters, at, cleaningEverywhereToday } = request;
     const result: QueryResult = isWithinBounds(data.bounds, lon, lat)
       ? {
           kind: "places",

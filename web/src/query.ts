@@ -1,3 +1,4 @@
+import { compareAreas } from "./areas";
 import type { LoadedData } from "./dataStore";
 import { isPublicHoliday } from "./holidays";
 import { LineIndex, PolygonIndex } from "./spatialIndex";
@@ -9,6 +10,8 @@ import type { Bounds, Tariff, TariffRule, ZpsProps } from "./types";
 export interface ZoneInfo {
   code: string;
   category: ZpsProps["category"];
+  /** The parking areas whose permits cover the zone, e.g. ["5", "5.1"]. Empty for orange. */
+  areas: string[];
 }
 
 /** A zone's rules at the moment asked about. */
@@ -61,6 +64,17 @@ export type QueryResult = { kind: "outOfArea" } | { kind: "places"; places: Plac
  * Checks a point against the data's coverage envelope (see the pipeline's padBbox) - a
  * coarse "are you anywhere near Prague" sanity check, not a precise city-boundary test.
  */
+/**
+ * Every parking area a permit can be for, districts in number order, each followed by its
+ * own sub-areas.
+ *
+ * @example permitAreas(data) -> ["1", "2", "5", "5.1", "5.2", ...]
+ */
+export function permitAreas(data: LoadedData): string[] {
+  const names = new Set(data.zps.areaSets.flat());
+  return [...names].sort(compareAreas);
+}
+
 export function isWithinBounds(bounds: Bounds, lon: number, lat: number): boolean {
   return (
     lon >= bounds.minLon && lon <= bounds.maxLon && lat >= bounds.minLat && lat <= bounds.maxLat
@@ -156,7 +170,12 @@ function zoneStatusOf(
   feature: LoadedData["zps"]["features"][number],
   now: Date,
 ): ZoneStatus {
-  const zone: ZoneInfo = { code: feature.properties.code, category: feature.properties.category };
+  const { code, category, areasId } = feature.properties;
+  const zone: ZoneInfo = {
+    code,
+    category,
+    areas: areasId == null ? [] : data.zps.areaSets[areasId],
+  };
   if (feature.properties.category === "RES" && feature.properties.tariffId === null) {
     return { kind: "residentZone", ...zone };
   }

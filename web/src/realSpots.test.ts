@@ -90,15 +90,34 @@ describe("real spots", () => {
   it("warns about Myslíkova's cleaning day, plainly for a precise fix and as a maybe for a wide one", () => {
     const [lat, lon] = SPOTS.myslikova;
     const cleaningDay = new Date(2026, 9, 3, 10, 0);
-    expect(headlineAt(lat, lon, 5, cleaningDay)).toBe(
-      "Street cleaning today — don't park here.",
-    );
+    expect(headlineAt(lat, lon, 5, cleaningDay)).toBe("Street cleaning today — don't park here.");
     expect(headlineAt(lat, lon, 30, cleaningDay)).toBe(
       "Where are you exactly? Some of these have street cleaning today.",
     );
     expect(headlineAt(lat, lon, 5, new Date(2026, 9, 2, 10, 0))).toBe(
       "You can park here, but it's paid. And watch out, street cleaning tomorrow.",
     );
+  });
+
+  it("counts a section on a district border for both districts' permits", () => {
+    const [lat, lon] = SPOTS.myslikova;
+    const places = queryPlaces(data, indexes, lon, lat, WEDNESDAY_EVENING, 30);
+    const border = places.find((p) => p.zone?.code === "P1-0397")!;
+    expect(border.zone?.areas).toEqual(["1", "2"]);
+    const iconWith = (permit: string) =>
+      describeResult({ kind: "places", places: [border] }, "permit", [permit]).icon;
+    expect(iconWith("2")).toBe("😎");
+    expect(iconWith("3")).not.toBe("😎");
+  });
+
+  it("gives a section its district, and its sub-areas where the district has them", () => {
+    const zonesAt = (lat: number, lon: number) =>
+      queryPlaces(data, indexes, lon, lat, WEDNESDAY_EVENING, 5).map((p) => p.zone);
+    expect(zonesAt(50.059886, 14.436953)[0]).toMatchObject({ code: "P4-2105", areas: ["4"] });
+    expect(zonesAt(50.065166, 14.408169)[0]).toMatchObject({
+      code: "P5-1117",
+      areas: ["5", "5.1", "5.3"],
+    });
   });
 
   it("answers from the five nearest zones when a wide circle reaches more", () => {
