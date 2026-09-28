@@ -22,7 +22,7 @@ export default defineConfig({
       workbox: {
         // Data files are versioned via manifest.json + IndexedDB ourselves,
         // so let the service worker just cache the app shell.
-        globPatterns: ["**/*.{js,css,html,png,svg}"],
+        globPatterns: ["**/*.{js,css,html,png,svg,woff2}"],
       },
       manifest: {
         name: "Can I Park Here",
