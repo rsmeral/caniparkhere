@@ -324,7 +324,7 @@ suite("describe", () => {
       free(mixZone, null),
       { kind: "residentZone", ...resZone },
     ];
-    for (const vehicle of ["own", "shared"] as const) {
+    for (const vehicle of ["own", "shared", "motorbike"] as const) {
       for (const zone of zones) {
         expect(
           at([place(zone)], vehicle).cards[0].zone?.expanded.length,
@@ -538,6 +538,46 @@ suite("describe", () => {
     it("warns about street cleaning today just as for an own car", () => {
       const places = [place(paidMix, { cleaning: CLEANING_TODAY })];
       expect(at(places, "shared").sentence).toBe(at(places).sentence);
+    });
+  });
+
+  suite("on a motorbike", () => {
+    it("parks free in every zone, at any hour, with no price shown", () => {
+      const zones: ZoneStatus[] = [
+        paid(mixZone),
+        paid(resZone, { maxStayMinutes: 60 }),
+        paid(visZone),
+        { kind: "residentZone", ...resZone },
+        free(visZone),
+      ];
+      for (const zone of zones) {
+        const display = at([place(zone)], "motorbike");
+        expect(display).toMatchObject({
+          tone: "good",
+          sentence: "Motorbikes park here for free, with no time limit.",
+        });
+        expect(display.cards[0].terms).toBe("Free for motorbikes");
+        expect(display.cards[0].zone).toMatchObject({
+          payment: null,
+          expanded: [
+            { label: "Zone", value: expect.any(String) },
+            { label: "Motorbike", value: "Free, no time limit" },
+          ],
+        });
+      }
+    });
+
+    it("agrees across zones of every colour", () => {
+      expect(at([place(paid(visZone)), place(paid(resZone))], "motorbike").agree).toBe(true);
+    });
+
+    it("warns about street cleaning today just as for a car", () => {
+      const places = [place(paid(mixZone), { cleaning: CLEANING_TODAY })];
+      expect(at(places, "motorbike").sentence).toBe(at(places).sentence);
+    });
+
+    it("sends you to the signs where there's no zone data", () => {
+      expect(at([place(null)], "motorbike").sentence).toBe(at([place(null)]).sentence);
     });
   });
 

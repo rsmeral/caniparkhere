@@ -1,14 +1,19 @@
 /**
  * What the user is driving. A car from a carsharing service registered with the city holds
  * a permit for every blue and purple zone in Prague, which covers it while it waits between
- * rentals - so for a shared car the question is where the rental can end.
+ * rentals - so for a shared car the question is where the rental can end. A motorbike parks
+ * in every zone for free.
  */
-export type Vehicle = "own" | "shared";
+export type Vehicle = "own" | "shared" | "motorbike";
 
 export const VEHICLE_LABEL: Record<Vehicle, string> = {
   own: "Own car",
   shared: "Shared car",
+  motorbike: "Motorbike",
 };
+
+const isVehicle = (value: string | null): value is Vehicle =>
+  value !== null && Object.hasOwn(VEHICLE_LABEL, value);
 
 const STORAGE_KEY = "caniparkhere.vehicle";
 
@@ -16,7 +21,8 @@ const STORAGE_KEY = "caniparkhere.vehicle";
  * blocked (private windows, some embedded views), which counts as nothing stored. */
 export function loadVehicle(): Vehicle {
   try {
-    return localStorage.getItem(STORAGE_KEY) === "shared" ? "shared" : "own";
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return isVehicle(stored) ? stored : "own";
   } catch {
     return "own";
   }
