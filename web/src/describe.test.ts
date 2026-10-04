@@ -111,7 +111,7 @@ suite("describe", () => {
             payment: { url: "https://platba.parkujvpraze.cz/pz/BUS-0001", priceLabel: "40 Kč/h" },
             expanded: [
               { label: "Zone", value: "Visitors" },
-              { label: "Price", value: "40 Kč/hod" },
+              { label: "Price", value: "40 Kč/h" },
               { label: "Daily cap", value: "90 Kč" },
               { label: "Paid hours", value: "08:00–17:59" },
             ],
@@ -163,7 +163,7 @@ suite("describe", () => {
         expanded: [
           { label: "Zone", value: "Residents" },
           { label: "Free until", value: "08:00" },
-          { label: "Then", value: "40 Kč/hod" },
+          { label: "Then", value: "40 Kč/h" },
           { label: "Max stay", value: "1–3 h, see sign" },
           { label: "Paid hours", value: "08:00–19:59" },
         ],
