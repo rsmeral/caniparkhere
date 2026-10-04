@@ -684,18 +684,20 @@ body {
   padding: 0.4rem 0.4rem;
   background: #15803d;
   border-left: 1px solid var(--hairline);
+  /* The card's own top highlight, which an opaque child would otherwise cover. */
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
   color: #fff;
   text-decoration: none;
   text-align: center;
 }
 
 .app__pay-label {
-  font-size: 0.8rem;
+  font-size: 0.95rem;
   font-weight: 700;
 }
 
 .app__pay-price {
-  font-size: 0.6rem;
+  font-size: 0.75rem;
   font-weight: 600;
   opacity: 0.92;
   white-space: nowrap;
@@ -713,7 +715,7 @@ body {
 }
 
 .app__pay--block .app__pay-price {
-  font-size: 0.72rem;
+  font-size: 0.85rem;
 }
 
 .app__live {
