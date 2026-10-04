@@ -6,7 +6,7 @@ export type Tone = "neutral" | "good" | "warn" | "caution" | "danger" | "outside
 
 export interface ZonePayment {
   url: string;
-  /** Short price label for the Pay button itself, e.g. "40 Kč/hod". */
+  /** Short price label for the Pay button itself, e.g. "40 Kč/h". */
   priceLabel: string;
 }
 
@@ -232,7 +232,7 @@ function zoneChip(
     payment: payment
       ? {
           url: `https://platba.parkujvpraze.cz/pz/${zone.code}`,
-          priceLabel: `${payment.pricePerHour} Kč/hod`,
+          priceLabel: `${payment.pricePerHour} Kč/h`,
         }
       : null,
     expanded: [{ label: "Zone", value: label }, ...expanded],

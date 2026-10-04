@@ -108,7 +108,7 @@ suite("describe", () => {
             categoryLabel: "Visitors",
             colorHex: "#f97316",
             colorName: "oranžová",
-            payment: { url: "https://platba.parkujvpraze.cz/pz/BUS-0001", priceLabel: "40 Kč/hod" },
+            payment: { url: "https://platba.parkujvpraze.cz/pz/BUS-0001", priceLabel: "40 Kč/h" },
             expanded: [
               { label: "Zone", value: "Visitors" },
               { label: "Price", value: "40 Kč/hod" },
@@ -530,7 +530,7 @@ suite("describe", () => {
         tone: "caution",
         sentence: "Don't end your rental here. Stopping is fine, but it's paid.",
       });
-      expect(display.cards[0].zone?.payment?.priceLabel).toBe("40 Kč/hod");
+      expect(display.cards[0].zone?.payment?.priceLabel).toBe("40 Kč/h");
       expect(display.cards[0].zone?.expanded[1]).toEqual({
         label: "End rental",
         value: "Not here",
