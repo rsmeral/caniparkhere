@@ -278,8 +278,9 @@ function tariffRows(status: ZoneStatus): Row[] {
 }
 
 /**
- * Builds the ZoneChip for a zone's card, with its terms in full. A shared car has nothing to
- * pay where its rental can end, so those zones show that instead of a price.
+ * Builds the ZoneChip for a zone's card, with its terms in full. Where a shared car's rental
+ * can end, the card says so instead of listing a price; the Pay button stays for paying to
+ * park mid-rental.
  */
 function chipForZoneStatus(status: ZoneStatus, vehicle: Vehicle, permits: string[]): ZoneChip {
   if (vehicle === "motorbike") {
@@ -288,11 +289,11 @@ function chipForZoneStatus(status: ZoneStatus, vehicle: Vehicle, permits: string
   if (permitCovers(status, vehicle, permits)) {
     return zoneChip(status, [{ label: "Your permit", value: "Valid here" }], null);
   }
+  const payment = status.kind === "paidZone" ? { pricePerHour: status.pricePerHour } : null;
   if (vehicle === "shared" && status.category !== "VIS") {
-    return zoneChip(status, [{ label: "End rental", value: "Free, no time limit" }], null);
+    return zoneChip(status, [{ label: "End rental", value: "Free, no time limit" }], payment);
   }
   const rows = tariffRows(status);
-  const payment = status.kind === "paidZone" ? { pricePerHour: status.pricePerHour } : null;
   if (vehicle === "shared") {
     return zoneChip(status, [{ label: "End rental", value: "Not here" }, ...rows], payment);
   }
