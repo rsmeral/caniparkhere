@@ -497,7 +497,7 @@ suite("describe", () => {
     const paidRes = paid(resZone, { maxStayMinutes: 60 });
     const paidVis = paid(visZone);
 
-    it("lets the rental end in a blue or purple zone at any hour, with no price shown", () => {
+    it("lets the rental end in a blue or purple zone at any hour, with no price row", () => {
       const zones: ZoneStatus[] = [
         paidMix,
         paidRes,
@@ -511,13 +511,19 @@ suite("describe", () => {
           sentence: "You can end your rental here, for free and with no time limit.",
         });
         expect(display.cards[0].zone).toMatchObject({
-          payment: null,
           expanded: [
             { label: "Zone", value: expect.any(String) },
             { label: "End rental", value: "Free, no time limit" },
           ],
         });
       }
+    });
+
+    it("keeps the Pay button in a paid blue or purple zone, for parking mid-rental", () => {
+      for (const zone of [paidMix, paidRes]) {
+        expect(at([place(zone)], "shared").cards[0].zone?.payment).not.toBeNull();
+      }
+      expect(at([place(free(mixZone))], "shared").cards[0].zone?.payment).toBeNull();
     });
 
     it("agrees across blue and purple zones, since the rental can end in either", () => {
