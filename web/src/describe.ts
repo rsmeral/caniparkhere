@@ -116,20 +116,17 @@ function formatStayShort(minutes: number): string {
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-const MINUTES_PER_DAY = 24 * 60;
-
 /**
- * A change less than a day away is just its time, since that clock time comes round only
- * once before it. A change further ahead names its weekday: at 10:00 on Saturday, a bare
- * "17:00" would read as Saturday's.
+ * A change later today is just its time. Any later change names its weekday, apart from the
+ * coming midnight.
  *
- * @example formatChange({time:"08:00", daysAhead:1, minutesUntil:600, ...}) -> "08:00"
+ * @example formatChange({time:"18:00", daysAhead:0, ...}) -> "18:00"
  * @example formatChange({time:"00:00", daysAhead:1, ...}) -> "midnight"
- * @example formatChange({time:"17:00", daysAhead:1, weekday:6, minutesUntil:1860, ...}) -> "Sun 17:00"
+ * @example formatChange({time:"08:00", daysAhead:1, weekday:5, ...}) -> "Sat 08:00"
  */
 function formatChange(change: Change): string {
+  if (change.daysAhead === 0) return change.time;
   if (change.daysAhead === 1 && change.time === "00:00") return "midnight";
-  if (change.minutesUntil < MINUTES_PER_DAY) return change.time;
   return `${WEEKDAYS[change.weekday]} ${change.time}`;
 }
 
