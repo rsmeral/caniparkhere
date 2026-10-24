@@ -62,7 +62,10 @@ export interface Display extends Advice {
 
 // Prague's real curb/sign colors and friendly labels per zone category, independent of
 // `tone` - this is "what you'd see painted there", not the recommendation's urgency.
-export const ZONE_CATEGORY: Record<ZoneInfo["category"], { label: string; colorName: string; colorHex: string }> = {
+export const ZONE_CATEGORY: Record<
+  ZoneInfo["category"],
+  { label: string; colorName: string; colorHex: string }
+> = {
   RES: { label: "Residents", colorName: "modrá", colorHex: "#2563eb" },
   MIX: { label: "Mixed", colorName: "fialová", colorHex: "#8b5cf6" },
   VIS: { label: "Visitors", colorName: "oranžová", colorHex: "#f97316" },
@@ -113,18 +116,28 @@ function formatStayShort(minutes: number): string {
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
+const MINUTES_PER_DAY = 24 * 60;
+
 /**
- * A change within the next day is just its time, since the next 08:00 is clearly meant. A
- * change further ahead names its weekday.
+ * A change less than a day away is just its time, since that clock time comes round only
+ * once before it. A change further ahead names its weekday: at 10:00 on Saturday, a bare
+ * "17:00" would read as Saturday's.
  *
- * @example formatChange({time:"08:00", daysAhead:1, ...}) -> "08:00"
+ * @example formatChange({time:"08:00", daysAhead:1, minutesUntil:600, ...}) -> "08:00"
  * @example formatChange({time:"00:00", daysAhead:1, ...}) -> "midnight"
- * @example formatChange({time:"08:00", daysAhead:3, weekday:0, ...}) -> "Mon 08:00"
+ * @example formatChange({time:"17:00", daysAhead:1, weekday:6, minutesUntil:1860, ...}) -> "Sun 17:00"
  */
 function formatChange(change: Change): string {
   if (change.daysAhead === 1 && change.time === "00:00") return "midnight";
-  if (change.daysAhead <= 1) return change.time;
+  if (change.minutesUntil < MINUTES_PER_DAY) return change.time;
   return `${WEEKDAYS[change.weekday]} ${change.time}`;
+}
+
+/** The paid hours row, naming the day when they are not today's. */
+function paidHoursRow(paidWindows: string[], change: Change | null): Row {
+  const label =
+    change && change.daysAhead > 0 ? `Paid hours ${WEEKDAYS[change.weekday]}` : "Paid hours";
+  return { label, value: paidWindows.join("\n") };
 }
 
 // Free parking that ends sooner than this is worth saying so in the headline.
@@ -141,7 +154,9 @@ function adviceFor(status: ZoneStatus, vehicle: Vehicle, permits: string[]): Adv
   if (permitCovers(status, vehicle, permits)) return PERMIT_ADVICE;
   if (status.kind === "paidZone" && status.category === "RES") {
     const stay =
-      status.maxStayMinutes === null ? "a short time" : `up to ${formatStay(status.maxStayMinutes)}`;
+      status.maxStayMinutes === null
+        ? "a short time"
+        : `up to ${formatStay(status.maxStayMinutes)}`;
     return {
       tone: "warn",
       icon: "🤑",
@@ -269,7 +284,7 @@ function tariffRows(status: ZoneStatus): Row[] {
         { label: "Free until", value: formatChange(next) },
         { label: "Then", value: `${next.rule.pricePerHour} Kč/h` },
         limitRow(status, status.maxStayMinutes, next.rule.dailyCapCzk),
-        { label: "Paid hours", value: status.paidWindows.join("\n") },
+        paidHoursRow(status.paidWindows, next),
       ];
     }
     case "residentZone":

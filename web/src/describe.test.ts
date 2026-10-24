@@ -165,7 +165,7 @@ suite("describe", () => {
           { label: "Free until", value: "08:00" },
           { label: "Then", value: "40 Kč/h" },
           { label: "Max stay", value: "1–3 h, see sign" },
-          { label: "Paid hours", value: "08:00–19:59" },
+          { label: "Paid hours Thu", value: "08:00–19:59" },
         ],
       });
       expect(at([place(free(mixZone, null))]).cards[0].zone?.expanded).toEqual([
@@ -259,6 +259,17 @@ suite("describe", () => {
           }),
         ),
       ).toBe("Free until Mon 08:00");
+      expect(
+        termsOf(
+          free(mixZone, {
+            time: "17:00",
+            daysAhead: 1,
+            weekday: 6,
+            minutesUntil: 1860,
+            rule: null,
+          }),
+        ),
+      ).toBe("Free until Sun 17:00");
       expect(termsOf(free(mixZone, null))).toBe("Free at all hours");
     });
 
