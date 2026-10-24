@@ -162,10 +162,10 @@ suite("describe", () => {
         payment: null,
         expanded: [
           { label: "Zone", value: "Residents" },
-          { label: "Free until", value: "08:00" },
+          { label: "Free until", value: "Thu 08:00" },
           { label: "Then", value: "40 Kč/h" },
           { label: "Max stay", value: "1–3 h, see sign" },
-          { label: "Paid hours", value: "08:00–19:59" },
+          { label: "Paid hours Thu", value: "08:00–19:59" },
         ],
       });
       expect(at([place(free(mixZone, null))]).cards[0].zone?.expanded).toEqual([
@@ -242,7 +242,7 @@ suite("describe", () => {
       at([place(zone, extra)], vehicle).cards[0]?.terms;
 
     it("says until when free parking lasts", () => {
-      expect(termsOf(free(mixZone))).toBe("Free until 08:00");
+      expect(termsOf(free(mixZone))).toBe("Free until Thu 08:00");
       expect(
         termsOf(
           free(mixZone, { time: "07:30", daysAhead: 0, weekday: 2, minutesUntil: 90, rule: null }),
@@ -259,6 +259,17 @@ suite("describe", () => {
           }),
         ),
       ).toBe("Free until Mon 08:00");
+      expect(
+        termsOf(
+          free(mixZone, {
+            time: "17:00",
+            daysAhead: 1,
+            weekday: 6,
+            minutesUntil: 1860,
+            rule: null,
+          }),
+        ),
+      ).toBe("Free until Sun 17:00");
       expect(termsOf(free(mixZone, null))).toBe("Free at all hours");
     });
 
