@@ -1,3 +1,4 @@
+import type { MapPalette } from "../src/mapStyle";
 import type { GeoState } from "../src/useGeolocation";
 
 /**
@@ -10,10 +11,12 @@ export type FrameMessage = { type: "ready" };
 /**
  * `at` is the moment the app answers for, in epoch milliseconds, or null for the real time.
  * `cleaningEverywhereToday` has the app treat every street-cleaning section as cleaned today.
+ * `mapPalette` gives the map other colours than its own, for tuning them.
  */
 export type JigMessage = {
   type: "show";
   geo: GeoState;
   at: number | null;
   cleaningEverywhereToday: boolean;
+  mapPalette?: MapPalette;
 };

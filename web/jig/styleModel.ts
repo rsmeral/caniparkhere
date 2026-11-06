@@ -1,4 +1,5 @@
 import type { Tone } from "../src/describe";
+import { DEFAULT_MAP_PALETTE, type MapPalette } from "../src/mapStyle";
 
 // Colours are tuned in OKLCH: lightness, chroma (how colourful) and hue. Unlike HSL, equal
 // lightness and chroma there look equally light and equally colourful across hues, so giving
@@ -152,6 +153,8 @@ export interface StyleState {
     closeGlyph: number;
     closeThickness: number;
   };
+  /** The map's colours and weights, given to the app directly rather than through CSS. */
+  map: MapPalette;
   customCss: string;
   /** A full replacement for app.css, or null to keep the file's own. */
   appCss: string | null;
@@ -414,9 +417,18 @@ export const DEFAULT_STATE: StyleState = {
     closeGlyph: 1.6,
     closeThickness: 3.2,
   },
+  map: structuredClone(DEFAULT_MAP_PALETTE),
   customCss: "",
   appCss: null,
 };
+
+/** The map palette as source, for pasting over DEFAULT_MAP_PALETTE in src/mapStyle.ts. */
+export function mapPaletteSource(palette: MapPalette): string {
+  const lines = Object.entries(palette).map(
+    ([key, value]) => `  ${key}: ${JSON.stringify(value)},`,
+  );
+  return `export const DEFAULT_MAP_PALETTE: MapPalette = {\n${lines.join("\n")}\n};\n`;
+}
 
 export const PRESETS: { name: string; apply(state: StyleState): StyleState }[] = [
   { name: "The app today", apply: () => structuredClone(DEFAULT_STATE) },

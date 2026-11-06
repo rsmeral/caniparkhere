@@ -2,6 +2,7 @@ import { render, type ComponentChildren } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import appCssSource from "../src/app.css?raw";
 import type { Tone } from "../src/describe";
+import { DEFAULT_MAP_PALETTE, type MapPalette } from "../src/mapStyle";
 import type { GeoState } from "../src/useGeolocation";
 import type { FrameMessage, JigMessage } from "./protocol";
 import {
@@ -11,6 +12,7 @@ import {
   FONTS,
   generateCss,
   loadState,
+  mapPaletteSource,
   PRESETS,
   resolveTone,
   saveState,
@@ -36,6 +38,8 @@ const STATES: {
   at: string | null;
   /** Opens the About page once the app is showing. */
   about?: boolean;
+  /** Opens the map once the app is showing, agreeing to load it. */
+  map?: boolean;
 }[] = [
   { id: "free", label: "Free now", geo: ready(50.0755, 14.4378, 8), at: "2026-09-30T23:00" },
   { id: "paid", label: "Paid", geo: ready(50.0755, 14.4378, 8), at: "2026-09-30T19:13" },
@@ -70,6 +74,20 @@ const STATES: {
     at: "2026-10-03T10:00",
   },
   { id: "noInfo", label: "No info", geo: ready(50.06391, 14.43451, 10), at: "2026-09-30T19:13" },
+  {
+    id: "map",
+    label: "Map",
+    geo: ready(50.07759, 14.41712, 30),
+    at: "2026-09-30T19:13",
+    map: true,
+  },
+  {
+    id: "mapCleaning",
+    label: "Map, cleaning today",
+    geo: ready(50.07759, 14.41712, 30),
+    at: "2026-10-03T10:00",
+    map: true,
+  },
   { id: "searching", label: "Searching", geo: { status: "searching" }, at: null },
   {
     id: "outside",
@@ -150,20 +168,51 @@ function StyleJig() {
     for (const frame of frames.current.values()) applyTo(frame);
   }, [css, state.enabled, state.appCss]);
 
+  // The map's palette goes to the app as a prop, so it's sent along with what to show.
+  const show = (frame: HTMLIFrameElement, spec: (typeof STATES)[number]) => {
+    const { state } = latest.current;
+    const message: JigMessage = {
+      type: "show",
+      geo: spec.geo,
+      at: spec.at === null ? null : new Date(spec.at).getTime(),
+      cleaningEverywhereToday: false,
+      mapPalette: state.enabled ? state.map : undefined,
+    };
+    frame.contentWindow?.postMessage(message, location.origin);
+  };
+
+  useEffect(() => {
+    for (const [id, frame] of frames.current)
+      show(
+        frame,
+        STATES.find((s) => s.id === id)!,
+      );
+  }, [state.map, state.enabled]);
+
   useEffect(() => {
     const onMessage = (event: MessageEvent<FrameMessage>) => {
       if (event.data?.type !== "ready") return;
       for (const [id, frame] of frames.current) {
         if (!frame.contentWindow || frame.contentWindow !== event.source) continue;
         const spec = STATES.find((s) => s.id === id)!;
-        const message: JigMessage = {
-          type: "show",
-          geo: spec.geo,
-          at: spec.at === null ? null : new Date(spec.at).getTime(),
-          cleaningEverywhereToday: false,
-        };
-        frame.contentWindow.postMessage(message, location.origin);
+        show(frame, spec);
         applyTo(frame);
+        // The map's button appears with the first answer, which can take a few seconds.
+        if (spec.map) {
+          const started = Date.now();
+          const timer = setInterval(() => {
+            const doc = frame.contentDocument;
+            const button = (selector: string) => doc?.querySelector<HTMLButtonElement>(selector);
+            if (doc?.querySelector(".app__map:not(.app__map--consent)")) {
+              clearInterval(timer);
+            } else if (button(".app__map-consent-accept")) {
+              button(".app__map-consent-accept")!.click();
+            } else if (button(".app__map-toggle")) {
+              button(".app__map-toggle")!.click();
+            }
+            if (Date.now() - started > 60_000) clearInterval(timer);
+          }, 250);
+        }
         if (spec.about) {
           setTimeout(
             () =>
@@ -963,6 +1012,51 @@ function StyleJig() {
           />
         </Section>
 
+        <Section title="Map" open>
+          <p className="sj__hint">
+            The map's palette, sent to the phones showing the map. Copy it over DEFAULT_MAP_PALETTE
+            in src/mapStyle.ts.
+          </p>
+          {(Object.keys(DEFAULT_MAP_PALETTE) as (keyof MapPalette)[]).map((key) => {
+            const value = state.map[key];
+            const label = MAP_LABELS[key];
+            if (typeof value === "string") {
+              return (
+                <Color
+                  key={key}
+                  label={label}
+                  value={value}
+                  onInput={(v) => update((s) => (((s.map[key] as string) = v), s))}
+                />
+              );
+            }
+            const range = MAP_RANGES[key] ?? { min: 0, max: 1, step: 0.01 };
+            return (
+              <Slider
+                key={key}
+                label={label}
+                {...range}
+                value={value}
+                onInput={(v) => update((s) => (((s.map[key] as number) = v), s))}
+              />
+            );
+          })}
+          <div className="sj__row">
+            <button
+              type="button"
+              onClick={() => navigator.clipboard.writeText(mapPaletteSource(state.map))}
+            >
+              Copy palette
+            </button>
+            <button
+              type="button"
+              onClick={() => update((s) => ((s.map = structuredClone(DEFAULT_MAP_PALETTE)), s))}
+            >
+              Back to the app's
+            </button>
+          </div>
+        </Section>
+
         <Section title="Custom CSS">
           <p className="sj__hint">Laid over everything above. Any selector from app.css works.</p>
           <textarea
@@ -1074,6 +1168,40 @@ function StyleJig() {
 }
 
 type Update = (change: (s: StyleState) => StyleState) => void;
+
+const MAP_LABELS: Record<keyof MapPalette, string> = {
+  background: "Background",
+  water: "Water",
+  park: "Parks",
+  building: "Buildings",
+  buildingOutline: "Building edges",
+  roadCasing: "Road edges",
+  road: "Roads",
+  path: "Paths",
+  rail: "Rail",
+  label: "Street names",
+  labelHalo: "Name halo",
+  houseNumber: "House numbers",
+  zoneFillOpacity: "Zone fill",
+  zoneLineWidth: "Zone line",
+  candidateFillOpacity: "Candidate fill",
+  candidateLineWidth: "Candidate line",
+  selected: "Tapped zone",
+  selectedLineWidth: "Tapped line",
+  cleaningToday: "Cleaning today",
+  cleaningSoon: "Cleaning soon",
+  position: "Position",
+  accuracyOpacity: "Accuracy fill",
+  iconSize: "Emoji size",
+};
+
+/** Slider ranges for the palette's numbers; opacities use the 0 to 1 default. */
+const MAP_RANGES: Partial<Record<keyof MapPalette, { min: number; max: number; step: number }>> = {
+  zoneLineWidth: { min: 0, max: 6, step: 0.25 },
+  candidateLineWidth: { min: 0, max: 8, step: 0.25 },
+  selectedLineWidth: { min: 0, max: 8, step: 0.25 },
+  iconSize: { min: 0.5, max: 2, step: 0.05 },
+};
 
 /** Sets one channel of every coloured tone to their average. Neutral keeps its own. */
 const evenOut = (channel: "l" | "c") => (s: StyleState) => {
