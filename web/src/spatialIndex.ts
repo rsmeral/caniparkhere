@@ -57,6 +57,19 @@ export class PolygonIndex<P> {
       .map((c) => c.feature);
   }
 
+  /** Every feature whose bounding box overlaps the box, without an exact shape test - for
+   * drawing what's in view, where a feature just outside it costs nothing. */
+  findInBox(
+    minLon: number,
+    minLat: number,
+    maxLon: number,
+    maxLat: number,
+  ): Feature<MultiPolygon, P>[] {
+    return this.tree
+      .search({ minX: minLon, minY: minLat, maxX: maxLon, maxY: maxLat })
+      .map((c) => c.feature);
+  }
+
   /**
    * Finds every feature within maxDistanceMeters of the point - 0 for one the point sits
    * inside, otherwise the distance to its nearest edge. For a GPS fix too coarse to trust

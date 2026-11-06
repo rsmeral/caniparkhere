@@ -2,7 +2,14 @@ import { describe, expect, it } from "vitest";
 import type { Feature, MultiLineString, MultiPolygon } from "geojson";
 import type { LoadedData } from "./dataStore";
 import { compareAreas } from "./areas";
-import { buildIndexes, isWithinBounds, permitAreas, queryPlaces } from "./query";
+import {
+  buildIndexes,
+  isWithinBounds,
+  mapArea,
+  permitAreas,
+  placeOfZone,
+  queryPlaces,
+} from "./query";
 import type { LetniProps, StreetProps, ZpsProps } from "./types";
 
 function square(x0: number, y0: number, x1: number, y1: number) {
@@ -490,5 +497,72 @@ describe("permitAreas", () => {
 
   it("orders by number, not as text", () => {
     expect(["10", "9", "18.10", "18.2"].sort(compareAreas)).toEqual(["9", "10", "18.2", "18.10"]);
+  });
+});
+
+describe("placeOfZone", () => {
+  const zonePlaceAt = (now: Date, code: string, lon: number, lat: number) => {
+    const data = buildFixture(now);
+    return placeOfZone(data, buildIndexes(data), code, lon, lat, now);
+  };
+
+  it("gives the zone's rules, the street at the point and its cleaning there", () => {
+    expect(zonePlaceAt(new Date(2026, 3, 7, 10, 0), "A", 5, 5)).toMatchObject({
+      zone: { kind: "paidZone", code: "A" },
+      streetName: "Foo St",
+      cleaning: { today: true },
+      distanceMeters: 0,
+    });
+  });
+
+  it("counts only cleaning on the street at the point", () => {
+    const now = new Date(2026, 0, 1, 10, 0);
+    // On Near St, inside P1's north part and its cleaning section.
+    expect(zonePlaceAt(now, "P1", 14.4005, 50.0009)).toMatchObject({
+      streetName: "Near St",
+      cleaning: { today: false, upcoming: { date: "2026-01-02", daysUntil: 1 } },
+    });
+    // Further south in P1, where no section is.
+    expect(zonePlaceAt(now, "P1", 14.4005, 50.0003)?.cleaning).toEqual(NO_CLEANING);
+  });
+
+  it("is null for a zone that isn't at the point", () => {
+    expect(zonePlaceAt(new Date(2026, 0, 1, 10, 0), "B", 5, 5)).toBeNull();
+  });
+});
+
+describe("mapArea", () => {
+  const box = { minLon: 14.3995, minLat: 49.9995, maxLon: 14.403, maxLat: 50.0015 };
+
+  it("gives every zone in the box with its rules at the moment asked", () => {
+    const now = new Date(2026, 0, 1, 10, 0);
+    const data = buildFixture(now);
+    const { zones } = mapArea(data, buildIndexes(data), box, now);
+    expect(zones.map((z) => [z.properties.status.code, z.properties.status.kind])).toEqual(
+      expect.arrayContaining([
+        ["P1", "paidZone"],
+        ["P2", "residentZone"],
+      ]),
+    );
+    expect(zones).toHaveLength(2);
+  });
+
+  it("gives only the cleaning sections with cleaning today or within the warning window", () => {
+    const now = new Date(2026, 0, 1, 10, 0);
+    const data = buildFixture(now);
+    const { cleaning } = mapArea(data, buildIndexes(data), box, now);
+    // Near St and the NN9 section are cleaned tomorrow; Side St not until April.
+    expect(cleaning).toHaveLength(2);
+    expect(cleaning.map((c) => c.properties.cleaning)).toEqual([
+      { today: false, upcoming: { date: "2026-01-02", daysUntil: 1 } },
+      { today: false, upcoming: { date: "2026-01-02", daysUntil: 1 } },
+    ]);
+  });
+
+  it("treats every section as cleaned today when told to", () => {
+    const now = new Date(2026, 5, 1, 10, 0);
+    const data = buildFixture(now);
+    const { cleaning } = mapArea(data, buildIndexes(data), box, now, true);
+    expect(cleaning.map((c) => c.properties.cleaning.today)).toEqual([true, true, true]);
   });
 });

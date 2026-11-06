@@ -169,6 +169,61 @@ describe("queryWorker", () => {
     });
   });
 
+  it("answers the map's zones in a box, and a zone tapped on it", async () => {
+    vi.mocked(loadData).mockResolvedValue({
+      ...emptyData,
+      zps: {
+        areaSets: [],
+        tariffs: [],
+        features: [
+          {
+            type: "Feature",
+            properties: { code: "P1-0001", category: "VIS", tariffId: null },
+            geometry: {
+              type: "MultiPolygon",
+              coordinates: [
+                [
+                  [
+                    [14.41, 50.07],
+                    [14.43, 50.07],
+                    [14.43, 50.09],
+                    [14.41, 50.07],
+                  ],
+                ],
+              ],
+            },
+          },
+        ],
+      },
+    });
+    const ask = await startWorker();
+    const box = { minLon: 14.4, minLat: 50.06, maxLon: 14.44, maxLat: 50.1 };
+
+    const area = await ask({
+      kind: "mapArea",
+      id: 5,
+      box,
+      at: null,
+      cleaningEverywhereToday: false,
+    });
+    expect(area).toMatchObject({
+      id: 5,
+      ok: true,
+      mapArea: { zones: [{ properties: { status: { code: "P1-0001" } } }], cleaning: [] },
+    });
+
+    const tapped = await ask({
+      kind: "zonePlace",
+      id: 6,
+      code: "P1-0001",
+      lon: 14.425,
+      lat: 50.075,
+      at: null,
+      cleaningEverywhereToday: false,
+    });
+    expect(tapped).toMatchObject({ id: 6, ok: true, place: { zone: { code: "P1-0001" } } });
+  });
+
   it("loads the data once, however many queries arrive", async () => {
     vi.mocked(loadData).mockResolvedValue(emptyData);
     const ask = await startWorker();
