@@ -3,9 +3,12 @@ import "./app.css";
 import { AboutButton } from "./components/About";
 import { CandidateBox } from "./components/CandidateBox";
 import { LiveIndicator } from "./components/LiveIndicator";
+import { MapPanel } from "./components/MapPanel";
+import { MapToggle } from "./components/MapToggle";
 import { PermitSheet } from "./components/PermitSheet";
 import { VehiclePicker } from "./components/VehiclePicker";
 import { ZoneBox } from "./components/ZoneBox";
+import { accuracyBars } from "./accuracy";
 import { describe, type Display } from "./describe";
 import { emojiUrl } from "./emoji";
 import type { QueryResult } from "./query";
@@ -14,6 +17,13 @@ import type { GeoState } from "./useGeolocation";
 import { useThemeColor } from "./useThemeColor";
 import { loadPermits, savePermits } from "./permits";
 import { loadVehicle, saveVehicle, type Vehicle } from "./vehicle";
+import { loadMapConsent, saveMapConsent, type MapConsent } from "./mapConsent";
+import type { MapPalette } from "./mapStyle";
+import { useSettled } from "./useSettled";
+
+// How long the position has to stay unclear before the map opens by itself, so a rough first
+// fix that sharpens a moment later doesn't open it.
+const MAP_SETTLE_MS = 3000;
 
 const neutral = (icon: string, sentence: string): Display => ({
   tone: "neutral",
@@ -32,13 +42,21 @@ interface Props {
   /** Told when the user pauses or resumes following the location, so the caller can stop
    * and restart whatever supplies it. */
   onPausedChange?: (paused: boolean) => void;
+  /** The map's colours, for tuning them in the style jig. */
+  mapPalette?: MapPalette;
 }
 
 /**
  * The whole screen, for whatever location and time it's given. Where those come from is up
  * to the caller: the browser's GPS and clock in the real app, or the controls in the jig.
  */
-export function App({ geo: liveGeo, now, cleaningEverywhereToday = false, onPausedChange }: Props) {
+export function App({
+  geo: liveGeo,
+  now,
+  cleaningEverywhereToday = false,
+  onPausedChange,
+  mapPalette,
+}: Props) {
   // Spinning the worker up on first render starts its data load immediately, alongside the
   // browser's search for a GPS fix.
   const client = useMemo(() => createQueryClient(), []);
@@ -48,6 +66,10 @@ export function App({ geo: liveGeo, now, cleaningEverywhereToday = false, onPaus
   const [vehicle, setVehicle] = useState<Vehicle>(loadVehicle);
   const [permits, setPermits] = useState<string[]>(loadPermits);
   const [permitSheetOpen, setPermitSheetOpen] = useState(false);
+  const [mapConsent, setMapConsent] = useState<MapConsent>(loadMapConsent);
+  // The map opened or closed by hand, which holds for the rest of the visit.
+  const [mapChoice, setMapChoice] = useState<boolean | null>(null);
+  const [mapAutoOpened, setMapAutoOpened] = useState(false);
   // Every area a permit can be for, asked of the worker the first time the page opens.
   const [permitAreas, setPermitAreas] = useState<string[] | null>(null);
   // While paused, the answer stays with the position it was paused at - where the car is,
@@ -144,8 +166,31 @@ export function App({ geo: liveGeo, now, cleaningEverywhereToday = false, onPaus
   const toggleExpanded = (key: string) =>
     setExpandedKey((current) => (current === key ? null : key));
 
+  // The map is there whenever there are cards to swap it for. It opens by itself when the
+  // position is unclear - a weak fix, or more than one place it could be - and stays open
+  // until it's closed, so a fix wobbling around the threshold doesn't flick it open and shut.
+  const mapAvailable = geo.status === "ready" && display.cards.length > 0;
+  const mapWanted =
+    mapAvailable && (accuracyBars(geo.accuracyMeters) < 3 || display.cards.length > 1);
+  const mapSettled = useSettled(mapWanted, false, MAP_SETTLE_MS);
+  useEffect(() => {
+    if (mapSettled && mapConsent !== "declined") setMapAutoOpened(true);
+  }, [mapSettled]);
+  const mapOpen = mapAvailable && (mapChoice ?? mapAutoOpened);
+
+  const answerMapConsent = (accepted: boolean) => {
+    const consent = accepted ? "accepted" : "declined";
+    setMapConsent(consent);
+    saveMapConsent(consent);
+    setMapChoice(accepted);
+  };
+
+  // The zones' rules change with the time, so the map asks for them again each minute, or
+  // whenever the moment being answered for changes.
+  const mapRefreshKey = `${nowMs ?? Math.floor(Date.now() / 60_000)}:${cleaningEverywhereToday}`;
+
   return (
-    <div className={`app app--${display.tone}`}>
+    <div className={`app app--${display.tone}${mapOpen ? " app--map" : ""}`}>
       <LiveIndicator geo={geo} paused={pausedGeo !== null} onToggle={togglePaused} />
       <div className="app__corner">
         <VehiclePicker
@@ -166,21 +211,37 @@ export function App({ geo: liveGeo, now, cleaningEverywhereToday = false, onPaus
         <img className="app__emoji" src={emojiUrl(display.icon)} alt="" />
       </div>
       <p className="app__sentence">{display.sentence}</p>
-      {display.cards.length > 0 && (
-        <div className="app__cards">
-          {display.cards.map((card) => {
-            const Box = display.agree ? ZoneBox : CandidateBox;
-            return (
-              <Box
-                key={card.key}
-                card={card}
-                expanded={expandedKey === card.key}
-                onToggle={() => toggleExpanded(card.key)}
-              />
-            );
-          })}
-        </div>
+      {mapOpen && geo.status === "ready" ? (
+        <MapPanel
+          position={geo}
+          consent={mapConsent}
+          onConsent={answerMapConsent}
+          client={client}
+          options={{ at: now, cleaningEverywhereToday }}
+          refreshKey={mapRefreshKey}
+          vehicle={vehicle}
+          permits={permits}
+          candidates={display.cards.flatMap((card) => (card.zone ? [card.zone.code] : []))}
+          palette={mapPalette}
+        />
+      ) : (
+        display.cards.length > 0 && (
+          <div className="app__cards">
+            {display.cards.map((card) => {
+              const Box = display.agree ? ZoneBox : CandidateBox;
+              return (
+                <Box
+                  key={card.key}
+                  card={card}
+                  expanded={expandedKey === card.key}
+                  onToggle={() => toggleExpanded(card.key)}
+                />
+              );
+            })}
+          </div>
+        )
       )}
+      {mapAvailable && <MapToggle open={mapOpen} onToggle={() => setMapChoice(!mapOpen)} />}
     </div>
   );
 }

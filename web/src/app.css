@@ -312,6 +312,12 @@ body {
   opacity: 0.7;
 }
 
+.app__sheet-note a {
+  /* Each credit stays on one line. */
+  color: inherit;
+  white-space: nowrap;
+}
+
 .app__sheet-body .app__permit-list {
   /* A list of toggles rather than bullets, so without the page's list indent. */
   display: flex;
@@ -832,6 +838,202 @@ body {
 /* A paused answer keeps the accuracy of the fix it was paused at. */
 .app__live--paused .app__live-bars {
   opacity: 0.5;
+}
+
+/* ---- The map ---------------------------------------------------------------------- */
+
+.app--map {
+  /* With the map open, the answer stays at the top, smaller, and the map takes the rest of
+     the screen. The sides are narrow so the map is as wide as it can be. */
+  justify-content: flex-start;
+  padding: 3rem 0.75rem calc(env(safe-area-inset-bottom, 0px) + 0.75rem);
+}
+
+.app--map .app__emoji-halo::before {
+  width: 7.5rem;
+  height: 7.5rem;
+}
+
+.app--map .app__emoji {
+  width: 4rem;
+  height: 4rem;
+}
+
+.app--map .app__sentence {
+  margin-top: 1.25rem;
+  padding: 0 1.25rem;
+  font-size: 1.2rem;
+}
+
+.app__map {
+  /* A rounded box filling the space under the answer, never shorter than a comfortable
+     map; on a short screen the page scrolls instead. */
+  position: relative;
+  flex: 1 0 18rem;
+  width: 100%;
+  max-width: 40rem;
+  margin-top: 1.5rem;
+  border-radius: 1rem;
+  overflow: hidden;
+  background: #efeee9;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    0 2px 6px rgba(0, 0, 0, 0.25);
+  color: #1f2937;
+}
+
+.app__map .app__map-canvas {
+  /* Two classes, to win over MapLibre's own .maplibregl-map, which loads later. */
+  position: absolute;
+  inset: 0;
+}
+
+.app__map-status {
+  margin: 0;
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 0.9rem;
+  opacity: 0.7;
+}
+
+.app__map--consent {
+  /* The box says what loading the map means before anything is loaded. */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: #fff;
+  overflow-y: auto;
+}
+
+.app__map-consent {
+  padding: 1.5rem 1.5rem 1.25rem;
+  text-align: left;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.app__map-consent p {
+  margin: 0 0 0.75rem;
+  text-wrap: pretty;
+}
+
+.app__map-consent-title {
+  margin: 0 0 0.75rem;
+  font-family: "Fraunces", system-ui, serif;
+  font-size: 1.4rem;
+  font-weight: 650;
+}
+
+.app__map-consent-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 1.25rem;
+}
+
+.app__map-consent-accept,
+.app__map-consent-decline {
+  padding: 0.8rem;
+  border: none;
+  border-radius: 0.75rem;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.app__map-consent-accept {
+  background: #111;
+  color: #fff;
+}
+
+.app__map-consent-decline {
+  background: none;
+  color: inherit;
+  font-weight: 600;
+  opacity: 0.7;
+}
+
+.app__map-card {
+  /* A tapped zone's card, over the bottom of the map and clear of the map's credits. On the
+     map it needs a solid chip of its own, since the map under it is light. */
+  position: absolute;
+  left: 0.5rem;
+  right: 0.5rem;
+  bottom: 2.25rem;
+  display: flex;
+  justify-content: center;
+  max-height: calc(100% - 2.75rem);
+  overflow-y: auto;
+  border-radius: 0.65rem;
+}
+
+.app__map-card .app__detail {
+  width: 100%;
+  background: rgba(31, 41, 55, 0.94);
+}
+
+.app__map-recentre {
+  /* Back to following the position, once the map has been moved by hand. */
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: #fff;
+  color: #1f2937;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+}
+
+.app__map-recentre svg {
+  width: 1.4rem;
+  height: 1.4rem;
+}
+
+.app__map .maplibregl-ctrl-attrib {
+  font-size: 0.65rem;
+}
+
+.app__map-toggle {
+  /* A tab on the right edge of the screen, halfway down, in reach of the thumb. It's the
+     cards' dark chip, so it reads on every tone and over the map alike. */
+  position: fixed;
+  top: 50%;
+  right: env(safe-area-inset-right, 0px);
+  translate: 0 -50%;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 3.5rem;
+  padding: 0 0 0 0.15rem;
+  border: none;
+  border-radius: 1.75rem 0 0 1.75rem;
+  background: rgba(17, 24, 39, 0.72);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    0 2px 6px rgba(0, 0, 0, 0.3);
+  color: #fff;
+  cursor: pointer;
+}
+
+.app__map-toggle svg {
+  width: 1.4rem;
+  height: 1.4rem;
+}
+
+.app__map-toggle:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: -4px;
 }
 
 @media (prefers-reduced-motion: reduce) {

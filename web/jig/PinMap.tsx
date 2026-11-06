@@ -10,7 +10,7 @@ import {
 import "maplibre-gl/dist/maplibre-gl.css";
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import { useEffect, useRef } from "preact/hooks";
-import { accuracyCircle } from "./circle";
+import { accuracyCircle } from "../src/accuracyCircle";
 import type { Pin } from "./scenario";
 import {
   addZoneLayers,

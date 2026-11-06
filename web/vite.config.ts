@@ -14,6 +14,10 @@ export default defineConfig({
   preview: {
     allowedHosts: [".trycloudflare.com"],
   },
+  build: {
+    // MapLibre, loaded only once the map opens, is about 1 MB on its own.
+    chunkSizeWarningLimit: 1100,
+  },
   plugins: [
     preact(),
     VitePWA({
@@ -23,6 +27,17 @@ export default defineConfig({
         // Data files are versioned via manifest.json + IndexedDB ourselves,
         // so let the service worker just cache the app shell.
         globPatterns: ["**/*.{js,css,html,png,svg,woff2}"],
+        // The map's code is cached the first time the map opens, rather than installed with
+        // the app, since many never open it. Its file names carry a hash, so a cached copy
+        // never goes stale.
+        globIgnores: ["**/MapView-*", "**/maplibre-gl-worker-*"],
+        runtimeCaching: [
+          {
+            urlPattern: /\/assets\/(MapView-|maplibre-gl-worker-)/,
+            handler: "CacheFirst",
+            options: { cacheName: "map-code", expiration: { maxEntries: 6 } },
+          },
+        ],
       },
       manifest: {
         name: "Can I park here?",

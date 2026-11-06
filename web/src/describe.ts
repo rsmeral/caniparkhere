@@ -141,11 +141,12 @@ function paidHoursRow(paidWindows: string[], change: Change | null): Row {
 const SHORT_FREE_MINUTES = 60;
 
 /**
- * The advice for a zone status, as the headline or as a candidate card. A resident (blue)
+ * The advice for a zone status, as the headline, as a candidate card or as the zone's emoji on
+ * the map. A resident (blue)
  * zone while its tariff runs lets a visitor pay to stay, but only briefly: 1 to 3 hours,
  * set per district. The data usually says which; when it doesn't, the sign does.
  */
-function adviceFor(status: ZoneStatus, vehicle: Vehicle, permits: string[]): Advice {
+export function adviceFor(status: ZoneStatus, vehicle: Vehicle, permits: string[]): Advice {
   if (vehicle === "shared") return sharedAdviceFor(status);
   if (vehicle === "motorbike") return MOTORBIKE_ADVICE;
   if (permitCovers(status, vehicle, permits)) return PERMIT_ADVICE;
@@ -315,7 +316,7 @@ function chipForZoneStatus(status: ZoneStatus, vehicle: Vehicle, permits: string
   return zoneChip(status, rows, payment);
 }
 
-const CLEANING_TODAY: Advice = {
+export const CLEANING_TODAY: Advice = {
   tone: "danger",
   icon: "😟",
   sentence: "Street cleaning today — don't park here.",
@@ -491,6 +492,15 @@ function cardOf(place: Place, index: number, vehicle: Vehicle, permits: string[]
     cleaning: cleaningLabel(place.cleaning),
     advice,
   };
+}
+
+/** One place as a card of its own, with its own advice: a zone tapped on the map. */
+export function describePlace(
+  place: Place,
+  vehicle: Vehicle = "own",
+  permits: string[] = [],
+): Card {
+  return cardOf(place, 0, vehicle, permits);
 }
 
 /**
