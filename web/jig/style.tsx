@@ -12,6 +12,7 @@ import {
   FONTS,
   generateCss,
   loadState,
+  MAP_THEMES,
   mapPaletteSource,
   PRESETS,
   resolveTone,
@@ -1017,6 +1018,16 @@ function StyleJig() {
             The map's palette, sent to the phones showing the map. Copy it over DEFAULT_MAP_PALETTE
             in src/mapStyle.ts.
           </p>
+          <Choice
+            value={MAP_THEMES.find((t) => sameMapPalette(t.palette, state.map))?.name ?? ""}
+            options={MAP_THEMES.map((t) => t.name)}
+            onChange={(name) =>
+              update((s) => {
+                s.map = structuredClone(MAP_THEMES.find((t) => t.name === name)!.palette);
+                return s;
+              })
+            }
+          />
           {(Object.keys(DEFAULT_MAP_PALETTE) as (keyof MapPalette)[]).map((key) => {
             const value = state.map[key];
             const label = MAP_LABELS[key];
@@ -1169,6 +1180,9 @@ function StyleJig() {
 
 type Update = (change: (s: StyleState) => StyleState) => void;
 
+const sameMapPalette = (a: MapPalette, b: MapPalette) =>
+  (Object.keys(a) as (keyof MapPalette)[]).every((key) => a[key] === b[key]);
+
 const MAP_LABELS: Record<keyof MapPalette, string> = {
   background: "Background",
   water: "Water",
@@ -1181,7 +1195,7 @@ const MAP_LABELS: Record<keyof MapPalette, string> = {
   rail: "Rail",
   label: "Street names",
   labelHalo: "Name halo",
-  houseNumber: "House numbers",
+  positionRing: "Position ring",
   zoneFillOpacity: "Zone fill",
   zoneLineWidth: "Zone line",
   candidateFillOpacity: "Candidate fill",

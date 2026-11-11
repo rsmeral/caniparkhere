@@ -422,10 +422,78 @@ export const DEFAULT_STATE: StyleState = {
   appCss: null,
 };
 
+/** Whole map palettes to start tuning from. The first is the app's own. */
+export const MAP_THEMES: { name: string; palette: MapPalette }[] = [
+  { name: "Light", palette: DEFAULT_MAP_PALETTE },
+  {
+    name: "Stone",
+    palette: {
+      ...DEFAULT_MAP_PALETTE,
+      background: "#bab6ae",
+      water: "#8fa6b5",
+      park: "#a8b49c",
+      building: "#a5a097",
+      buildingOutline: "#8c877d",
+      roadCasing: "#7c776d",
+      road: "#f4f2ed",
+      path: "#78736a",
+      rail: "#827d73",
+      label: "#2b2925",
+      labelHalo: "#f4f2ed",
+    },
+  },
+  {
+    name: "Dusk",
+    palette: {
+      ...DEFAULT_MAP_PALETTE,
+      background: "#2b2e32",
+      water: "#1d3040",
+      park: "#2b3b2f",
+      building: "#3d4147",
+      buildingOutline: "#50555d",
+      roadCasing: "#16181b",
+      road: "#6b717a",
+      path: "#5a6068",
+      rail: "#4d525a",
+      label: "#dadde1",
+      labelHalo: "#1b1d20",
+      zoneFillOpacity: 0.25,
+      candidateFillOpacity: 0.42,
+      selected: "#ffffff",
+      position: "#f3f4f6",
+      positionRing: "#111827",
+      accuracyOpacity: 0.18,
+    },
+  },
+  {
+    name: "Night",
+    palette: {
+      ...DEFAULT_MAP_PALETTE,
+      background: "#1d2534",
+      water: "#0f1a2a",
+      park: "#1f2f2d",
+      building: "#2c3648",
+      buildingOutline: "#3d4a5e",
+      roadCasing: "#0f141d",
+      road: "#5b6880",
+      path: "#4a556b",
+      rail: "#3f4a5d",
+      label: "#d0d7e4",
+      labelHalo: "#121826",
+      zoneFillOpacity: 0.25,
+      candidateFillOpacity: 0.42,
+      selected: "#ffffff",
+      position: "#f8fafc",
+      positionRing: "#0f172a",
+      accuracyOpacity: 0.18,
+    },
+  },
+];
+
 /** The map palette as source, for pasting over DEFAULT_MAP_PALETTE in src/mapStyle.ts. */
 export function mapPaletteSource(palette: MapPalette): string {
-  const lines = Object.entries(palette).map(
-    ([key, value]) => `  ${key}: ${JSON.stringify(value)},`,
+  const lines = (Object.keys(DEFAULT_MAP_PALETTE) as (keyof MapPalette)[]).map(
+    (key) => `  ${key}: ${JSON.stringify(palette[key])},`,
   );
   return `export const DEFAULT_MAP_PALETTE: MapPalette = {\n${lines.join("\n")}\n};\n`;
 }

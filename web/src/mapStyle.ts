@@ -2,9 +2,9 @@ import type { ExpressionSpecification } from "@maplibre/maplibre-gl-style-spec";
 import type { LayerSpecification, Map as MapLibreMap, StyleSpecification } from "maplibre-gl";
 
 /**
- * The map's colours and line weights. The base map is quiet and pale, so the zones, the
- * street cleaning and the position drawn over it stand out, while streets still read clearly
- * against the blocks between them. Tuned in the style jig's Map section.
+ * The map's colours and line weights. The base map is quiet, so the zones, the street
+ * cleaning and the position drawn over it stand out, while the streets stand clearly apart
+ * from the blocks and buildings between them. Tuned in the style jig's Map section.
  */
 export interface MapPalette {
   background: string;
@@ -18,7 +18,6 @@ export interface MapPalette {
   rail: string;
   label: string;
   labelHalo: string;
-  houseNumber: string;
   /** Every zone, in its curb colour. */
   zoneFillOpacity: number;
   zoneLineWidth: number;
@@ -30,25 +29,26 @@ export interface MapPalette {
   selectedLineWidth: number;
   cleaningToday: string;
   cleaningSoon: string;
+  /** The position's dot and accuracy circle, and the ring around the dot. */
   position: string;
+  positionRing: string;
   accuracyOpacity: number;
   /** The verdict emoji on each zone, as a multiple of 24px. */
   iconSize: number;
 }
 
 export const DEFAULT_MAP_PALETTE: MapPalette = {
-  background: "#efeee9",
-  water: "#c6d4dc",
-  park: "#dfe5d5",
-  building: "#e2e0da",
-  buildingOutline: "#d5d2ca",
-  roadCasing: "#d3cfc7",
+  background: "#e2dfd8",
+  water: "#aec3d0",
+  park: "#cfd9c3",
+  building: "#cdc9c0",
+  buildingOutline: "#b5b0a5",
+  roadCasing: "#aaa497",
   road: "#ffffff",
-  path: "#cdc8bd",
-  rail: "#c9c6bf",
-  label: "#6f6c66",
+  path: "#a39d90",
+  rail: "#aaa59b",
+  label: "#4a4740",
   labelHalo: "#ffffff",
-  houseNumber: "#a19d95",
   zoneFillOpacity: 0.18,
   zoneLineWidth: 1,
   candidateFillOpacity: 0.35,
@@ -58,6 +58,7 @@ export const DEFAULT_MAP_PALETTE: MapPalette = {
   cleaningToday: "#dc2626",
   cleaningSoon: "#f59e0b",
   position: "#1f2937",
+  positionRing: "#ffffff",
   accuracyOpacity: 0.12,
   iconSize: 1,
 };
@@ -280,19 +281,6 @@ function layers(p: MapPalette): LayerSpecification[] {
       },
     },
     {
-      id: "house-number",
-      type: "symbol",
-      ...tiles,
-      "source-layer": "housenumber",
-      minzoom: 18,
-      layout: { "text-field": ["get", "housenumber"], "text-font": FONT, "text-size": 10 },
-      paint: {
-        "text-color": p.houseNumber,
-        "text-halo-color": p.labelHalo,
-        "text-halo-width": 1,
-      },
-    },
-    {
       id: "cleaning-icon",
       type: "symbol",
       source: "cleaning",
@@ -324,7 +312,7 @@ function layers(p: MapPalette): LayerSpecification[] {
       paint: {
         "circle-radius": 7,
         "circle-color": p.position,
-        "circle-stroke-color": "#ffffff",
+        "circle-stroke-color": p.positionRing,
         "circle-stroke-width": 2.5,
       },
     },
