@@ -14,15 +14,13 @@ describe("map consent", () => {
     vi.unstubAllGlobals();
   });
 
-  it("is unanswered until saved, then remembers the answer", () => {
-    expect(loadMapConsent()).toBeNull();
-    saveMapConsent("accepted");
-    expect(loadMapConsent()).toBe("accepted");
-    saveMapConsent("declined");
-    expect(loadMapConsent()).toBe("declined");
+  it("is not given until saved, then remembered", () => {
+    expect(loadMapConsent()).toBe(false);
+    saveMapConsent();
+    expect(loadMapConsent()).toBe(true);
   });
 
-  it("counts blocked storage as unanswered", () => {
+  it("counts blocked storage as not given", () => {
     vi.stubGlobal("localStorage", {
       getItem: () => {
         throw new Error("blocked");
@@ -31,7 +29,7 @@ describe("map consent", () => {
         throw new Error("blocked");
       },
     });
-    expect(() => saveMapConsent("accepted")).not.toThrow();
-    expect(loadMapConsent()).toBeNull();
+    expect(() => saveMapConsent()).not.toThrow();
+    expect(loadMapConsent()).toBe(false);
   });
 });

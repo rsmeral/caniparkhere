@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "preact/hooks";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import "./app.css";
 import { AboutButton } from "./components/About";
 import { CandidateBox } from "./components/CandidateBox";
+import { CardSquares } from "./components/CardSquares";
 import { LiveIndicator } from "./components/LiveIndicator";
 import { MapPanel } from "./components/MapPanel";
-import { MapToggle } from "./components/MapToggle";
+import { MapHandle } from "./components/MapHandle";
 import { PermitSheet } from "./components/PermitSheet";
 import { VehiclePicker } from "./components/VehiclePicker";
 import { ZoneBox } from "./components/ZoneBox";
@@ -17,13 +18,14 @@ import type { GeoState } from "./useGeolocation";
 import { useThemeColor } from "./useThemeColor";
 import { loadPermits, savePermits } from "./permits";
 import { loadVehicle, saveVehicle, type Vehicle } from "./vehicle";
-import { loadMapConsent, saveMapConsent, type MapConsent } from "./mapConsent";
+import { loadMapConsent, saveMapConsent } from "./mapConsent";
 import type { MapPalette } from "./mapStyle";
-import { useSettled } from "./useSettled";
+import { swipeDirection, type Point } from "./swipe";
 
-// How long the position has to stay unclear before the map opens by itself, so a rough first
-// fix that sharpens a moment later doesn't open it.
-const MAP_SETTLE_MS = 3000;
+/** The View Transitions API, where the browser has it. */
+type ViewTransitionDocument = Document & {
+  startViewTransition?: (update: () => Promise<void>) => unknown;
+};
 
 const neutral = (icon: string, sentence: string): Display => ({
   tone: "neutral",
@@ -66,10 +68,14 @@ export function App({
   const [vehicle, setVehicle] = useState<Vehicle>(loadVehicle);
   const [permits, setPermits] = useState<string[]>(loadPermits);
   const [permitSheetOpen, setPermitSheetOpen] = useState(false);
-  const [mapConsent, setMapConsent] = useState<MapConsent>(loadMapConsent);
-  // The map opened or closed by hand, which holds for the rest of the visit.
-  const [mapChoice, setMapChoice] = useState<boolean | null>(null);
-  const [mapAutoOpened, setMapAutoOpened] = useState(false);
+  const [mapConsent, setMapConsent] = useState(loadMapConsent);
+  const [mapShown, setMapShown] = useState(false);
+  // The card picked from the squares over the map, by key.
+  const [pickedKey, setPickedKey] = useState<string | null>(null);
+  // Ends the view transition opening or closing the map, once the change is on screen.
+  const mapShownCommitted = useRef<(() => void) | null>(null);
+  // Where a touch on the page started, for telling a swipe from a scroll or a tap.
+  const touchStart = useRef<{ point: Point; target: Element; scrolledToEnd: boolean } | null>(null);
   // Every area a permit can be for, asked of the worker the first time the page opens.
   const [permitAreas, setPermitAreas] = useState<string[] | null>(null);
   // While paused, the answer stays with the position it was paused at - where the car is,
@@ -161,28 +167,76 @@ export function App({
   // previous location doesn't linger after moving.
   useEffect(() => {
     setExpandedKey(null);
+    setPickedKey(null);
   }, [cardsKey]);
 
   const toggleExpanded = (key: string) =>
     setExpandedKey((current) => (current === key ? null : key));
 
-  // The map is there whenever there are cards to swap it for. It opens by itself when the
-  // position is unclear - a weak fix, or more than one place it could be - and stays open
-  // until it's closed, so a fix wobbling around the threshold doesn't flick it open and shut.
+  // The map is there whenever there are cards to swap it for. The handle nudges towards it
+  // when the position is unclear: a weak fix, or more than one place it could be.
   const mapAvailable = geo.status === "ready" && display.cards.length > 0;
-  const mapWanted =
+  const mapOpen = mapAvailable && mapShown;
+  const mapHelps =
     mapAvailable && (accuracyBars(geo.accuracyMeters) < 3 || display.cards.length > 1);
-  const mapSettled = useSettled(mapWanted, false, MAP_SETTLE_MS);
-  useEffect(() => {
-    if (mapSettled && mapConsent !== "declined") setMapAutoOpened(true);
-  }, [mapSettled]);
-  const mapOpen = mapAvailable && (mapChoice ?? mapAutoOpened);
+
+  useLayoutEffect(() => {
+    mapShownCommitted.current?.();
+    mapShownCommitted.current = null;
+  }, [mapShown]);
+
+  // The map rises from the bottom and sinks back, while the answer above moves to make room,
+  // as a view transition (see app.css). Without one, it just appears.
+  const showMap = (show: boolean) => {
+    if (show === mapShown) return;
+    const doc = document as ViewTransitionDocument;
+    if (!doc.startViewTransition || matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setMapShown(show);
+      return;
+    }
+    doc.startViewTransition(
+      () =>
+        new Promise<void>((resolve) => {
+          mapShownCommitted.current = resolve;
+          setMapShown(show);
+        }),
+    );
+  };
 
   const answerMapConsent = (accepted: boolean) => {
-    const consent = accepted ? "accepted" : "declined";
-    setMapConsent(consent);
-    saveMapConsent(consent);
-    setMapChoice(accepted);
+    if (!accepted) {
+      showMap(false);
+      return;
+    }
+    setMapConsent(true);
+    saveMapConsent();
+  };
+
+  // A swipe up anywhere opens the map, once the page is scrolled to its end, so it doesn't
+  // take over scrolling a long list of cards. A swipe down off the map closes it; on the map,
+  // dragging moves the map. Neither counts on a page opened over the app.
+  const onTouchStart = (e: TouchEvent) => {
+    const touch = e.touches[0];
+    const page = e.currentTarget as HTMLElement;
+    touchStart.current =
+      e.touches.length === 1
+        ? {
+            point: { x: touch.clientX, y: touch.clientY },
+            target: e.target as Element,
+            scrolledToEnd: page.scrollTop + page.clientHeight >= page.scrollHeight - 2,
+          }
+        : null;
+  };
+
+  const onTouchEnd = (e: TouchEvent) => {
+    const start = touchStart.current;
+    touchStart.current = null;
+    const touch = e.changedTouches[0];
+    if (!start || !touch || start.target.closest("dialog")) return;
+    const end = { x: touch.clientX, y: touch.clientY };
+    const direction = swipeDirection(start.point, end, window.innerHeight);
+    if (direction === "up" && !mapOpen && mapAvailable && start.scrolledToEnd) showMap(true);
+    if (direction === "down" && mapOpen && !start.target.closest(".app__map")) showMap(false);
   };
 
   // The zones' rules change with the time, so the map asks for them again each minute, or
@@ -190,7 +244,11 @@ export function App({
   const mapRefreshKey = `${nowMs ?? Math.floor(Date.now() / 60_000)}:${cleaningEverywhereToday}`;
 
   return (
-    <div className={`app app--${display.tone}${mapOpen ? " app--map" : ""}`}>
+    <div
+      className={`app app--${display.tone}${mapAvailable ? " app--has-map" : ""}${mapOpen ? " app--map" : ""}`}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+    >
       <LiveIndicator geo={geo} paused={pausedGeo !== null} onToggle={togglePaused} />
       <div className="app__corner">
         <VehiclePicker
@@ -212,18 +270,23 @@ export function App({
       </div>
       <p className="app__sentence">{display.sentence}</p>
       {mapOpen && geo.status === "ready" ? (
-        <MapPanel
-          position={geo}
-          consent={mapConsent}
-          onConsent={answerMapConsent}
-          client={client}
-          options={{ at: now, cleaningEverywhereToday }}
-          refreshKey={mapRefreshKey}
-          vehicle={vehicle}
-          permits={permits}
-          candidates={display.cards.flatMap((card) => (card.zone ? [card.zone.code] : []))}
-          palette={mapPalette}
-        />
+        <>
+          <CardSquares cards={display.cards} pickedKey={pickedKey} onPick={setPickedKey} />
+          <MapPanel
+            position={geo}
+            consented={mapConsent}
+            onConsent={answerMapConsent}
+            client={client}
+            options={{ at: now, cleaningEverywhereToday }}
+            refreshKey={mapRefreshKey}
+            vehicle={vehicle}
+            permits={permits}
+            candidates={display.cards.flatMap((card) => (card.zone ? [card.zone.code] : []))}
+            palette={mapPalette}
+            pickedCard={display.cards.find((card) => card.key === pickedKey) ?? null}
+            onPickedCardClose={() => setPickedKey(null)}
+          />
+        </>
       ) : (
         display.cards.length > 0 && (
           <div className="app__cards">
@@ -241,7 +304,9 @@ export function App({
           </div>
         )
       )}
-      {mapAvailable && <MapToggle open={mapOpen} onToggle={() => setMapChoice(!mapOpen)} />}
+      {mapAvailable && (
+        <MapHandle open={mapOpen} nudge={mapHelps && !mapOpen} onToggle={() => showMap(!mapOpen)} />
+      )}
     </div>
   );
 }

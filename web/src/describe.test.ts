@@ -102,6 +102,7 @@ suite("describe", () => {
       expect(display.cards).toEqual([
         {
           key: "BUS-0001",
+          verdict: "mind",
           streetName: "Nerudova",
           zone: {
             code: "BUS-0001",
@@ -695,5 +696,35 @@ suite("describe", () => {
     for (const emoji of ALL_EMOJI) {
       expect(existsSync(new URL(`../public${emojiUrl(emoji)}`, import.meta.url)), emoji).toBe(true);
     }
+  });
+});
+
+suite("a card's verdict", () => {
+  const verdictOf = (p: Place, vehicle?: Vehicle, permits?: string[]) =>
+    at([p], vehicle, permits).cards[0].verdict;
+  const cleaningSoon = { today: false, upcoming: { date: "2026-04-08", daysUntil: 1 } };
+
+  it("is ok where parking is free, and for a while yet", () => {
+    expect(verdictOf(place(free(mixZone)))).toBe("ok");
+    expect(verdictOf(place(paid(resZone)), "permit", ["8"])).toBe("ok");
+  });
+
+  it("is mind where it's paid, paid soon, or cleaned soon", () => {
+    expect(verdictOf(place(paid(mixZone)))).toBe("mind");
+    expect(verdictOf(place(free(mixZone, { ...TOMORROW_8, daysAhead: 0, minutesUntil: 20 })))).toBe(
+      "mind",
+    );
+    expect(verdictOf(place(free(mixZone), { cleaning: cleaningSoon }))).toBe("mind");
+  });
+
+  it("is stop where parking isn't allowed", () => {
+    expect(verdictOf(place({ kind: "residentZone", ...resZone }))).toBe("stop");
+    expect(verdictOf(place(free(mixZone), { cleaning: { today: true, upcoming: null } }))).toBe(
+      "stop",
+    );
+  });
+
+  it("is unknown where there's no zone data", () => {
+    expect(verdictOf(place(null, { streetName: "Nerudova" }))).toBe("unknown");
   });
 });

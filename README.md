@@ -37,18 +37,19 @@ both. "Edit permits…" in the same menu changes them.
 On a motorbike (pick "Motorbike"), every zone is free, with no time limit: motorbikes park
 without a permit in blue, purple and orange zones alike.
 
-The tab on the right edge of the screen swaps the cards for a map. It shows the zones in
-their curb colours, each with the emoji of its answer, street cleaning today (red stripes)
-or in the next few days (amber stripes), and your position with its accuracy circle. The
-zones you could be in have a thicker border. Tap a zone to see its details and pay. The map
-opens by itself when it's unclear where you are: a weak fix (fewer than three bars) or more
-than one zone in reach, for at least three seconds. Once open, it stays open until you
-close it.
+"Map" at the bottom of the screen swaps the cards for a map: tap it, or swipe up anywhere.
+Tap it again, or swipe down above the map, to go back to the cards. When it's unclear where
+you are (fewer than three bars, or more than one zone in reach), its arrows bump upwards
+now and then. The map shows the zones in their curb colours, each with the emoji of its
+answer, street cleaning today (red stripes) or in the next few days (amber stripes), and
+your position with its accuracy circle. The zones you could be in have a thicker border.
+Above the map, the cards roll up into a row of squares, each with a dot for its answer:
+green to park, yellow to mind something (paying, or street cleaning soon), red not to park,
+grey for no info. Tap a square, or a zone on the map, to see its details and pay.
 
 The map's streets come from [OpenFreeMap](https://openfreemap.org), over the internet, so
 their servers see which part of the map your phone asks for. The first time the map opens,
-it says so and waits for you to agree. The answer is remembered; after "Not now" the map
-no longer opens by itself, and the tab asks again.
+it says so and waits for you to agree, which is remembered.
 
 The app's icon in the top right corner opens the About page, with a link to the source and,
 where the browser can install the app from a button, Install (the Web Install API, or

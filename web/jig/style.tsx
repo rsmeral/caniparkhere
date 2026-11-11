@@ -208,8 +208,8 @@ function StyleJig() {
               clearInterval(timer);
             } else if (button(".app__map-consent-accept")) {
               button(".app__map-consent-accept")!.click();
-            } else if (button(".app__map-toggle")) {
-              button(".app__map-toggle")!.click();
+            } else if (button(".app__map-handle")) {
+              button(".app__map-handle")!.click();
             }
             if (Date.now() - started > 60_000) clearInterval(timer);
           }, 250);

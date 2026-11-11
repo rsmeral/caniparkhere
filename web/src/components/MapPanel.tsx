@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "preact/hooks";
-import { describePlace } from "../describe";
-import type { MapConsent } from "../mapConsent";
+import { describePlace, type Card } from "../describe";
 import { mapFeatures, type MapFeatures } from "../mapFeatures";
 import { DEFAULT_MAP_PALETTE, type MapPalette } from "../mapStyle";
 import type { MapArea, Place } from "../query";
@@ -12,7 +11,7 @@ import type { MapView as MapViewComponent, Position } from "./MapView";
 
 interface Props {
   position: Position;
-  consent: MapConsent;
+  consented: boolean;
   onConsent(accepted: boolean): void;
   client: Pick<QueryClient, "mapArea" | "zonePlace">;
   options: QueryOptions;
@@ -23,6 +22,9 @@ interface Props {
   /** The codes of the zones the position could be in. */
   candidates: string[];
   palette?: MapPalette;
+  /** A card picked from the squares above the map, to open over it. */
+  pickedCard: Card | null;
+  onPickedCardClose(): void;
 }
 
 // The zones are asked for this much further than the view on every side, so a short pan
@@ -56,13 +58,14 @@ const NO_FEATURES: MapFeatures = {
 };
 
 /**
- * The map in its rounded box, in place of the cards. Until the user agrees to load it, the box
- * says where the map comes from and what that means for their privacy. A tapped zone opens its
- * card over the bottom of the map, with the advice it would get on its own.
+ * The map in its rounded box, under the cards rolled up into squares. Until the user agrees to
+ * load it, the box says where the map comes from and what that means for their privacy. A
+ * tapped zone, or a picked square, opens its card over the bottom of the map, with the advice
+ * it would get on its own.
  */
 export function MapPanel({
   position,
-  consent,
+  consented,
   onConsent,
   client,
   options,
@@ -71,6 +74,8 @@ export function MapPanel({
   permits,
   candidates,
   palette = DEFAULT_MAP_PALETTE,
+  pickedCard,
+  onPickedCardClose,
 }: Props) {
   const [MapView, setMapView] = useState<typeof MapViewComponent | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -81,7 +86,7 @@ export function MapPanel({
 
   // The map's code is loaded only once the user has agreed to the map.
   useEffect(() => {
-    if (consent !== "accepted" || MapView) return;
+    if (!consented || MapView) return;
     import("./MapView").then(
       (module) => setMapView(() => module.MapView),
       (err) => {
@@ -89,7 +94,7 @@ export function MapPanel({
         setLoadFailed(true);
       },
     );
-  }, [consent]);
+  }, [consented]);
 
   useEffect(() => {
     if (!view || (area && area.key === refreshKey && contains(area.box, view))) return;
@@ -117,15 +122,31 @@ export function MapPanel({
     };
   }, [tapped, refreshKey]);
 
+  // One card at a time over the map: a zone tapped on it, or a card picked from the squares.
+  useEffect(() => {
+    if (pickedCard) setTapped(null);
+  }, [pickedCard?.key]);
+
+  // A tap anywhere on the map closes a picked card; a tap on a zone opens that zone's instead.
+  const tapMap = (zone: { code: string; lon: number; lat: number } | null) => {
+    setTapped(zone);
+    onPickedCardClose();
+  };
+
+  const shownCard =
+    tapped && tappedPlace
+      ? describePlace(tappedPlace, vehicle, permits)
+      : tapped
+        ? null
+        : pickedCard;
+  const selectedCode = tapped?.code ?? pickedCard?.zone?.code ?? null;
+
   const features = useMemo(
-    () =>
-      area
-        ? mapFeatures(area.data, vehicle, permits, candidates, tapped?.code ?? null)
-        : NO_FEATURES,
-    [area, vehicle, permits.join(), candidates.join(), tapped?.code],
+    () => (area ? mapFeatures(area.data, vehicle, permits, candidates, selectedCode) : NO_FEATURES),
+    [area, vehicle, permits.join(), candidates.join(), selectedCode],
   );
 
-  if (consent !== "accepted") {
+  if (!consented) {
     return (
       <div className="app__map app__map--consent">
         <div className="app__map-consent">
@@ -158,27 +179,23 @@ export function MapPanel({
   }
 
   return (
-    <div className="app__map">
+    <div className="app__map" style={{ background: palette.background, color: palette.label }}>
       {MapView ? (
         <MapView
           position={position}
           features={features}
           palette={palette}
           onView={setView}
-          onTap={setTapped}
+          onTap={tapMap}
         />
       ) : (
         <p className="app__map-status">
           {loadFailed ? "Can't load the map. Try again online." : "Loading the map..."}
         </p>
       )}
-      {tapped && tappedPlace && (
+      {shownCard && (
         <div className="app__map-card">
-          <CandidateBox
-            card={describePlace(tappedPlace, vehicle, permits)}
-            expanded
-            onToggle={() => setTapped(null)}
-          />
+          <CandidateBox card={shownCard} expanded />
         </div>
       )}
     </div>

@@ -45,7 +45,15 @@ export interface Card {
   terms: string | null;
   cleaning: { label: string; today: boolean } | null;
   advice: Advice;
+  verdict: Verdict;
 }
+
+/**
+ * A place's answer at a glance, as a coloured dot: fine to park, park but mind something
+ * (paying, paying soon, or street cleaning coming up), or don't park. "unknown" where there
+ * are no known rules.
+ */
+export type Verdict = "ok" | "mind" | "stop" | "unknown";
 
 export interface Display extends Advice {
   /** Plain, spoken recommendation. Anything checkable against the ground - street, zone
@@ -474,6 +482,27 @@ function termsOf(place: Place, vehicle: Vehicle, permits: string[]): string | nu
   }
 }
 
+function verdictOf(place: Place, vehicle: Vehicle, permits: string[]): Verdict {
+  const consequence = consequenceOf(place, vehicle, permits);
+  const cleaningAhead = place.cleaning.upcoming !== null;
+  if (!consequence) return cleaningAhead ? "mind" : "unknown";
+  switch (consequence.kind) {
+    case "cleaningToday":
+    case "residentOnly":
+      return "stop";
+    case "paid":
+    case "stopDuringRental":
+      return "mind";
+    case "freeNow": {
+      const paidFrom = place.zone?.kind === "freeZoneRightNow" ? place.zone.paidFrom : null;
+      const paidSoon = paidFrom !== null && paidFrom.minutesUntil < SHORT_FREE_MINUTES;
+      return paidSoon || cleaningAhead ? "mind" : "ok";
+    }
+    default:
+      return cleaningAhead ? "mind" : "ok";
+  }
+}
+
 /** A place as a card, with the advice it would get on its own. */
 function cardOf(place: Place, index: number, vehicle: Vehicle, permits: string[]): Card {
   const chip = place.zone ? chipForZoneStatus(place.zone, vehicle, permits) : null;
@@ -491,6 +520,7 @@ function cardOf(place: Place, index: number, vehicle: Vehicle, permits: string[]
     terms: termsOf(place, vehicle, permits),
     cleaning: cleaningLabel(place.cleaning),
     advice,
+    verdict: verdictOf(place, vehicle, permits),
   };
 }
 
