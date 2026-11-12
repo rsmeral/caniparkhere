@@ -84,21 +84,20 @@ body {
 }
 
 .app__main {
-  /* The answer sits in the middle of the screen when it fits. "safe" makes a taller answer -
-     a long list of cards - start at the top instead, so it scrolls from the emoji rather
-     than overflowing past the top where scrolling can't reach. The top padding keeps the
-     emoji clear of the corner controls, which scroll with it. */
+  /* The answer sits in the middle of the screen when it fits. Nothing here scrolls but the
+     cards: with more than fit, their list takes the height that's left and scrolls on its
+     own, under the corner controls, the emoji and the sentence, which stay put. The top
+     padding keeps the emoji clear of the corner controls. */
   position: relative;
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: safe center;
+  justify-content: center;
   padding: 3rem 2rem 2rem;
   box-sizing: border-box;
-  overflow-y: auto;
-  overscroll-behavior-y: none;
+  overflow: hidden;
 }
 
 .app__footer {
@@ -447,6 +446,7 @@ body {
 .app__sentence {
   /* The answer, in a serif of its own apart from the rest of the UI, slightly tilted.
      Balanced wrapping evens out the lines, so no word is left alone on the last one. */
+  flex-shrink: 0;
   margin: 2.5rem 0 0;
   max-width: 28rem;
   font-family: "Fraunces", system-ui, serif;
@@ -477,14 +477,55 @@ body {
   color: #fff;
 }
 
+/* How far the cards' list fades out at an edge with more cards beyond it. Registered, so
+   the fade comes and goes smoothly. */
+@property --fade-above {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --fade-below {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
 .app__cards {
   /* The .app__detail cards under the answer, one or many - a much tighter gap between them
-     than the space above, since they read as one group. */
+     than the space above, since they read as one group. With more than fit, the list
+     scrolls, fading into the page at an edge with more cards beyond it. The padding keeps
+     the cards' shadows inside the list's edges. */
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.75rem;
+  flex: 0 1 auto;
+  min-height: 0;
   margin-top: 3rem;
+  padding: 0.25rem 0.5rem 0.5rem;
+  overflow-y: auto;
+  overscroll-behavior-y: none;
+  --mask: linear-gradient(
+    to bottom,
+    transparent,
+    #000 var(--fade-above),
+    #000 calc(100% - var(--fade-below)),
+    transparent
+  );
+  -webkit-mask-image: var(--mask);
+  mask-image: var(--mask);
+  transition:
+    --fade-above 0.2s ease,
+    --fade-below 0.2s ease;
+}
+
+.app__cards--more-above {
+  --fade-above: 2.5rem;
+}
+
+.app__cards--more-below {
+  --fade-below: 4rem;
 }
 
 .app__detail-info {
@@ -894,6 +935,7 @@ body {
 
 .app__squares {
   /* The cards rolled up while the map is open, in a row under the sentence. */
+  flex-shrink: 0;
   display: flex;
   justify-content: center;
   gap: 0.5rem;
@@ -951,11 +993,11 @@ body {
 }
 
 .app__map {
-  /* A rounded box filling the space under the answer, never shorter than a comfortable
-     map; on a short screen the page scrolls instead. Under the map, while it loads, are the
-     palette's loading colours, set on the element. */
+  /* A rounded box filling the space under the answer. Under the map, while it loads, are
+     the palette's loading colours, set on the element. */
   position: relative;
-  flex: 1 0 18rem;
+  flex: 1 1 auto;
+  min-height: 10rem;
   width: 100%;
   max-width: 40rem;
   margin-top: 1.5rem;

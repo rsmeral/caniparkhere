@@ -15,6 +15,7 @@ import { emojiUrl } from "./emoji";
 import type { QueryResult } from "./query";
 import { createQueryClient } from "./queryClient";
 import type { GeoState } from "./useGeolocation";
+import { useScrollFades } from "./useScrollFades";
 import { useThemeColor } from "./useThemeColor";
 import { loadPermits, savePermits } from "./permits";
 import { loadVehicle, saveVehicle, type Vehicle } from "./vehicle";
@@ -72,8 +73,10 @@ export function App({
   // Told once a change to mapShown is in the page, before it's painted.
   const mapShownCommitted = useRef<(() => void) | null>(null);
   const mapSwapping = useRef(false);
-  // The part of the page that scrolls: everything but the map's handle.
+  // Everything above the map's handle.
   const main = useRef<HTMLDivElement>(null);
+  // The cards, which scroll on their own when there are more than fit.
+  const cardsList = useRef<HTMLDivElement>(null);
   // Where a touch on the page started, for telling a swipe from a scroll or a tap.
   const touchStart = useRef<{ point: Point; target: Element; scrolledToEnd: boolean } | null>(null);
   // Every area a permit can be for, asked of the worker the first time the page opens.
@@ -226,18 +229,18 @@ export function App({
     saveMapConsent();
   };
 
-  // A swipe up anywhere opens the map, once the page is scrolled to its end, so it doesn't
-  // take over scrolling a long list of cards. A swipe down off the map closes it; on the map,
+  // A swipe up anywhere opens the map, once the cards are scrolled to their end, so it doesn't
+  // take over scrolling a long list of them. A swipe down off the map closes it; on the map,
   // dragging moves the map. Neither counts on a page opened over the app.
   const onTouchStart = (e: TouchEvent) => {
     const touch = e.touches[0];
-    const page = main.current;
+    const list = cardsList.current;
     touchStart.current =
-      page && e.touches.length === 1
+      e.touches.length === 1
         ? {
             point: { x: touch.clientX, y: touch.clientY },
             target: e.target as Element,
-            scrolledToEnd: page.scrollTop + page.clientHeight >= page.scrollHeight - 2,
+            scrolledToEnd: !list || list.scrollTop + list.clientHeight >= list.scrollHeight - 2,
           }
         : null;
   };
@@ -252,6 +255,8 @@ export function App({
     if (direction === "up" && !mapOpen && mapAvailable && start.scrolledToEnd) showMap(true);
     if (direction === "down" && mapOpen && !start.target.closest(".app__map")) showMap(false);
   };
+
+  useScrollFades(cardsList, "app__cards", `${cardsKey}:${mapOpen}`);
 
   // The zones' rules change with the time, so the map asks for them again each minute, or
   // whenever the moment being answered for changes.
@@ -304,7 +309,7 @@ export function App({
           </>
         ) : (
           display.cards.length > 0 && (
-            <div className="app__cards">
+            <div className="app__cards" ref={cardsList}>
               {display.cards.map((card) => {
                 const Box = display.agree ? ZoneBox : CandidateBox;
                 return (
