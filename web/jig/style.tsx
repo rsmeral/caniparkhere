@@ -1184,6 +1184,8 @@ const sameMapPalette = (a: MapPalette, b: MapPalette) =>
   (Object.keys(a) as (keyof MapPalette)[]).every((key) => a[key] === b[key]);
 
 const MAP_LABELS: Record<keyof MapPalette, string> = {
+  loading: "Loading",
+  loadingText: "Loading text",
   background: "Background",
   water: "Water",
   park: "Parks",

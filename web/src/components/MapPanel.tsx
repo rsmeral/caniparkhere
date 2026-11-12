@@ -180,7 +180,7 @@ export function MapPanel({
   }
 
   return (
-    <div className="app__map">
+    <div className="app__map" style={{ background: palette.loading, color: palette.loadingText }}>
       {MapView ? (
         <MapView
           position={position}

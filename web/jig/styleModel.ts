@@ -429,6 +429,8 @@ export const MAP_THEMES: { name: string; palette: MapPalette }[] = [
     name: "Stone",
     palette: {
       ...DEFAULT_MAP_PALETTE,
+      loading: "#3a3833",
+      loadingText: "#e7e4de",
       background: "#bab6ae",
       water: "#8fa6b5",
       park: "#a8b49c",
@@ -446,6 +448,8 @@ export const MAP_THEMES: { name: string; palette: MapPalette }[] = [
     name: "Dusk",
     palette: {
       ...DEFAULT_MAP_PALETTE,
+      loading: "#202225",
+      loadingText: "#dadde1",
       background: "#2b2e32",
       water: "#1d3040",
       park: "#2b3b2f",
@@ -469,6 +473,8 @@ export const MAP_THEMES: { name: string; palette: MapPalette }[] = [
     name: "Night",
     palette: {
       ...DEFAULT_MAP_PALETTE,
+      loading: "#151b27",
+      loadingText: "#d0d7e4",
       background: "#1d2534",
       water: "#0f1a2a",
       park: "#1f2f2d",

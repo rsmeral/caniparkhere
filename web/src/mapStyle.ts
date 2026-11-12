@@ -7,6 +7,9 @@ import type { LayerSpecification, Map as MapLibreMap, StyleSpecification } from 
  * from the blocks and buildings between them. Tuned in the style jig's Map section.
  */
 export interface MapPalette {
+  /** The box behind the map, and its text, while the map loads. */
+  loading: string;
+  loadingText: string;
   background: string;
   water: string;
   park: string;
@@ -38,6 +41,8 @@ export interface MapPalette {
 }
 
 export const DEFAULT_MAP_PALETTE: MapPalette = {
+  loading: "#262c36",
+  loadingText: "#e5e7eb",
   background: "#e2dfd8",
   water: "#aec3d0",
   park: "#cfd9c3",
