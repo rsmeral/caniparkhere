@@ -477,20 +477,6 @@ body {
   color: #fff;
 }
 
-/* How far the cards' list fades out at an edge with more cards beyond it. Registered, so
-   the fade comes and goes smoothly. */
-@property --fade-above {
-  syntax: "<length>";
-  inherits: false;
-  initial-value: 0px;
-}
-
-@property --fade-below {
-  syntax: "<length>";
-  inherits: false;
-  initial-value: 0px;
-}
-
 .app__cards {
   /* The .app__detail cards under the answer, one or many - a much tighter gap between them
      than the space above, since they read as one group. With more than fit, the list
@@ -506,6 +492,8 @@ body {
   padding: 0.25rem 0.5rem 0.5rem;
   overflow-y: auto;
   overscroll-behavior-y: none;
+  --fade-above: 0px;
+  --fade-below: 0px;
   --mask: linear-gradient(
     to bottom,
     transparent,
@@ -515,9 +503,6 @@ body {
   );
   -webkit-mask-image: var(--mask);
   mask-image: var(--mask);
-  transition:
-    --fade-above 0.2s ease,
-    --fade-below 0.2s ease;
 }
 
 .app__cards--more-above {
