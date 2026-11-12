@@ -101,6 +101,15 @@ export function AboutButton() {
           <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">
             OpenStreetMap contributors
           </a>
+          <br />
+          Emoji:{" "}
+          <a href="https://github.com/jdecked/twemoji" target="_blank" rel="noopener">
+            Twemoji
+          </a>{" "}
+          ·{" "}
+          <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">
+            CC-BY 4.0
+          </a>
         </p>
       </Sheet>
     </>
