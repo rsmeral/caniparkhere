@@ -86,6 +86,9 @@ export function AboutButton() {
           <li>In fact, use it offline!</li>
         </ul>
         <p className="app__sheet-note">
+          Disclaimer: the signs on the street always win. If I'm wrong, the fine is still yours.
+        </p>
+        <p className="app__sheet-note">
           Map:{" "}
           <a href="https://openfreemap.org" target="_blank" rel="noopener">
             OpenFreeMap
@@ -98,9 +101,6 @@ export function AboutButton() {
           <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">
             OpenStreetMap contributors
           </a>
-        </p>
-        <p className="app__sheet-note">
-          Disclaimer: the signs on the street always win. If I'm wrong, the fine is still yours.
         </p>
       </Sheet>
     </>
