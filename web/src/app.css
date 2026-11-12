@@ -489,7 +489,8 @@ body {
      is as tall as the fade there, so at either end of the scroll the fade lies over empty
      padding and the first or last card shows whole. The top padding sits in the space under
      the sentence, and the bottom one runs into the screen's own padding below. The side
-     padding keeps the cards' shadows inside the list. */
+     padding keeps the cards' shadows inside the list. The fades show there's more to
+     scroll, so the list has no scroll bar. */
   --fade-top: 2.5rem;
   --fade-bottom: 3rem;
   display: flex;
@@ -502,6 +503,7 @@ body {
   padding: var(--fade-top) 0.5rem var(--fade-bottom);
   overflow-y: auto;
   overscroll-behavior-y: none;
+  scrollbar-width: none;
   --mask: linear-gradient(
     to bottom,
     transparent,
@@ -511,6 +513,10 @@ body {
   );
   -webkit-mask-image: var(--mask);
   mask-image: var(--mask);
+}
+
+.app__cards::-webkit-scrollbar {
+  display: none;
 }
 
 .app--has-map .app__cards {
