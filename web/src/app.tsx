@@ -15,7 +15,6 @@ import { emojiUrl } from "./emoji";
 import type { QueryResult } from "./query";
 import { createQueryClient } from "./queryClient";
 import type { GeoState } from "./useGeolocation";
-import { useScrollFades } from "./useScrollFades";
 import { useThemeColor } from "./useThemeColor";
 import { loadPermits, savePermits } from "./permits";
 import { loadVehicle, saveVehicle, type Vehicle } from "./vehicle";
@@ -255,8 +254,6 @@ export function App({
     if (direction === "up" && !mapOpen && mapAvailable && start.scrolledToEnd) showMap(true);
     if (direction === "down" && mapOpen && !start.target.closest(".app__map")) showMap(false);
   };
-
-  useScrollFades(cardsList, "app__cards", `${cardsKey}:${mapOpen}`);
 
   // The zones' rules change with the time, so the map asks for them again each minute, or
   // whenever the moment being answered for changes.
