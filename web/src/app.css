@@ -50,6 +50,9 @@ html,
 body {
   margin: 0;
   height: 100%;
+  /* A pull down at the top of the page is the swipe that closes the map, never the browser's
+     pull-to-refresh. */
+  overscroll-behavior-y: none;
 }
 
 .app {
@@ -83,6 +86,7 @@ body {
   user-select: none;
   -webkit-user-select: none;
   overflow-y: auto;
+  overscroll-behavior-y: none;
   position: relative;
 }
 
