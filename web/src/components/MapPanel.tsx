@@ -139,6 +139,7 @@ export function MapPanel({
       : tapped
         ? null
         : pickedCard;
+  const closeCard = () => (tapped ? setTapped(null) : onPickedCardClose());
   const selectedCode = tapped?.code ?? pickedCard?.zone?.code ?? null;
 
   const features = useMemo(
@@ -179,7 +180,7 @@ export function MapPanel({
   }
 
   return (
-    <div className="app__map" style={{ background: palette.background, color: palette.label }}>
+    <div className="app__map">
       {MapView ? (
         <MapView
           position={position}
@@ -196,6 +197,21 @@ export function MapPanel({
       {shownCard && (
         <div className="app__map-card">
           <CandidateBox card={shownCard} expanded />
+          <button
+            type="button"
+            className="app__map-card-close"
+            aria-label="Close"
+            onClick={closeCard}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M6 6l12 12M18 6L6 18"
+                stroke="currentColor"
+                stroke-width="2.6"
+                stroke-linecap="round"
+              />
+            </svg>
+          </button>
         </div>
       )}
     </div>

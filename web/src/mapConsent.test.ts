@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { loadMapConsent, saveMapConsent } from "./mapConsent";
+import { loadMapConsent, loadMapOpened, saveMapConsent, saveMapOpened } from "./mapConsent";
 
 describe("map consent", () => {
   beforeEach(() => {
@@ -18,6 +18,13 @@ describe("map consent", () => {
     expect(loadMapConsent()).toBe(false);
     saveMapConsent();
     expect(loadMapConsent()).toBe(true);
+  });
+
+  it("remembers the map was opened, apart from the consent", () => {
+    expect(loadMapOpened()).toBe(false);
+    saveMapOpened();
+    expect(loadMapOpened()).toBe(true);
+    expect(loadMapConsent()).toBe(false);
   });
 
   it("counts blocked storage as not given", () => {

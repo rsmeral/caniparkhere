@@ -20,3 +20,22 @@ export function saveMapConsent(): void {
     // The answer still applies for this session.
   }
 }
+
+const OPENED_KEY = "caniparkhere.mapOpened";
+
+/** Whether the map has been opened before, after which its handle no longer nudges. */
+export function loadMapOpened(): boolean {
+  try {
+    return localStorage.getItem(OPENED_KEY) === "yes";
+  } catch {
+    return false;
+  }
+}
+
+export function saveMapOpened(): void {
+  try {
+    localStorage.setItem(OPENED_KEY, "yes");
+  } catch {
+    // The handle stops nudging for this session anyway.
+  }
+}

@@ -40,12 +40,13 @@ without a permit in blue, purple and orange zones alike.
 "Map" at the bottom of the screen swaps the cards for a map: tap it, or swipe up anywhere.
 Tap it again, or swipe down above the map, to go back to the cards. When it's unclear where
 you are (fewer than three bars, or more than one zone in reach), its arrows bump upwards
-now and then. The map shows the zones in their curb colours, each with the emoji of its
+now and then, until the map has been opened once. The map shows the zones in their curb colours, each with the emoji of its
 answer, street cleaning today (red stripes) or in the next few days (amber stripes), and
 your position with its accuracy circle. The zones you could be in have a thicker border.
 Above the map, the cards roll up into a row of squares, each with a dot for its answer:
 green to park, yellow to mind something (paying, or street cleaning soon), red not to park,
-grey for no info. Tap a square, or a zone on the map, to see its details and pay.
+grey for no info. Tap a square, or a zone on the map, to see its details and pay; the cross
+in its corner closes it.
 
 The map's streets come from [OpenFreeMap](https://openfreemap.org), over the internet, so
 their servers see which part of the map your phone asks for. The first time the map opens,

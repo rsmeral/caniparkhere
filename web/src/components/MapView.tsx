@@ -119,6 +119,11 @@ export function MapView({ position, features, palette, onView, onTap }: Props) {
     fitPosition(m, position, false);
 
     m.on("load", () => {
+      // The credits start folded into their ⓘ button, which opens them, so they stay clear of
+      // a zone's card over the bottom of the map.
+      m.getContainer()
+        .querySelector(".maplibregl-ctrl-attrib")
+        ?.classList.remove("maplibregl-compact-show");
       m.addImage(HATCH.today, hatchImage(palette.cleaningToday), { pixelRatio: 2 });
       m.addImage(HATCH.soon, hatchImage(palette.cleaningSoon), { pixelRatio: 2 });
       setLoaded(true);

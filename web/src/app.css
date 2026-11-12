@@ -56,19 +56,13 @@ body {
 }
 
 .app {
-  /* The answer sits in the middle of the screen when it fits. "safe" makes a taller answer -
-     a long list of cards - start at the top instead, so it scrolls from the emoji rather
-     than overflowing past the top where scrolling can't reach. The top padding keeps the
-     emoji clear of the corner controls. dvh is the height actually visible between a
-     phone browser's toolbars; vh is the fallback. */
+  /* The whole screen: the answer above, and the map's handle in a strip of its own along the
+     bottom, so nothing scrolls under it. dvh is the height actually visible between a phone
+     browser's toolbars; vh is the fallback. */
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: safe center;
   height: 100vh;
   height: 100dvh;
-  padding: 3rem 2rem 2rem;
-  box-sizing: border-box;
   color: #fff;
   font-family: system-ui, sans-serif;
   text-align: center;
@@ -85,9 +79,38 @@ body {
   isolation: isolate;
   user-select: none;
   -webkit-user-select: none;
+  overflow: hidden;
+  position: relative;
+}
+
+.app__main {
+  /* The answer sits in the middle of the screen when it fits. "safe" makes a taller answer -
+     a long list of cards - start at the top instead, so it scrolls from the emoji rather
+     than overflowing past the top where scrolling can't reach. The top padding keeps the
+     emoji clear of the corner controls, which scroll with it. */
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: safe center;
+  padding: 3rem 2rem 2rem;
+  box-sizing: border-box;
   overflow-y: auto;
   overscroll-behavior-y: none;
-  position: relative;
+}
+
+.app__footer {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.app--has-map .app__main {
+  /* The handle's strip below has room of its own. */
+  padding-bottom: 1rem;
 }
 
 .app--neutral {
@@ -846,16 +869,11 @@ body {
 
 /* ---- The map ---------------------------------------------------------------------- */
 
-.app--has-map {
-  /* Room at the bottom for the map's handle. */
-  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 4rem);
-}
-
-.app--map {
+.app--map .app__main {
   /* With the map open, the answer stays at the top, smaller, and the map takes the rest of
-     the screen down to the handle. The sides are narrow so the map is as wide as it can be. */
+     the screen down to the handle, with as much space under it as above it. */
   justify-content: flex-start;
-  padding: 3rem 0.75rem calc(env(safe-area-inset-bottom, 0px) + 3.25rem);
+  padding: 3rem 1.25rem 0.5rem;
 }
 
 .app--map .app__emoji-halo::before {
@@ -869,9 +887,9 @@ body {
 }
 
 .app--map .app__sentence {
+  /* The same width as without the map, so the sentence wraps the same and only moves. */
   margin-top: 1.25rem;
-  padding: 0 1.25rem;
-  font-size: 1.2rem;
+  padding: 0 0.75rem;
 }
 
 .app__squares {
@@ -934,7 +952,7 @@ body {
 
 .app__map {
   /* A rounded box filling the space under the answer, never shorter than a comfortable
-     map; on a short screen the page scrolls instead. */
+     map; on a short screen the page scrolls instead. Dark under the map, while it loads. */
   position: relative;
   flex: 1 0 18rem;
   width: 100%;
@@ -942,10 +960,11 @@ body {
   margin-top: 1.5rem;
   border-radius: 1rem;
   overflow: hidden;
+  background: var(--tone-neutral-edge);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.15),
     0 2px 6px rgba(0, 0, 0, 0.25);
-  color: #1f2937;
+  color: #e5e7eb;
 }
 
 .app__map .app__map-canvas {
@@ -969,7 +988,6 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  background: #fff;
   overflow-y: auto;
 }
 
@@ -1012,8 +1030,8 @@ body {
 }
 
 .app__map-consent-accept {
-  background: #111;
-  color: #fff;
+  background: #fff;
+  color: #111;
 }
 
 .app__map-consent-decline {
@@ -1035,6 +1053,32 @@ body {
   max-height: calc(100% - 2.75rem);
   overflow-y: auto;
   border-radius: 0.65rem;
+}
+
+.app__map-card .app__detail-info {
+  /* Clear of the close button. */
+  padding-right: 3rem;
+}
+
+.app__map-card-close {
+  /* A large cross in the card's top right corner. */
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #fff;
+  cursor: pointer;
+}
+
+.app__map-card-close svg {
+  width: 1.25rem;
+  height: 1.25rem;
 }
 
 .app__map-card .app__detail {
@@ -1072,11 +1116,6 @@ body {
 .app__map-handle {
   /* "Map" under two chevrons, centred at the bottom of the screen: plain white and faded,
      lifted off every tone by the same soft shadow as the controls at the top. */
-  position: fixed;
-  left: 50%;
-  bottom: env(safe-area-inset-bottom, 0px);
-  translate: -50% 0;
-  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1098,26 +1137,19 @@ body {
 }
 
 .app__map-handle-chevrons {
-  /* Flipping over the horizontal axis with no perspective, so the chevrons fold flat and
-     open out pointing the other way. */
   display: flex;
   flex-direction: column;
-  transition: transform 0.35s ease-in-out;
 }
 
 .app__map-handle-chevrons svg {
   display: block;
   width: 1.4rem;
   height: 0.7rem;
+  overflow: visible;
 }
 
 .app__map-handle-chevrons svg + svg {
   margin-top: -0.15rem;
-}
-
-.app__map-handle--open .app__map-handle-chevrons {
-  /* Pointing the way the map goes when it closes. */
-  transform: rotateX(180deg);
 }
 
 .app__map-handle-label {
@@ -1155,81 +1187,6 @@ body {
   }
   88% {
     translate: 0 -0.2rem;
-  }
-}
-
-/* Opening and closing the map, as a view transition: the map rises from below the screen
-   and sinks back, each card rolls up into its square and back out, and the emoji and
-   sentence glide to their new places. A card and its square share a name by position; there
-   are at most five. */
-.app__emoji-halo {
-  view-transition-name: emoji;
-}
-
-.app__sentence {
-  view-transition-name: sentence;
-}
-
-.app__map {
-  view-transition-name: map;
-}
-
-.app__cards > :nth-child(1),
-.app__squares > :nth-child(1) {
-  view-transition-name: card-1;
-}
-.app__cards > :nth-child(2),
-.app__squares > :nth-child(2) {
-  view-transition-name: card-2;
-}
-.app__cards > :nth-child(3),
-.app__squares > :nth-child(3) {
-  view-transition-name: card-3;
-}
-.app__cards > :nth-child(4),
-.app__squares > :nth-child(4) {
-  view-transition-name: card-4;
-}
-.app__cards > :nth-child(5),
-.app__squares > :nth-child(5) {
-  view-transition-name: card-5;
-}
-
-.app__map-handle {
-  view-transition-name: map-handle;
-}
-
-::view-transition-group(*) {
-  animation-duration: 0.4s;
-  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-::view-transition-new(map):only-child {
-  animation: app-map-rise 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
-}
-
-::view-transition-old(map):only-child {
-  animation: app-map-rise 0.35s cubic-bezier(0.4, 0, 1, 1) reverse both;
-}
-
-/* The handle's chevrons flip by their own transition, which plays on the live image. */
-::view-transition-old(map-handle) {
-  display: none;
-}
-
-::view-transition-new(map-handle) {
-  animation: none;
-}
-
-@keyframes app-map-rise {
-  from {
-    translate: 0 100vh;
-  }
-}
-
-@keyframes app-fade {
-  from {
-    opacity: 0;
   }
 }
 
