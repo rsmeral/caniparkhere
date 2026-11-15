@@ -1082,11 +1082,14 @@ body {
 
 .app__map-card {
   /* A tapped zone's card, over the bottom of the map and clear of the map's credits. On the
-     map it needs a solid chip of its own, since the map under it is light. */
+     map it needs a solid chip of its own, since the map under it is light. The box is no
+     wider than the card, so the close button sits in the card's own corner. */
   position: absolute;
   left: 0.5rem;
   right: 0.5rem;
   bottom: 2.25rem;
+  max-width: 28rem;
+  margin-inline: auto;
   display: flex;
   justify-content: center;
   max-height: calc(100% - 2.75rem);
