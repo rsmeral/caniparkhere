@@ -37,6 +37,21 @@ both. "Edit permits…" in the same menu changes them.
 On a motorbike (pick "Motorbike"), every zone is free, with no time limit: motorbikes park
 without a permit in blue, purple and orange zones alike.
 
+"Map" at the bottom of the screen swaps the cards for a map: tap it, or swipe up anywhere.
+Tap it again, or swipe down above the map, to go back to the cards. When it's unclear where
+you are (fewer than three bars, or more than one zone in reach), its arrows bump upwards
+now and then, until the map has been opened once. The map shows the zones in their curb colours, each with the emoji of its
+answer, street cleaning today (red stripes) or in the next few days (amber stripes), and
+your position with its accuracy circle. The zones you could be in have a thicker border.
+Above the map, the cards roll up into a row of squares, each with a dot for its answer:
+green to park, yellow to mind something (paying, or street cleaning soon), red not to park,
+grey for no info. Tap a square, or a zone on the map, to see its details and pay; the cross
+in its corner closes it.
+
+The map's streets come from [OpenFreeMap](https://openfreemap.org), over the internet, so
+their servers see which part of the map your phone asks for. The first time the map opens,
+it says so and waits for you to agree, which is remembered.
+
 The app's icon in the top right corner opens the About page, with a link to the source and,
 where the browser can install the app from a button, Install (the Web Install API, or
 Chromium's own install prompt).
@@ -60,6 +75,13 @@ From [Golemio](https://api.golemio.cz/docs/public-openapi/), Prague's data platf
 - Parking tariffs from TSK (`/v3/parking` and `/v3/parking-tariffs`, source `tsk_v2`) –
   each zone's prices, paid hours, caps, and how long a visitor may stay
 
+For the map, from [OpenFreeMap](https://openfreemap.org), loaded by the phone only once
+the user agrees:
+
+- OpenStreetMap vector tiles in the [OpenMapTiles](https://openmaptiles.org) schema, with
+  no API key. The map's style is the app's own (`web/src/mapStyle.ts`). Map data
+  © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors.
+
 From [VPH](https://vph.zpspraha.cz/parkingmap), the city's official parking map:
 
 - Parking areas (`/api/v1/parking/area?category=PARKING`) – the shapes of the districts and
@@ -71,7 +93,8 @@ From [VPH](https://vph.zpspraha.cz/parkingmap), the city's official parking map:
    smaller, and saves it as JSON files in this repo.
 2. The first time you open the app, your phone downloads these files and stores them.
 3. After that, the app looks up your location on the phone itself. It only goes online to
-   check whether newer data is available, and it works offline too.
+   check whether newer data is available, and for the map's streets if you've turned the
+   map on. It works offline too; offline, the map shows the zones without the streets.
 
 ---
 

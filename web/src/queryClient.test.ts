@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { QueryResult } from "./query";
 import { createQueryClient } from "./queryClient";
-import type { QueryRequest, QueryResponse } from "./queryProtocol";
+import type { QueryRequest, QueryResponse, WorkerRequest } from "./queryProtocol";
 
 type Listener = (event: unknown) => void;
 
@@ -86,6 +86,19 @@ describe("createQueryClient", () => {
     const [real, simulated] = FakeWorker.latest.sent;
     expect(real.cleaningEverywhereToday).toBe(false);
     expect(simulated.cleaningEverywhereToday).toBe(true);
+  });
+
+  it("asks for the map's zones in a box, and answers with them", async () => {
+    const client = createQueryClient();
+    const box = { minLon: 14.4, minLat: 50.07, maxLon: 14.45, maxLat: 50.09 };
+    const area = client.mapArea(box, { at: new Date("2026-09-25T10:00:00Z") });
+
+    const [sent] = FakeWorker.latest.sent as unknown as WorkerRequest[];
+    expect(sent).toMatchObject({ kind: "mapArea", box, at: Date.parse("2026-09-25T10:00:00Z") });
+
+    const mapArea = { zones: [], cleaning: [] };
+    FakeWorker.latest.reply({ id: sent.id, ok: true, mapArea });
+    await expect(area).resolves.toEqual(mapArea);
   });
 
   it("rejects only the request an error response names", async () => {

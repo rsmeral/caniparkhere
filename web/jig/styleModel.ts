@@ -1,4 +1,5 @@
 import type { Tone } from "../src/describe";
+import { DEFAULT_MAP_PALETTE, type MapPalette } from "../src/mapStyle";
 
 // Colours are tuned in OKLCH: lightness, chroma (how colourful) and hue. Unlike HSL, equal
 // lightness and chroma there look equally light and equally colourful across hues, so giving
@@ -152,6 +153,8 @@ export interface StyleState {
     closeGlyph: number;
     closeThickness: number;
   };
+  /** The map's colours and weights, given to the app directly rather than through CSS. */
+  map: MapPalette;
   customCss: string;
   /** A full replacement for app.css, or null to keep the file's own. */
   appCss: string | null;
@@ -414,9 +417,92 @@ export const DEFAULT_STATE: StyleState = {
     closeGlyph: 1.6,
     closeThickness: 3.2,
   },
+  map: structuredClone(DEFAULT_MAP_PALETTE),
   customCss: "",
   appCss: null,
 };
+
+/** Whole map palettes to start tuning from. The first is the app's own. */
+export const MAP_THEMES: { name: string; palette: MapPalette }[] = [
+  { name: "Light", palette: DEFAULT_MAP_PALETTE },
+  {
+    name: "Stone",
+    palette: {
+      ...DEFAULT_MAP_PALETTE,
+      loading: "#3a3630",
+      loadingText: "#e9e4dc",
+      background: "#bdb5a8",
+      water: "#9ea5a5",
+      park: "#b1a897",
+      building: "#aaa192",
+      buildingOutline: "#918878",
+      roadCasing: "#81796a",
+      road: "#f3eee5",
+      path: "#7d7566",
+      rail: "#857d6e",
+      label: "#2e2a24",
+      labelHalo: "#f3eee5",
+    },
+  },
+  {
+    name: "Dusk",
+    palette: {
+      ...DEFAULT_MAP_PALETTE,
+      loading: "#24212a",
+      loadingText: "#ddd8e3",
+      background: "#2f2b35",
+      water: "#22232f",
+      park: "#363140",
+      building: "#3f3946",
+      buildingOutline: "#514a59",
+      roadCasing: "#1b1820",
+      road: "#7a7286",
+      path: "#625b6d",
+      rail: "#554e5f",
+      label: "#ddd8e3",
+      labelHalo: "#1d1a22",
+      zoneFillOpacity: 0.25,
+      candidateFillOpacity: 0.42,
+      selected: "#ffffff",
+      position: "#f5f3f7",
+      positionRing: "#1d1a22",
+      accuracyOpacity: 0.18,
+    },
+  },
+  {
+    name: "Night",
+    palette: {
+      ...DEFAULT_MAP_PALETTE,
+      loading: "#151b27",
+      loadingText: "#ccd5e3",
+      background: "#1c2331",
+      water: "#121926",
+      park: "#222b3c",
+      building: "#2a3446",
+      buildingOutline: "#3a465c",
+      roadCasing: "#0f141d",
+      road: "#56637c",
+      path: "#465169",
+      rail: "#3c475b",
+      label: "#ccd5e3",
+      labelHalo: "#111723",
+      zoneFillOpacity: 0.25,
+      candidateFillOpacity: 0.42,
+      selected: "#ffffff",
+      position: "#f8fafc",
+      positionRing: "#0f172a",
+      accuracyOpacity: 0.18,
+    },
+  },
+];
+
+/** The map palette as source, for pasting over DEFAULT_MAP_PALETTE in src/mapStyle.ts. */
+export function mapPaletteSource(palette: MapPalette): string {
+  const lines = (Object.keys(DEFAULT_MAP_PALETTE) as (keyof MapPalette)[]).map(
+    (key) => `  ${key}: ${JSON.stringify(palette[key])},`,
+  );
+  return `export const DEFAULT_MAP_PALETTE: MapPalette = {\n${lines.join("\n")}\n};\n`;
+}
 
 export const PRESETS: { name: string; apply(state: StyleState): StyleState }[] = [
   { name: "The app today", apply: () => structuredClone(DEFAULT_STATE) },

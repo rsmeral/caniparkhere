@@ -3,6 +3,7 @@ import type { LoadedData } from "./dataStore";
 import { isPublicHoliday } from "./holidays";
 import { LineIndex, PolygonIndex } from "./spatialIndex";
 import { activeRuleNow, nextChange, paidWindowsOn, type Change } from "./tariffLogic";
+import type { Feature, MultiPolygon } from "geojson";
 import type { Bounds, Tariff, TariffRule, ZpsProps } from "./types";
 
 /** The matched parking zone's own identity - shown as a lower-priority "here's what we
@@ -59,6 +60,15 @@ export interface Place {
 }
 
 export type QueryResult = { kind: "outOfArea" } | { kind: "places"; places: Place[] };
+
+/**
+ * The zones and street cleaning drawn on the map for one stretch of it. Only cleaning today or
+ * within the warning window is included; a section with neither has nothing to warn about.
+ */
+export interface MapArea {
+  zones: Feature<MultiPolygon, { status: ZoneStatus }>[];
+  cleaning: Feature<MultiPolygon, { cleaning: Cleaning }>[];
+}
 
 /**
  * Checks a point against the data's coverage envelope (see the pipeline's padBbox) - a
@@ -243,6 +253,35 @@ function mergeCleaning(a: Cleaning, b: Cleaning): Cleaning {
   return { today: a.today || b.today, upcoming };
 }
 
+type LetniMatch = { feature: LoadedData["letni"]["features"][number]; point: [number, number] };
+
+/** A cleaning section's cleaning, from its dates. */
+function sectionCleaning(
+  data: LoadedData,
+  feature: LetniMatch["feature"],
+  today: string,
+  cleaningEverywhereToday: boolean,
+): Cleaning {
+  const { datesId } = feature.properties;
+  return cleaningOf(
+    datesId !== null ? data.letni.dates[datesId] : [],
+    today,
+    cleaningEverywhereToday,
+  );
+}
+
+/**
+ * The street a cleaning section is on: its own name, in RÚIAN's spelling. Some sections carry
+ * a placeholder code rather than a name, and take the street nearest `match.point` instead.
+ */
+function sectionStreet(data: LoadedData, indexes: Indexes, match: LetniMatch): string | null {
+  const { name } = match.feature.properties;
+  return (
+    (name && indexes.streetNames.get(name.toLowerCase())) ??
+    streetNameNear(data, indexes, match.point, PLACE_STREET_RADIUS_METERS)
+  );
+}
+
 /**
  * Every place the fix could be, nearest first. The fix is a circle: its accuracy radius, kept
  * between MIN_RADIUS_METERS and MAX_RADIUS_METERS. Zones and street-cleaning sections count
@@ -287,17 +326,8 @@ export function queryPlaces(
   }
 
   for (const match of indexes.letni.findNearby(lon, lat, radius)) {
-    const { name, datesId } = match.feature.properties;
-    const cleaning = cleaningOf(
-      datesId !== null ? data.letni.dates[datesId] : [],
-      today,
-      cleaningEverywhereToday,
-    );
-    // The section's own name, in RÚIAN's spelling. Some sections carry a placeholder code
-    // rather than a name, and take the street they're on instead.
-    const streetName =
-      (name && indexes.streetNames.get(name.toLowerCase())) ??
-      streetNameNear(data, indexes, match.point, PLACE_STREET_RADIUS_METERS);
+    const cleaning = sectionCleaning(data, match.feature, today, cleaningEverywhereToday);
+    const streetName = sectionStreet(data, indexes, match);
     const onStreet = places.filter((p) => p.streetName !== null && p.streetName === streetName);
     for (const place of onStreet) place.cleaning = mergeCleaning(place.cleaning, cleaning);
     if (onStreet.length === 0) {
@@ -320,4 +350,67 @@ export function queryPlaces(
       distanceMeters: 0,
     },
   ];
+}
+
+/**
+ * One zone as a place, for a point tapped on the map inside it or on its edge: its rules, the
+ * street at that point, and the cleaning on that street there. Null when the zone isn't within
+ * MIN_RADIUS_METERS of the point.
+ */
+export function placeOfZone(
+  data: LoadedData,
+  indexes: Indexes,
+  code: string,
+  lon: number,
+  lat: number,
+  now = new Date(),
+  cleaningEverywhereToday = false,
+): Place | null {
+  const match = indexes.zps
+    .findNearby(lon, lat, MIN_RADIUS_METERS)
+    .find((m) => m.feature.properties.code === code);
+  if (!match) return null;
+  const today = toLocalISODate(now);
+  const streetName = streetNameNear(data, indexes, match.point, PLACE_STREET_RADIUS_METERS);
+  let cleaning = NO_CLEANING;
+  for (const section of indexes.letni.findNearby(lon, lat, MIN_RADIUS_METERS)) {
+    if (streetName === null || sectionStreet(data, indexes, section) !== streetName) continue;
+    const sectionDates = sectionCleaning(data, section.feature, today, cleaningEverywhereToday);
+    cleaning = mergeCleaning(cleaning, sectionDates);
+  }
+  return {
+    zone: zoneStatusOf(data, match.feature, now),
+    streetName,
+    cleaning,
+    distanceMeters: match.distanceMeters,
+  };
+}
+
+/** The zones and the street cleaning to warn about in a box, with their rules at `now`. */
+export function mapArea(
+  data: LoadedData,
+  indexes: Indexes,
+  box: Bounds,
+  now = new Date(),
+  cleaningEverywhereToday = false,
+): MapArea {
+  const { minLon, minLat, maxLon, maxLat } = box;
+  const today = toLocalISODate(now);
+  const zones = indexes.zps.findInBox(minLon, minLat, maxLon, maxLat).map((feature) => ({
+    type: "Feature" as const,
+    geometry: feature.geometry,
+    properties: { status: zoneStatusOf(data, feature, now) },
+  }));
+  const cleaning = indexes.letni.findInBox(minLon, minLat, maxLon, maxLat).flatMap((feature) => {
+    const sectionDates = sectionCleaning(data, feature, today, cleaningEverywhereToday);
+    if (!sectionDates.today && !sectionDates.upcoming) return [];
+    return [
+      {
+        type: "Feature" as const,
+        geometry: feature.geometry,
+        properties: { cleaning: sectionDates },
+      },
+    ];
+  });
+  return { zones, cleaning };
 }

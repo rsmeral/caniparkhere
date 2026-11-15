@@ -79,10 +79,37 @@ export function AboutButton() {
         <ul>
           <li>After the first load, it only downloads zone updates. It never sends anything.</li>
           <li>Your location stays on your phone.</li>
+          <li>
+            The one exception is the map, and only once you agree to it: it downloads the streets
+            around you from OpenFreeMap, so their servers see roughly where you are.
+          </li>
           <li>In fact, use it offline!</li>
         </ul>
         <p className="app__sheet-note">
           Disclaimer: the signs on the street always win. If I'm wrong, the fine is still yours.
+        </p>
+        <p className="app__sheet-note app__sheet-credits">
+          Map:{" "}
+          <a href="https://openfreemap.org" target="_blank" rel="noopener">
+            OpenFreeMap
+          </a>{" "}
+          ·{" "}
+          <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">
+            © OpenMapTiles
+          </a>{" "}
+          · Data ©{" "}
+          <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">
+            OpenStreetMap contributors
+          </a>
+          <br />
+          Emoji:{" "}
+          <a href="https://github.com/jdecked/twemoji" target="_blank" rel="noopener">
+            Twemoji
+          </a>{" "}
+          ·{" "}
+          <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">
+            CC-BY 4.0
+          </a>
         </p>
       </Sheet>
     </>

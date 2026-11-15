@@ -1,4 +1,5 @@
-import type { QueryResult } from "./query";
+import type { MapArea, Place, QueryResult } from "./query";
+import type { Bounds } from "./types";
 import type { QueryResponse, WorkerRequest } from "./queryProtocol";
 
 export interface QueryOptions {
@@ -17,6 +18,10 @@ export interface QueryClient {
   ): Promise<QueryResult>;
   /** Every parking area a permit can be for, e.g. ["1", "2", "5", "5.1", ...]. */
   areas(): Promise<string[]>;
+  /** The zones and street cleaning to draw in a box of the map. */
+  mapArea(box: Bounds, options?: QueryOptions): Promise<MapArea>;
+  /** One zone as a place, for a point tapped on the map. */
+  zonePlace(code: string, lon: number, lat: number, options?: QueryOptions): Promise<Place | null>;
   terminate(): void;
 }
 
@@ -74,6 +79,30 @@ export function createQueryClient(): QueryClient {
       const answer = await ask({ kind: "areas", id: nextId++ });
       if (!("areas" in answer)) throw new Error("Zone data worker sent no areas");
       return answer.areas;
+    },
+    async mapArea(box, { at, cleaningEverywhereToday = false } = {}) {
+      const answer = await ask({
+        kind: "mapArea",
+        id: nextId++,
+        box,
+        at: at?.getTime() ?? null,
+        cleaningEverywhereToday,
+      });
+      if (!("mapArea" in answer)) throw new Error("Zone data worker sent no map area");
+      return answer.mapArea;
+    },
+    async zonePlace(code, lon, lat, { at, cleaningEverywhereToday = false } = {}) {
+      const answer = await ask({
+        kind: "zonePlace",
+        id: nextId++,
+        code,
+        lon,
+        lat,
+        at: at?.getTime() ?? null,
+        cleaningEverywhereToday,
+      });
+      if (!("place" in answer)) throw new Error("Zone data worker sent no place");
+      return answer.place;
     },
     terminate() {
       worker.terminate();

@@ -1,4 +1,5 @@
-import type { QueryResult } from "./query";
+import type { MapArea, Place, QueryResult } from "./query";
+import type { Bounds } from "./types";
 
 /**
  * The messages exchanged with the query worker. Both directions stay small and plain -
@@ -26,10 +27,32 @@ export interface AreasRequest {
   id: number;
 }
 
-export type WorkerRequest = QueryRequest | AreasRequest;
+/** Main thread -> worker: the zones and street cleaning to draw in a box of the map. */
+export interface MapAreaRequest {
+  kind: "mapArea";
+  id: number;
+  box: Bounds;
+  at: number | null;
+  cleaningEverywhereToday: boolean;
+}
+
+/** Main thread -> worker: one zone as a place, for a point tapped on the map. */
+export interface ZonePlaceRequest {
+  kind: "zonePlace";
+  id: number;
+  code: string;
+  lon: number;
+  lat: number;
+  at: number | null;
+  cleaningEverywhereToday: boolean;
+}
+
+export type WorkerRequest = QueryRequest | AreasRequest | MapAreaRequest | ZonePlaceRequest;
 
 /** Worker -> main thread: the answer to request `id`, or why it couldn't be produced. */
 export type QueryResponse =
   | { id: number; ok: true; result: QueryResult }
   | { id: number; ok: true; areas: string[] }
+  | { id: number; ok: true; mapArea: MapArea }
+  | { id: number; ok: true; place: Place | null }
   | { id: number; ok: false; message: string };

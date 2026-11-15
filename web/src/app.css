@@ -50,22 +50,19 @@ html,
 body {
   margin: 0;
   height: 100%;
+  /* A pull down at the top of the page is the swipe that closes the map, never the browser's
+     pull-to-refresh. */
+  overscroll-behavior-y: none;
 }
 
 .app {
-  /* The answer sits in the middle of the screen when it fits. "safe" makes a taller answer -
-     a long list of cards - start at the top instead, so it scrolls from the emoji rather
-     than overflowing past the top where scrolling can't reach. The top padding keeps the
-     emoji clear of the corner controls. dvh is the height actually visible between a
-     phone browser's toolbars; vh is the fallback. */
+  /* The whole screen: the answer above, and the map's handle in a strip of its own along the
+     bottom, so nothing scrolls under it. dvh is the height actually visible between a phone
+     browser's toolbars; vh is the fallback. */
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: safe center;
   height: 100vh;
   height: 100dvh;
-  padding: 3rem 2rem 2rem;
-  box-sizing: border-box;
   color: #fff;
   font-family: system-ui, sans-serif;
   text-align: center;
@@ -82,8 +79,37 @@ body {
   isolation: isolate;
   user-select: none;
   -webkit-user-select: none;
-  overflow-y: auto;
+  overflow: hidden;
   position: relative;
+}
+
+.app__main {
+  /* The answer sits in the middle of the screen when it fits. Nothing here scrolls but the
+     cards: with more than fit, their list takes the height that's left and scrolls on its
+     own, under the corner controls, the emoji and the sentence, which stay put. The top
+     padding keeps the emoji clear of the corner controls. */
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem 2rem;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.app__footer {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.app--has-map .app__main {
+  /* The handle's strip below has room of its own. */
+  padding-bottom: 1rem;
 }
 
 .app--neutral {
@@ -312,6 +338,17 @@ body {
   opacity: 0.7;
 }
 
+.app__sheet-body .app__sheet-credits {
+  /* The credits stand apart from the page's text, two lines below it. */
+  margin-top: 2lh;
+}
+
+.app__sheet-note a {
+  /* Each credit stays on one line. */
+  color: inherit;
+  white-space: nowrap;
+}
+
 .app__sheet-body .app__permit-list {
   /* A list of toggles rather than bullets, so without the page's list indent. */
   display: flex;
@@ -414,6 +451,7 @@ body {
 .app__sentence {
   /* The answer, in a serif of its own apart from the rest of the UI, slightly tilted.
      Balanced wrapping evens out the lines, so no word is left alone on the last one. */
+  flex-shrink: 0;
   margin: 2.5rem 0 0;
   max-width: 28rem;
   font-family: "Fraunces", system-ui, serif;
@@ -446,12 +484,43 @@ body {
 
 .app__cards {
   /* The .app__detail cards under the answer, one or many - a much tighter gap between them
-     than the space above, since they read as one group. */
+     than the space above, since they read as one group. With more than fit, the list
+     scrolls under a mask that fades it into the page at both edges. The padding at each end
+     is as tall as the fade there, so at either end of the scroll the fade lies over empty
+     padding and the first or last card shows whole. The top padding sits in the space under
+     the sentence, and the bottom one runs into the screen's own padding below. The side
+     padding keeps the cards' shadows inside the list. The fades show there's more to
+     scroll, so the list has no scroll bar. */
+  --fade-top: 2.5rem;
+  --fade-bottom: 3rem;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.75rem;
-  margin-top: 3rem;
+  flex: 0 1 auto;
+  min-height: 0;
+  margin: calc(3.25rem - var(--fade-top)) 0 -2rem;
+  padding: var(--fade-top) 0.5rem var(--fade-bottom);
+  overflow-y: auto;
+  overscroll-behavior-y: none;
+  scrollbar-width: none;
+  --mask: linear-gradient(
+    to bottom,
+    transparent,
+    #000 var(--fade-top),
+    #000 calc(100% - var(--fade-bottom)),
+    transparent
+  );
+  -webkit-mask-image: var(--mask);
+  mask-image: var(--mask);
+}
+
+.app__cards::-webkit-scrollbar {
+  display: none;
+}
+
+.app--has-map .app__cards {
+  margin-bottom: -1rem;
 }
 
 .app__detail-info {
@@ -834,9 +903,336 @@ body {
   opacity: 0.5;
 }
 
+/* ---- The map ---------------------------------------------------------------------- */
+
+.app--map .app__main {
+  /* With the map open, the answer stays at the top, smaller, and the map takes the rest of
+     the screen down to the handle, with as much space under it as above it. */
+  justify-content: flex-start;
+  padding: 3rem 1.25rem 0.5rem;
+}
+
+.app--map .app__emoji-halo::before {
+  width: 7.5rem;
+  height: 7.5rem;
+}
+
+.app--map .app__emoji {
+  width: 4rem;
+  height: 4rem;
+}
+
+.app--map .app__sentence {
+  /* The same width as without the map, so the sentence wraps the same and only moves. */
+  margin-top: 1.25rem;
+  padding: 0 0.75rem;
+}
+
+.app__squares {
+  /* The cards rolled up while the map is open, in a row under the sentence. */
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+}
+
+.app__detail.app__square {
+  /* A card's own chip, as a small square with only its verdict's dot. */
+  flex-shrink: 0;
+  justify-content: center;
+  align-items: center;
+  width: 2.5rem;
+  min-width: 0;
+  height: 2.5rem;
+  padding: 0;
+  border: none;
+  cursor: pointer;
+}
+
+.app__detail.app__square[aria-pressed="true"] {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.app__square:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.app__square-dot {
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.2);
+}
+
+.app__square-dot--ok {
+  background: #22c55e;
+}
+
+.app__square-dot--mind {
+  background: #facc15;
+}
+
+.app__square-dot--stop {
+  background: #ef4444;
+}
+
+.app__square-dot--unknown {
+  background: #9ca3af;
+}
+
+.app__squares + .app__map {
+  margin-top: 1rem;
+}
+
+.app__map {
+  /* A rounded box filling the space under the answer. Under the map, while it loads, are
+     the palette's loading colours, set on the element. */
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 10rem;
+  width: 100%;
+  max-width: 40rem;
+  margin-top: 1.5rem;
+  border-radius: 1rem;
+  overflow: hidden;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.app__map .app__map-canvas {
+  /* Two classes, to win over MapLibre's own .maplibregl-map, which loads later. */
+  position: absolute;
+  inset: 0;
+}
+
+.app__map-status {
+  margin: 0;
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 0.9rem;
+  opacity: 0.7;
+}
+
+.app__map--consent {
+  /* The box says what loading the map means before anything is loaded, in the About page's
+     colours. */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: #fff;
+  color: #111;
+  overflow-y: auto;
+}
+
+.app__map-consent {
+  padding: 1.5rem 1.5rem 1.25rem;
+  text-align: left;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.app__map-consent p {
+  margin: 0 0 0.75rem;
+  text-wrap: pretty;
+}
+
+.app__map-consent-title {
+  margin: 0 0 0.75rem;
+  font-family: "Fraunces", system-ui, serif;
+  font-size: 1.4rem;
+  font-weight: 650;
+}
+
+.app__map-consent-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 1.25rem;
+}
+
+.app__map-consent-accept,
+.app__map-consent-decline {
+  padding: 0.8rem;
+  border: none;
+  border-radius: 0.75rem;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.app__map-consent-accept {
+  background: #111;
+  color: #fff;
+}
+
+.app__map-consent-decline {
+  background: none;
+  color: inherit;
+  font-weight: 600;
+  opacity: 0.7;
+}
+
+.app__map-card {
+  /* A tapped zone's card, over the bottom of the map and clear of the map's credits. On the
+     map it needs a solid chip of its own, since the map under it is light. */
+  position: absolute;
+  left: 0.5rem;
+  right: 0.5rem;
+  bottom: 2.25rem;
+  display: flex;
+  justify-content: center;
+  max-height: calc(100% - 2.75rem);
+  overflow-y: auto;
+  border-radius: 0.65rem;
+}
+
+.app__map-card .app__detail-info {
+  /* Clear of the close button. */
+  padding-right: 3rem;
+}
+
+.app__map-card-close {
+  /* A large cross in the card's top right corner. */
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #fff;
+  cursor: pointer;
+}
+
+.app__map-card-close svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.app__map-card .app__detail {
+  width: 100%;
+  background: rgba(31, 41, 55, 0.94);
+}
+
+.app__map-recentre {
+  /* Back to following the position, once the map has been moved by hand. */
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: #fff;
+  color: #1f2937;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+}
+
+.app__map-recentre svg {
+  width: 1.4rem;
+  height: 1.4rem;
+}
+
+.app__map .maplibregl-ctrl-attrib {
+  font-size: 0.65rem;
+}
+
+.app__map-handle {
+  /* "Map" under two chevrons, centred at the bottom of the screen: plain white and faded,
+     lifted off every tone by the same soft shadow as the controls at the top. */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  padding: 0.5rem 1.5rem 0.65rem;
+  border: none;
+  background: none;
+  color: #fff;
+  opacity: 0.75;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.55));
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.app__map-handle:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: -2px;
+  border-radius: 0.5rem;
+}
+
+.app__map-handle-chevrons {
+  display: flex;
+  flex-direction: column;
+}
+
+.app__map-handle-chevrons svg {
+  display: block;
+  width: 1.4rem;
+  height: 0.7rem;
+  overflow: visible;
+}
+
+.app__map-handle-chevrons svg + svg {
+  margin-top: -0.15rem;
+}
+
+.app__map-handle-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* When the map would help, the chevrons bump upwards every few seconds, the top one just
+   after the bottom one, as if pointing the way. */
+.app__map-handle--nudge {
+  opacity: 1;
+}
+
+.app__map-handle--nudge .app__map-handle-chevrons svg {
+  animation: app-map-nudge 2.4s ease-in-out infinite;
+}
+
+.app__map-handle--nudge .app__map-handle-chevrons svg:first-child {
+  animation-delay: 0.08s;
+}
+
+@keyframes app-map-nudge {
+  0%,
+  60%,
+  100% {
+    translate: 0 0;
+  }
+  70% {
+    translate: 0 -0.4rem;
+  }
+  80% {
+    translate: 0 0;
+  }
+  88% {
+    translate: 0 -0.2rem;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .app__live-dot,
-  .app__live-dot::after {
+  .app__live-dot::after,
+  .app__map-handle-chevrons svg {
     animation: none !important;
   }
 }

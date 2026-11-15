@@ -7,7 +7,8 @@ import { ZoneSummary } from "./ZoneSummary";
 interface CandidateBoxProps {
   card: Card;
   expanded: boolean;
-  onToggle: () => void;
+  /** Left out, the card can't be opened or closed by tapping it, as over the map. */
+  onToggle?: () => void;
 }
 
 /**
@@ -30,9 +31,9 @@ export function CandidateBox({ card, expanded, onToggle }: CandidateBoxProps) {
           zone={zone}
           terms={card.terms}
           cleaning={card.cleaning}
-          canExpand
+          canExpand={onToggle !== undefined}
           expanded={expanded}
-          onToggle={onToggle}
+          onToggle={onToggle ?? (() => {})}
         />
       </div>
       <div className={`app__resolve-wrap${expanded ? " app__resolve-wrap--open" : ""}`}>

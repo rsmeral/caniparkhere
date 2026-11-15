@@ -1,5 +1,5 @@
 import type { Feature, Polygon } from "geojson";
-import { METERS_PER_DEG_LAT, metersPerDegLon } from "../src/spatialIndex";
+import { METERS_PER_DEG_LAT, metersPerDegLon } from "./spatialIndex";
 
 /**
  * A circle of `radiusMeters` around a point, as a polygon. It uses the same local

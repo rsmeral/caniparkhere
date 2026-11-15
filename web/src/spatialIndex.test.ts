@@ -116,6 +116,18 @@ describe("PolygonIndex", () => {
       expect(results.map((r) => r.feature.properties.id)).toEqual(["near"]);
     });
   });
+
+  describe("findInBox", () => {
+    it("returns the features overlapping the box, partly or wholly", () => {
+      const index = new PolygonIndex([
+        square("inside", 1, 1, 2, 2),
+        square("across", 4, 4, 6, 6),
+        square("outside", 8, 8, 9, 9),
+      ]);
+      const ids = index.findInBox(0, 0, 5, 5).map((f) => f.properties.id);
+      expect(ids.sort()).toEqual(["across", "inside"]);
+    });
+  });
 });
 
 function line(
