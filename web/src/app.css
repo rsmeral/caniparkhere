@@ -1094,12 +1094,16 @@ body {
   border-radius: 0.65rem;
 }
 
-.app__map-card .app__detail-info {
+.app__detail--closable {
+  position: relative;
+}
+
+.app__detail--closable .app__detail-info {
   /* Clear of the close button. */
   padding-right: 3rem;
 }
 
-.app__map-card-close {
+.app__detail-close {
   /* A large cross in the card's top right corner. */
   position: absolute;
   top: 0;
@@ -1115,7 +1119,7 @@ body {
   cursor: pointer;
 }
 
-.app__map-card-close svg {
+.app__detail-close svg {
   width: 1.25rem;
   height: 1.25rem;
 }
