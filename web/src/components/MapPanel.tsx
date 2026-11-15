@@ -196,22 +196,7 @@ export function MapPanel({
       )}
       {shownCard && (
         <div className="app__map-card">
-          <CandidateBox card={shownCard} expanded />
-          <button
-            type="button"
-            className="app__map-card-close"
-            aria-label="Close"
-            onClick={closeCard}
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                d="M6 6l12 12M18 6L6 18"
-                stroke="currentColor"
-                stroke-width="2.6"
-                stroke-linecap="round"
-              />
-            </svg>
-          </button>
+          <CandidateBox card={shownCard} expanded onClose={closeCard} />
         </div>
       )}
     </div>

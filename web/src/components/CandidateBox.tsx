@@ -9,6 +9,8 @@ interface CandidateBoxProps {
   expanded: boolean;
   /** Left out, the card can't be opened or closed by tapping it, as over the map. */
   onToggle?: () => void;
+  /** Given, a large cross in the card's top right corner closes it, as over the map. */
+  onClose?: () => void;
 }
 
 /**
@@ -21,10 +23,12 @@ interface CandidateBoxProps {
  * width and keeps Pay a normal button inside it instead of a slice stretched to the height
  * of the opened card.
  */
-export function CandidateBox({ card, expanded, onToggle }: CandidateBoxProps) {
+export function CandidateBox({ card, expanded, onToggle, onClose }: CandidateBoxProps) {
   const { zone, advice } = card;
   return (
-    <div className="app__detail app__detail--resolvable">
+    <div
+      className={`app__detail app__detail--resolvable${onClose ? " app__detail--closable" : ""}`}
+    >
       <div className="app__detail-summary">
         <ZoneSummary
           streetName={card.streetName}
@@ -51,6 +55,18 @@ export function CandidateBox({ card, expanded, onToggle }: CandidateBoxProps) {
           </div>
         </div>
       </div>
+      {onClose && (
+        <button type="button" className="app__detail-close" aria-label="Close" onClick={onClose}>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M6 6l12 12M18 6L6 18"
+              stroke="currentColor"
+              stroke-width="2.6"
+              stroke-linecap="round"
+            />
+          </svg>
+        </button>
+      )}
     </div>
   );
 }
